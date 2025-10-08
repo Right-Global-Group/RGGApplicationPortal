@@ -1,0 +1,48 @@
+# ---------------------------------------------------
+# Laravel & PHP
+# ---------------------------------------------------
+/vendor
+/node_modules
+/public/storage           # Ignore symlinked storage folder
+/storage/*.key            # Ignore encryption keys
+/storage/framework/*      # Cache, sessions, views
+/storage/logs/*           # Log files
+/storage/app/public/*     # Uploaded public files
+/storage/app/private/*    # Uploaded private files (optional)
+!/storage/framework/.gitignore
+!/storage/logs/.gitignore
+!/storage/app/public/.gitignore
+!/storage/app/private/.gitignore
+/bootstrap/cache/*.php    # Compiled bootstrap files
+
+# ---------------------------------------------------
+# Environment & Config
+# ---------------------------------------------------
+.env
+.env.*                   # Ignore any other env files
+!.env.example            # Except example file
+
+# ---------------------------------------------------
+# IDEs & Editors
+# ---------------------------------------------------
+/.idea
+/.vscode
+*.swp
+*.swo
+*.swn
+*.bak
+
+# ---------------------------------------------------
+# NPM / Vite build outputs
+# ---------------------------------------------------
+/public/js/*.js
+/public/css/*.css
+/public/mix-manifest.json
+/public/hot
+/public/build
+/build
+
+# ---------------------------------------------------
+# Composer lock file
+# ---------------------------------------------------
+composer.lock
