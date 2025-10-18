@@ -1,25 +1,20 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\ApplicationsController;
+use App\Http\Controllers\ApplicationStatusController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ImagesController;
-use App\Http\Controllers\ApplicationsController;
-use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\DocuSignWebhookController;
+use App\Http\Controllers\GatewayIntegrationController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProgressTrackerController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
+// Public routes
+Route::post('/webhooks/docusign', [DocuSignWebhookController::class, 'handle'])->name('webhooks.docusign');
 
 // Auth
 
@@ -34,117 +29,61 @@ Route::post('login', [AuthenticatedSessionController::class, 'store'])
 Route::delete('logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
-// Dashboard
+// Authenticated routes
+Route::middleware(['auth'])->group(function () {
+    
+    // Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-Route::get('/', [DashboardController::class, 'index'])
-    ->name('dashboard')
-    ->middleware('auth');
+    // Applications
+    Route::get('/applications', [ApplicationsController::class, 'index'])->name('applications');
+    Route::get('/applications/create', [ApplicationsController::class, 'create'])->name('applications.create');
+    Route::post('/applications', [ApplicationsController::class, 'store'])->name('applications.store');
+    Route::get('/applications/{application}/edit', [ApplicationsController::class, 'edit'])->name('applications.edit');
+    Route::put('/applications/{application}', [ApplicationsController::class, 'update'])->name('applications.update');
+    Route::delete('/applications/{application}', [ApplicationsController::class, 'destroy'])->name('applications.destroy');
+    Route::put('/applications/{application}/restore', [ApplicationsController::class, 'restore'])->name('applications.restore');
 
-// Users
+    // Application Status & Progress
+    Route::get('/applications/{application}/status', [ApplicationStatusController::class, 'show'])->name('applications.status');
+    Route::post('/applications/{application}/update-step', [ApplicationStatusController::class, 'updateStep'])->name('applications.update-step');
+    Route::post('/applications/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink'])->name('applications.send-contract');
+    Route::post('/applications/{application}/approve', [ApplicationStatusController::class, 'markAsApproved'])->name('applications.approve');
+    Route::post('/applications/{application}/send-approval-email', [ApplicationStatusController::class, 'sendApprovalEmail'])->name('applications.send-approval-email');
+    Route::post('/applications/{application}/request-additional-info', [ApplicationStatusController::class, 'requestAdditionalInfo'])->name('applications.request-additional-info');
 
-Route::get('users', [UsersController::class, 'index'])
-    ->name('users')
-    ->middleware('auth');
+    // Invoices
+    Route::post('/applications/{application}/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+    Route::post('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.mark-paid');
 
-Route::get('users/create', [UsersController::class, 'create'])
-    ->name('users.create')
-    ->middleware('auth');
+    // Gateway Integration
+    Route::post('/applications/{application}/gateway', [GatewayIntegrationController::class, 'store'])->name('gateway.store');
+    Route::post('/gateway/{integration}/submit', [GatewayIntegrationController::class, 'submitToGateway'])->name('gateway.submit');
+    Route::post('/gateway/{integration}/testing', [GatewayIntegrationController::class, 'markAsTesting'])->name('gateway.testing');
+    Route::post('/gateway/{integration}/live', [GatewayIntegrationController::class, 'markAsLive'])->name('gateway.live');
 
-Route::post('users', [UsersController::class, 'store'])
-    ->name('users.store')
-    ->middleware('auth');
+    // Progress Tracker
+    Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');
 
-Route::get('users/{user}/edit', [UsersController::class, 'edit'])
-    ->name('users.edit')
-    ->middleware('auth');
+    // Contacts
+    Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts');
+    Route::get('/contacts/create', [ContactsController::class, 'create'])->name('contacts.create');
+    Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
+    Route::get('/contacts/{contact}/edit', [ContactsController::class, 'edit'])->name('contacts.edit');
+    Route::put('/contacts/{contact}', [ContactsController::class, 'update'])->name('contacts.update');
+    Route::delete('/contacts/{contact}', [ContactsController::class, 'destroy'])->name('contacts.destroy');
+    Route::put('/contacts/{contact}/restore', [ContactsController::class, 'restore'])->name('contacts.restore');
 
-Route::put('users/{user}', [UsersController::class, 'update'])
-    ->name('users.update')
-    ->middleware('auth');
+    // Users
+    Route::get('/users', [UsersController::class, 'index'])->name('users');
+    Route::get('/users/create', [UsersController::class, 'create'])->name('users.create');
+    Route::post('/users', [UsersController::class, 'store'])->name('users.store');
+    Route::get('/users/{user}/edit', [UsersController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [UsersController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UsersController::class, 'destroy'])->name('users.destroy');
+    Route::put('/users/{user}/restore', [UsersController::class, 'restore'])->name('users.restore');
 
-Route::delete('users/{user}', [UsersController::class, 'destroy'])
-    ->name('users.destroy')
-    ->middleware('auth');
-
-Route::put('users/{user}/restore', [UsersController::class, 'restore'])
-    ->name('users.restore')
-    ->middleware('auth');
-
-// Applications
-
-Route::get('applications', [ApplicationsController::class, 'index'])
-    ->name('applications')
-    ->middleware('auth');
-
-Route::get('applications/create', [ApplicationsController::class, 'create'])
-    ->name('applications.create')
-    ->middleware('auth');
-
-Route::post('applications', [ApplicationsController::class, 'store'])
-    ->name('applications.store')
-    ->middleware('auth');
-
-Route::get('applications/{application}/edit', [ApplicationsController::class, 'edit'])
-    ->name('applications.edit')
-    ->middleware('auth');
-
-Route::put('applications/{application}', [ApplicationsController::class, 'update'])
-    ->name('applications.update')
-    ->middleware('auth');
-
-Route::delete('applications/{application}', [ApplicationsController::class, 'destroy'])
-    ->name('applications.destroy')
-    ->middleware('auth');
-
-Route::put('applications/{application}/restore', [ApplicationsController::class, 'restore'])
-    ->name('applications.restore')
-    ->middleware('auth');
-
-// Contacts
-
-Route::get('contacts', [ContactsController::class, 'index'])
-    ->name('contacts')
-    ->middleware('auth');
-
-Route::get('contacts/create', [ContactsController::class, 'create'])
-    ->name('contacts.create')
-    ->middleware('auth');
-
-Route::post('contacts', [ContactsController::class, 'store'])
-    ->name('contacts.store')
-    ->middleware('auth');
-
-Route::get('contacts/{contact}/edit', [ContactsController::class, 'edit'])
-    ->name('contacts.edit')
-    ->middleware('auth');
-
-Route::put('contacts/{contact}', [ContactsController::class, 'update'])
-    ->name('contacts.update')
-    ->middleware('auth');
-
-Route::delete('contacts/{contact}', [ContactsController::class, 'destroy'])
-    ->name('contacts.destroy')
-    ->middleware('auth');
-
-Route::put('contacts/{contact}/restore', [ContactsController::class, 'restore'])
-    ->name('contacts.restore')
-    ->middleware('auth');
-
-// Reports
-
-Route::get('reports', [ReportsController::class, 'index'])
-    ->name('reports')
-    ->middleware('auth');
-
-// Reports
-
-Route::get('progress-tracker', [ProgressTrackerController::class, 'index'])
-    ->name('progress-tracker')
-    ->middleware('auth');
-
-
-// Images
-
-Route::get('/img/{path}', [ImagesController::class, 'show'])
-    ->where('path', '.*')
-    ->name('image');
+    // Reports
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
+});
