@@ -17,18 +17,21 @@ class ApplicationsController extends Controller
         return Inertia::render('Applications/Index', [
             'filters' => Request::all('search', 'trashed'),
             'applications' => Auth::user()->account->applications()
+                ->with('account')
                 ->orderBy('name')
                 ->filter(Request::only('search', 'trashed'))
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn ($application) => [
                     'id' => $application->id,
+                    'account_name' => $application->account?->name,
                     'name' => $application->name,
                     'phone' => $application->phone,
                     'city' => $application->city,
                     'deleted_at' => $application->deleted_at,
                 ]),
         ]);
+        
     }
 
     public function create(): Response
@@ -56,10 +59,13 @@ class ApplicationsController extends Controller
 
     public function edit(Application $application): Response
     {
+        $application->load('account'); 
+
         return Inertia::render('Applications/Edit', [
             'application' => [
                 'id' => $application->id,
                 'name' => $application->name,
+                'account_name' => $application->account?->name,
                 'email' => $application->email,
                 'phone' => $application->phone,
                 'address' => $application->address,

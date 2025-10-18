@@ -1,0 +1,152 @@
+<?php
+
+// ApplicationStatusController.php
+namespace App\Http\Controllers;
+
+use App\Models\Application;
+use App\Models\ApplicationStatus;
+use App\Services\DocuSignService;
+use App\Services\EmailService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ApplicationStatusController extends Controller
+{
+    public function __construct(
+        private DocuSignService $docuSignService,
+        private EmailService $emailService
+    ) {}
+
+    public function show(Application $application): Response
+    {
+        return Inertia::render('Applications/Status', [
+            'application' => [
+                'id' => $application->id,
+                'name' => $application->name,
+                'trading_name' => $application->trading_name,
+                'email' => $application->email,
+                'phone' => $application->phone,
+                'status' => $application->status ? [
+                    'current_step' => $application->status->current_step,
+                    'progress_percentage' => $application->status->progress_percentage,
+                    'requires_additional_info' => $application->status->requires_additional_info,
+                    'additional_info_notes' => $application->status->additional_info_notes,
+                    'step_history' => $application->status->step_history,
+                    'timestamps' => [
+                        'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
+                        'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
+                        'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
+                        'invoice_sent' => $application->status->invoice_sent_at?->format('Y-m-d H:i'),
+                        'invoice_paid' => $application->status->invoice_paid_at?->format('Y-m-d H:i'),
+                        'account_live' => $application->status->account_live_at?->format('Y-m-d H:i'),
+                    ],
+                ] : null,
+                'documents' => $application->documents()->get()->map(fn ($doc) => [
+                    'id' => $doc->id,
+                    'type' => $doc->document_type,
+                    'status' => $doc->status,
+                    'sent_at' => $doc->sent_at?->format('Y-m-d H:i'),
+                    'completed_at' => $doc->completed_at?->format('Y-m-d H:i'),
+                ]),
+                'invoices' => $application->invoices()->get()->map(fn ($inv) => [
+                    'id' => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'amount' => $inv->amount,
+                    'status' => $inv->status,
+                    'sent_at' => $inv->sent_at?->format('Y-m-d'),
+                    'paid_at' => $inv->paid_at?->format('Y-m-d'),
+                    'due_date' => $inv->due_date?->format('Y-m-d'),
+                ]),
+                'gateway' => $application->gatewayIntegration ? [
+                    'provider' => $application->gatewayIntegration->gateway_provider,
+                    'status' => $application->gatewayIntegration->status,
+                    'merchant_id' => $application->gatewayIntegration->merchant_id,
+                ] : null,
+                'activity_logs' => $application->activityLogs()
+                    ->with('user')
+                    ->latest()
+                    ->take(20)
+                    ->get()
+                    ->map(fn ($log) => [
+                        'action' => $log->action,
+                        'description' => $log->description,
+                        'user_name' => $log->user?->name,
+                        'created_at' => $log->created_at->format('Y-m-d H:i'),
+                    ]),
+            ],
+        ]);
+    }
+
+    public function updateStep(Application $application): RedirectResponse
+    {
+        $validated = Request::validate([
+            'step' => ['required', 'string'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $application->status->transitionTo($validated['step'], $validated['notes'] ?? null);
+
+        return Redirect::back()->with('success', 'Application status updated.');
+    }
+
+    public function sendContractLink(Application $application): RedirectResponse
+    {
+        try {
+            // Send via DocuSign
+            $envelopeId = $this->docuSignService->sendContract($application);
+            
+            $application->status->update([
+                'docusign_envelope_id' => $envelopeId,
+                'docusign_status' => 'sent',
+            ]);
+
+            $application->status->transitionTo('application_sent', 'Contract sent via DocuSign');
+
+            // Send email with link
+            $this->emailService->sendApplicationLink($application);
+
+            return Redirect::back()->with('success', 'Contract link sent successfully.');
+        } catch (\Exception $e) {
+            return Redirect::back()->with('error', 'Failed to send contract: ' . $e->getMessage());
+        }
+    }
+
+    public function sendApprovalEmail(Application $application): RedirectResponse
+    {
+        try {
+            $this->emailService->sendApprovalEmail($application);
+            $application->status->transitionTo('approval_email_sent', 'Approval email sent');
+
+            return Redirect::back()->with('success', 'Approval email sent.');
+        } catch (\Exception $e) {
+            return Redirect::back()->with('error', 'Failed to send email: ' . $e->getMessage());
+        }
+    }
+
+    public function requestAdditionalInfo(Application $application): RedirectResponse
+    {
+        $validated = Request::validate([
+            'notes' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $application->status->update([
+            'requires_additional_info' => true,
+            'additional_info_notes' => $validated['notes'],
+        ]);
+
+        $this->emailService->sendAdditionalInfoRequest($application, $validated['notes']);
+
+        return Redirect::back()->with('success', 'Additional information requested.');
+    }
+
+    public function markAsApproved(Application $application): RedirectResponse
+    {
+        $application->status->transitionTo('application_approved', 'Application manually approved');
+
+        return Redirect::back()->with('success', 'Application approved.');
+    }
+}
