@@ -1,3 +1,19 @@
+<script>
+import { Head } from '@inertiajs/vue3'
+import Layout from '@/Shared/Layout.vue'
+
+export default {
+  components: {
+    Head,
+  },
+  layout: Layout,
+  props: {
+    applications: Object,
+    stats: Object,
+  },
+}
+</script>
+
 <template>
   <div class="min-h-screen">
     <Head title="Dashboard" />
@@ -11,12 +27,13 @@
     <!-- Stats Section -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
       <div class="bg-gradient-to-br from-primary-600/20 to-magenta-600/20 backdrop-blur-sm rounded-xl p-6 border border-primary-700/30 hover:border-magenta-500/50 transition-all duration-300 hover:scale-105">
-        <div class="text-5xl font-bold text-white mb-2">500</div>
+        <div class="text-5xl font-bold text-white mb-2">{{ stats.total }}</div>
         <div class="text-magenta-400 font-semibold">Total Applications</div>
       </div>
+
       <div class="bg-gradient-to-br from-primary-600/20 to-magenta-600/20 backdrop-blur-sm rounded-xl p-6 border border-primary-700/30 hover:border-magenta-500/50 transition-all duration-300 hover:scale-105">
-        <div class="text-5xl font-bold text-white mb-2">450</div>
-        <div class="text-magenta-400 font-semibold">Applications Completed</div>
+        <div class="text-5xl font-bold text-white mb-2">{{ stats.approved }}</div>
+        <div class="text-magenta-400 font-semibold">Applications Approved</div>
       </div>
       <div class="bg-gradient-to-br from-primary-600/20 to-magenta-600/20 backdrop-blur-sm rounded-xl p-6 border border-primary-700/30 hover:border-magenta-500/50 transition-all duration-300 hover:scale-105">
         <div class="text-5xl font-bold text-white mb-2">5</div>
@@ -29,15 +46,3 @@
     </div>
   </div>
 </template>
-
-<script>
-import { Head } from '@inertiajs/vue3'
-import Layout from '@/Shared/Layout.vue'
-
-export default {
-  components: {
-    Head,
-  },
-  layout: Layout,
-}
-</script>

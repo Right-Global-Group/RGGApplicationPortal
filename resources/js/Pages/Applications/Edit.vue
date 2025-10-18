@@ -1,16 +1,21 @@
 <template>
   <div>
     <Head :title="form.name" />
-    <h1 class="mb-4 text-3xl font-bold">
-      <Link class="text-indigo-400 hover:text-indigo-600" href="/applications">Applications</Link>
-      <span class="text-indigo-400 font-medium">/</span>
+    <h1 class="mb-6 text-3xl font-bold text-white">
+      <Link class="text-magenta-400 hover:text-magenta-500 transition-colors" href="/applications">Applications</Link>
+      <span class="text-gray-500 mx-2">/</span>
       {{ form.name }}
     </h1>
-    <trashed-message v-if="application.deleted_at" class="mb-6" @restore="restore"> This application has been deleted. </trashed-message>
-    <div class="max-w-3xl bg-white rounded-md shadow overflow-hidden">
+
+    <trashed-message v-if="application.deleted_at" class="mb-6" @restore="restore">
+      This application has been deleted.
+    </trashed-message>
+
+    <div class="max-w-3xl bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
       <form @submit.prevent="update">
         <div class="flex flex-wrap -mb-8 -mr-6 p-8">
           <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Name" />
+          <text-input v-model="application.account_name" :error="form.errors.name" disabled class="pb-8 pr-6 w-full lg:w-1/2" label="Merchant Account Name" />
           <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" />
           <text-input v-model="form.phone" :error="form.errors.phone" class="pb-8 pr-6 w-full lg:w-1/2" label="Phone" />
           <text-input v-model="form.address" :error="form.errors.address" class="pb-8 pr-6 w-full lg:w-1/2" label="Address" />
@@ -23,46 +28,72 @@
           </select-input>
           <text-input v-model="form.postal_code" :error="form.errors.postal_code" class="pb-8 pr-6 w-full lg:w-1/2" label="Postal code" />
         </div>
-        <div class="flex items-center px-8 py-4 bg-gray-50 border-t border-gray-100">
-          <button v-if="!application.deleted_at" class="text-red-600 hover:underline" tabindex="-1" type="button" @click="destroy">Delete Application</button>
-          <loading-button :loading="form.processing" class="btn-indigo ml-auto" type="submit">Update Application</loading-button>
+
+        <div class="flex items-center px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
+          <button
+            v-if="!application.deleted_at"
+            class="text-red-500 hover:text-red-400 transition-colors"
+            tabindex="-1"
+            type="button"
+            @click="destroy"
+          >
+            Delete Application
+          </button>
+          <loading-button :loading="form.processing" class="btn-primary ml-auto" type="submit">
+            Update Application
+          </loading-button>
         </div>
       </form>
     </div>
-    <h2 class="mt-12 text-2xl font-bold">Contacts</h2>
-    <div class="mt-6 bg-white rounded shadow overflow-x-auto">
+
+    <h2 class="mt-12 text-2xl font-bold text-magenta-400">Contacts</h2>
+    <div class="mt-6 bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-primary-800/30">
       <table class="w-full whitespace-nowrap">
-        <tr class="text-left font-bold">
-          <th class="pb-4 pt-6 px-6">Name</th>
-          <th class="pb-4 pt-6 px-6">City</th>
-          <th class="pb-4 pt-6 px-6" colspan="2">Phone</th>
-        </tr>
-        <tr v-for="contact in application.contacts" :key="contact.id" class="hover:bg-gray-100 focus-within:bg-gray-100">
-          <td class="border-t">
-            <Link class="flex items-center px-6 py-4 focus:text-indigo-500" :href="`/contacts/${contact.id}/edit`">
-              {{ contact.name }}
-              <icon v-if="contact.deleted_at" name="trash" class="shrink-0 ml-2 w-3 h-3 fill-gray-400" />
-            </Link>
-          </td>
-          <td class="border-t">
-            <Link class="flex items-center px-6 py-4" :href="`/contacts/${contact.id}/edit`" tabindex="-1">
-              {{ contact.city }}
-            </Link>
-          </td>
-          <td class="border-t">
-            <Link class="flex items-center px-6 py-4" :href="`/contacts/${contact.id}/edit`" tabindex="-1">
-              {{ contact.phone }}
-            </Link>
-          </td>
-          <td class="w-px border-t">
-            <Link class="flex items-center px-4" :href="`/contacts/${contact.id}/edit`" tabindex="-1">
-              <icon name="cheveron-right" class="block w-6 h-6 fill-gray-400" />
-            </Link>
-          </td>
-        </tr>
-        <tr v-if="application.contacts.length === 0">
-          <td class="px-6 py-4 border-t" colspan="4">No contacts found.</td>
-        </tr>
+        <thead>
+          <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-700/50">
+            <th class="pb-4 pt-6 px-6 text-magenta-400">Name</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400">City</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400" colspan="2">Phone</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="contact in application.contacts"
+            :key="contact.id"
+            class="hover:bg-primary-900/30 focus-within:bg-primary-900/30 transition-colors border-b border-primary-800/20"
+          >
+            <td class="border-t border-primary-800/20">
+              <Link class="flex items-center px-6 py-4 text-gray-200 hover:text-magenta-400 transition-colors"
+                :href="`/contacts/${contact.id}/edit`">
+                {{ contact.name }}
+                <icon v-if="contact.deleted_at" name="trash" class="shrink-0 ml-2 w-3 h-3 fill-gray-500" />
+              </Link>
+            </td>
+            <td class="border-t border-primary-800/20">
+              <Link class="flex items-center px-6 py-4 text-gray-300 hover:text-gray-100 transition-colors"
+                :href="`/contacts/${contact.id}/edit`" tabindex="-1">
+                {{ contact.city }}
+              </Link>
+            </td>
+            <td class="border-t border-primary-800/20">
+              <Link class="flex items-center px-6 py-4 text-gray-300 hover:text-gray-100 transition-colors"
+                :href="`/contacts/${contact.id}/edit`" tabindex="-1">
+                {{ contact.phone }}
+              </Link>
+            </td>
+            <td class="w-px border-t border-primary-800/20">
+              <Link class="flex items-center px-4 py-4 hover:bg-primary-800/50 rounded transition-colors"
+                :href="`/contacts/${contact.id}/edit`" tabindex="-1">
+                <icon name="cheveron-right" class="block w-6 h-6 fill-gray-400 hover:fill-magenta-400 transition-colors" />
+              </Link>
+            </td>
+          </tr>
+          <tr v-if="application.contacts.length === 0">
+            <td class="px-6 py-8 text-center text-gray-400 border-t border-primary-800/20" colspan="4">
+              No contacts found.
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -78,24 +109,15 @@ import LoadingButton from '@/Shared/LoadingButton.vue'
 import TrashedMessage from '@/Shared/TrashedMessage.vue'
 
 export default {
-  components: {
-    Head,
-    Icon,
-    Link,
-    LoadingButton,
-    SelectInput,
-    TextInput,
-    TrashedMessage,
-  },
+  components: { Head, Icon, Link, LoadingButton, SelectInput, TextInput, TrashedMessage },
   layout: Layout,
-  props: {
-    application: Object,
-  },
+  props: { application: Object },
   remember: 'form',
   data() {
     return {
       form: this.$inertia.form({
         name: this.application.name,
+        account_name: this.application.account_name,
         email: this.application.email,
         phone: this.application.phone,
         address: this.application.address,

@@ -21,13 +21,14 @@
         <thead>
           <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-700/50">
             <th class="pb-4 pt-6 px-6 text-magenta-400">Name</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400">Merchant Account</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">City</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400" colspan="2">Phone</th>
           </tr>
         </thead>
         <tbody>
           <tr 
-            v-for="application in applications.data" 
+            v-for="application in applications.data"
             :key="application.id" 
             class="hover:bg-primary-900/30 focus-within:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
           >
@@ -37,6 +38,15 @@
                 :href="`/applications/${application.id}/edit`"
               >
                 {{ application.name }}
+                <icon v-if="application.deleted_at" name="trash" class="shrink-0 ml-2 w-3 h-3 fill-gray-500" />
+              </Link>
+            </td>
+            <td class="border-t border-primary-800/20">
+              <Link 
+                class="flex items-center px-6 py-4 text-gray-200 hover:text-magenta-400 focus:text-magenta-400 transition-colors" 
+                :href="`/applications/${application.id}/edit`"
+              >
+                {{ application.account_name }}
                 <icon v-if="application.deleted_at" name="trash" class="shrink-0 ml-2 w-3 h-3 fill-gray-500" />
               </Link>
             </td>

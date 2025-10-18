@@ -7,9 +7,9 @@
       <div class="md:flex md:flex-col md:h-screen">
         <!-- Top bar -->
         <div class="md:flex md:shrink-0">
-          <div class="flex items-center justify-between px-8 py-4 bg-dark-800 border-b border-primary-700">
+          <div class="flex items-center justify-between px-6 py-2 bg-dark-800 border-b border-primary-700">
             <Link class="mt-1" href="/">
-              <Logo class="fill-magenta-400" width="120" height="28" />
+              <Logo class="fill-magenta-400" width="140" height="38" />
             </Link>
             <Dropdown class="md:hidden" placement="bottom-end">
               <template #default>
@@ -27,7 +27,7 @@
 
           <!-- User bar -->
           <div class="md:text-md flex items-center justify-between md:pl-20 md:px-12 pl-10 pr-8 w-full text-sm bg-dark-800 border-b border-primary-700">
-            <div class="mr-4 mt-1">Welcome, {{ auth.user.account?.name || 'Guest' }}</div>
+            <div class="mr-4 mt-1 ml-9">Account: {{ auth.user.account?.name || 'Guest' }}</div>
 
             <Dropdown class="mt-1" placement="bottom-end">
               <template #default>
@@ -55,7 +55,7 @@
                     Manage Users
                   </Link>
                   <Link 
-                    class="block px-6 py-2 text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
+                    class="block px-6 py-2 w-full text-left text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
                     href="/logout" method="delete" as="button"
                   >
                     Logout
