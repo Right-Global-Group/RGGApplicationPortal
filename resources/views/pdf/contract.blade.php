@@ -129,12 +129,6 @@
             <li><strong>Term and Termination:</strong> This agreement shall remain in effect until terminated by either party with 30 days written notice. Provider reserves the right to terminate immediately for breach of terms.</li>
             
             <li><strong>Data Protection:</strong> Both parties agree to comply with GDPR and all applicable data protection regulations. Merchant data will be handled in accordance with our Privacy Policy.</li>
-            
-            <li><strong>Liability:</strong> Provider's liability is limited to direct damages not exceeding the fees paid by Merchant in the preceding 12 months. Provider is not liable for indirect, consequential, or punitive damages.</li>
-            
-            <li><strong>Chargebacks:</strong> Merchant is responsible for all chargebacks and associated fees. Provider may hold reserves to cover potential chargeback liability.</li>
-            
-            <li><strong>Dispute Resolution:</strong> Any disputes arising from this agreement shall be resolved through arbitration in accordance with UK law.</li>
         </ul>
     </div>
 
