@@ -17,22 +17,55 @@ class UsersController extends Controller
 {
     public function index(): Response
     {
+        $query = User::query();
+
+        // Search filter for name
+        if ($search = Request::input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%");
+            });
+        }
+
+        // Search filter for email
+        if ($emailSearch = Request::input('email_search')) {
+            $query->where('email', 'like', "%{$emailSearch}%");
+        }
+
+        // Date range filter
+        if ($dateFrom = Request::input('date_from')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo = Request::input('date_to')) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        // Deleted filter
+        if ($deleted = Request::input('deleted')) {
+            if ($deleted === 'with') {
+                $query->withTrashed();
+            } elseif ($deleted === 'only') {
+                $query->onlyTrashed();
+            }
+        }
+
+        $users = $query
+            ->get()
+            ->map(fn ($user) => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'owner' => $user->owner,
+                'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 40, 'h' => 40, 'fit' => 'crop']) : null,
+                'deleted_at' => $user->deleted_at,
+                'created_at' => $user->created_at?->format('Y-m-d H:i'),
+                'updated_at' => $user->updated_at?->format('Y-m-d H:i'),
+            ]);
+
         return Inertia::render('Users/Index', [
-            'filters' => Request::all('search', 'trashed'),
-            'users' => User::query()
-                ->filter(Request::only('search', 'trashed'))
-                ->get()
-                ->transform(fn ($user) => [
-                    'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'email' => $user->email,
-                    'owner' => $user->owner,
-                    'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 40, 'h' => 40, 'fit' => 'crop']) : null,
-                    'deleted_at' => $user->deleted_at,
-                    'created_at' => $user->created_at,
-                    'updated_at' => $user->updated_at,
-                ]),
+            'filters' => Request::only(['search', 'email_search', 'date_from', 'date_to', 'deleted']),
+            'users' => $users,
         ]);
     }
 

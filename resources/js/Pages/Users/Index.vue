@@ -3,20 +3,69 @@
     <Head title="Users" />
     <h1 class="mb-4 text-3xl font-bold text-white">Users</h1>
 
-    <!-- Filters + Create button -->
-    <div class="flex items-center justify-between mb-6">
-      <search-filter v-model="form.search" class="mr-4 w-full max-w-md" @reset="reset">
-        <label class="block text-gray-300 font-medium mb-2">Trashed:</label>
-        <select
-          v-model="form.trashed"
-          class="form-select mt-1 w-full bg-dark-800 border-primary-700 text-gray-200 rounded-lg focus:border-magenta-500 focus:ring-magenta-500"
-        >
-          <option :value="null" />
-          <option value="with">With Trashed</option>
-          <option value="only">Only Trashed</option>
-        </select>
-      </search-filter>
+    <!-- Filters -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-primary-800/30">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Search User Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Search Name</label>
+          <input
+            v-model="form.search"
+            type="text"
+            placeholder="Search by name..."
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @input="debouncedFilter"
+          />
+        </div>
 
+        <!-- Search Email -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Search Email</label>
+          <input
+            v-model="form.email_search"
+            type="text"
+            placeholder="Search by email..."
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @input="debouncedFilter"
+          />
+        </div>
+
+        <!-- Date From -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Created From</label>
+          <input
+            v-model="form.date_from"
+            type="date"
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @change="filter"
+          />
+        </div>
+
+        <!-- Date To -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Created To</label>
+          <input
+            v-model="form.date_to"
+            type="date"
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @change="filter"
+          />
+        </div>
+      </div>
+
+      <!-- Clear Filters Button -->
+      <div v-if="hasFilters" class="mt-4">
+        <button
+          @click="clearFilters"
+          class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+        >
+          Clear Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Create Button -->
+    <div class="flex justify-end mb-6">
       <Link class="btn-primary flex items-center gap-2" href="/users/create">
         <span>Create</span>
         <span class="hidden md:inline">User</span>
@@ -53,8 +102,8 @@
               </Link>
             </td>
             <td class="px-6 py-4 text-gray-300">{{ user.email }}</td>
-            <td class="px-6 py-4 text-gray-300">{{ formatDate(user.created_at) }}</td>
-            <td class="px-6 py-4 text-gray-300">{{ formatDate(user.updated_at) }}</td>
+            <td class="px-6 py-4 text-gray-300 text-sm">{{ user.created_at }}</td>
+            <td class="px-6 py-4 text-gray-300 text-sm">{{ user.updated_at }}</td>
             <td class="w-px border-t border-primary-800/20">
               <Link
                 class="flex items-center px-4 py-4 rounded hover:bg-primary-800/50 transition-colors"
@@ -78,49 +127,57 @@
 </template>
 
 <script>
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import Icon from '@/Shared/Icon.vue'
-import pickBy from 'lodash/pickBy'
 import Layout from '@/Shared/Layout.vue'
+import { reactive, computed } from 'vue'
 import throttle from 'lodash/throttle'
-import mapValues from 'lodash/mapValues'
-import SearchFilter from '@/Shared/SearchFilter.vue'
 
 export default {
-  components: { Head, Icon, Link, SearchFilter },
+  components: { Head, Icon, Link },
   layout: Layout,
-  props: { filters: Object, users: Array },
-  data() {
+  props: { 
+    filters: Object, 
+    users: Array 
+  },
+  setup(props) {
+    const form = reactive({
+      search: props.filters.search || '',
+      email_search: props.filters.email_search || '',
+      date_from: props.filters.date_from || '',
+      date_to: props.filters.date_to || '',
+      deleted: props.filters.deleted || null,
+    })
+
+    const hasFilters = computed(() => {
+      return form.search || form.email_search || form.date_from || form.date_to || form.deleted
+    })
+
+    const filter = () => {
+      router.get('/users', form, {
+        preserveState: true,
+        preserveScroll: true,
+      })
+    }
+
+    const debouncedFilter = throttle(filter, 300)
+
+    const clearFilters = () => {
+      form.search = ''
+      form.email_search = ''
+      form.date_from = ''
+      form.date_to = ''
+      form.deleted = null
+      filter()
+    }
+
     return {
-      form: {
-        search: this.filters.search,
-        trashed: this.filters.trashed,
-      },
+      form,
+      hasFilters,
+      filter,
+      debouncedFilter,
+      clearFilters,
     }
   },
-  watch: {
-    form: {
-      deep: true,
-      handler: throttle(function () {
-        this.$inertia.get('/users', pickBy(this.form), { preserveState: true })
-      }, 150),
-    },
-  },
-  methods: {
-    reset() {
-      this.form = mapValues(this.form, () => null)
-    },
-    formatDate(date) {
-      if (!date) return '—'
-      const d = new Date(date)
-      return d.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    },
-  }
 }
 </script>

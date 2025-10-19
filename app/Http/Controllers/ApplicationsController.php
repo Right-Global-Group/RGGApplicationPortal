@@ -15,26 +15,58 @@ class ApplicationsController extends Controller
 {
     public function index(): Response
     {
+        $query = Application::query()
+            ->with(['account', 'user'])
+            ->orderBy('id', 'desc');
+
+        // Search filter for application name
+        if ($search = Request::input('search')) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        // Search filter for account name
+        if ($accountSearch = Request::input('account_search')) {
+            $query->whereHas('account', function ($q) use ($accountSearch) {
+                $q->where('name', 'like', "%{$accountSearch}%");
+            });
+        }
+
+        // Date range filter
+        if ($dateFrom = Request::input('date_from')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo = Request::input('date_to')) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        // Deleted filter
+        if ($deleted = Request::input('deleted')) {
+            if ($deleted === 'with') {
+                $query->withTrashed();
+            } elseif ($deleted === 'only') {
+                $query->onlyTrashed();
+            }
+        }
+
+        $applications = $query
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn ($application) => [
+                'id' => $application->id,
+                'account_id' => $application->account_id,
+                'account_name' => $application->account?->name,
+                'name' => $application->name,
+                'user_name' => $application->user
+                    ? ($application->user->first_name . ' ' . $application->user->last_name)
+                    : null,
+                'deleted_at' => $application->deleted_at,
+                'created_at' => $application->created_at?->format('Y-m-d H:i'),
+                'updated_at' => $application->updated_at?->format('Y-m-d H:i'),
+            ]);
+
         return Inertia::render('Applications/Index', [
-            'filters' => Request::all('search', 'trashed'),
-            'applications' => Application::query()
-                ->with(['account', 'user'])
-                ->orderBy('id', 'desc')
-                ->filter(Request::only('search', 'trashed'))
-                ->paginate(10)
-                ->withQueryString()
-                ->through(fn ($application) => [
-                    'id' => $application->id,
-                    'account_id' => $application->account_id,
-                    'account_name' => $application->account?->name,
-                    'name' => $application->name,
-                    'user_name' => $application->user
-                        ? ($application->user->first_name . ' ' . $application->user->last_name)
-                        : null,
-                    'deleted_at' => $application->deleted_at,
-                    'created_at' => $application->created_at,
-                    'updated_at' => $application->updated_at,
-                ]),
+            'filters' => Request::only(['search', 'account_search', 'date_from', 'date_to', 'deleted']),
+            'applications' => $applications,
         ]);
     }
 

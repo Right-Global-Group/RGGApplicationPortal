@@ -13,37 +13,64 @@ class AccountsController extends Controller
 {
     public function index(): Response
     {
-        $accounts = Account::query()
-            ->with('applications')
-            ->orderBy('name')
-            ->filter(Request::only('search', 'trashed'))
+        $query = Account::query()
+            ->with(['applications', 'user'])
+            ->orderBy('name');
+
+        // Search filter for account name
+        if ($search = Request::input('search')) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        // Search filter for creator name
+        if ($creatorSearch = Request::input('creator_search')) {
+            $query->whereHas('user', function ($q) use ($creatorSearch) {
+                $q->where('first_name', 'like', "%{$creatorSearch}%")
+                  ->orWhere('last_name', 'like', "%{$creatorSearch}%");
+            });
+        }
+
+        // Date range filter
+        if ($dateFrom = Request::input('date_from')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo = Request::input('date_to')) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        // Deleted filter
+        if ($deleted = Request::input('deleted')) {
+            if ($deleted === 'with') {
+                $query->withTrashed();
+            } elseif ($deleted === 'only') {
+                $query->onlyTrashed();
+            }
+        }
+
+        $accounts = $query
             ->paginate(10)
             ->withQueryString()
             ->through(fn ($account) => [
                 'id' => $account->id,
                 'name' => $account->name,
-                'user_name' => $account->user?->first_name . ' ' . $account->user?->last_name,
+                'user_name' => $account->user 
+                    ? ($account->user->first_name . ' ' . $account->user->last_name)
+                    : null,
                 'applications_count' => $account->applications->count(),
                 'applications' => $account->applications->map(fn ($app) => [
                     'id' => $app->id,
                     'name' => $app->name,
                 ]),
-                'created_at' => $account->created_at ? $account->created_at->toDateTimeString() : null,
-                'updated_at' => $account->updated_at ? $account->updated_at->toDateTimeString() : null,
+                'deleted_at' => $account->deleted_at,
+                'created_at' => $account->created_at?->format('Y-m-d H:i'),
+                'updated_at' => $account->updated_at?->format('Y-m-d H:i'),
             ]);
-    
-        // Add log before returning
-        \Log::info('Accounts index data:', [
-            'filters' => Request::all('search', 'trashed'),
-            'accounts' => $accounts->items(), // Log only items, not paginator metadata
-        ]);
-    
+
         return Inertia::render('Accounts/Index', [
-            'filters' => Request::all('search', 'trashed'),
+            'filters' => Request::only(['search', 'creator_search', 'date_from', 'date_to', 'deleted']),
             'accounts' => $accounts,
         ]);
     }
-    
 
     /**
      * Show the form to create a new account.

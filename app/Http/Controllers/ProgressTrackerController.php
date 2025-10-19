@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
+use Illuminate\Support\Facades\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -10,15 +11,48 @@ class ProgressTrackerController extends Controller
 {
     public function index(): Response
     {
-        // 🔹 Load all applications, not tied to user
-        $applications = Application::query()
-            ->with(['status', 'gatewayIntegration'])
+        $query = Application::query()
+            ->with(['status', 'gatewayIntegration', 'account']);
+
+        // Search filter
+        if ($search = Request::input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('trading_name', 'like', "%{$search}%");
+            });
+        }
+
+        // Account name filter
+        if ($accountSearch = Request::input('account_search')) {
+            $query->whereHas('account', function ($q) use ($accountSearch) {
+                $q->where('name', 'like', "%{$accountSearch}%");
+            });
+        }
+
+        // Status filter
+        if ($status = Request::input('status')) {
+            $query->whereHas('status', function ($q) use ($status) {
+                $q->where('current_step', $status);
+            });
+        }
+
+        // Date range filter for last updated
+        if ($dateFrom = Request::input('date_from')) {
+            $query->where('updated_at', '>=', $dateFrom);
+        }
+        if ($dateTo = Request::input('date_to')) {
+            $query->where('updated_at', '<=', $dateTo . ' 23:59:59');
+        }
+
+        $applications = $query
             ->latest()
             ->paginate(20)
+            ->withQueryString()
             ->through(fn ($app) => [
                 'id' => $app->id,
                 'name' => $app->name,
                 'trading_name' => $app->trading_name,
+                'account_name' => $app->account?->name,
                 'current_step' => $app->status?->current_step ?? 'created',
                 'progress_percentage' => $app->status?->progress_percentage ?? 0,
                 'gateway_provider' => $app->gatewayIntegration?->gateway_provider,
@@ -26,19 +60,36 @@ class ProgressTrackerController extends Controller
                 'updated_at' => $app->updated_at->format('Y-m-d H:i'),
             ]);
 
-        // 🔹 Calculate stats based on the paginated collection
+        // Calculate stats from all applications (not filtered)
+        $allApplications = Application::with('status')->get();
         $stats = [
-            'total_applications' => $applications->total(), // Use total() not count()
-            'pending_contracts' => $applications->getCollection()->where('current_step', 'application_sent')->count(),
-            'awaiting_approval' => $applications->getCollection()->where('current_step', 'contract_submitted')->count(),
-            'awaiting_payment' => $applications->getCollection()->where('current_step', 'invoice_sent')->count(),
-            'in_integration' => $applications->getCollection()->whereIn('current_step', ['invoice_paid', 'gateway_integrated'])->count(),
-            'live_accounts' => $applications->getCollection()->where('current_step', 'account_live')->count(),
+            'total_applications' => $allApplications->count(),
+            'pending_contracts' => $allApplications->filter(fn($app) => $app->status?->current_step === 'application_sent')->count(),
+            'awaiting_approval' => $allApplications->filter(fn($app) => $app->status?->current_step === 'contract_submitted')->count(),
+            'awaiting_payment' => $allApplications->filter(fn($app) => $app->status?->current_step === 'invoice_sent')->count(),
+            'in_integration' => $allApplications->filter(fn($app) => in_array($app->status?->current_step, ['invoice_paid', 'gateway_integrated']))->count(),
+            'live_accounts' => $allApplications->filter(fn($app) => $app->status?->current_step === 'account_live')->count(),
+        ];
+
+        // Available status options for filter dropdown
+        $statusOptions = [
+            'created' => 'Created',
+            'application_sent' => 'Contract Sent',
+            'contract_completed' => 'Contract Signed',
+            'contract_submitted' => 'Submitted',
+            'application_approved' => 'Approved',
+            'approval_email_sent' => 'Approval Sent',
+            'invoice_sent' => 'Invoice Sent',
+            'invoice_paid' => 'Payment Received',
+            'gateway_integrated' => 'Integration Complete',
+            'account_live' => 'Live',
         ];
 
         return Inertia::render('ProgressTracker/Index', [
             'applications' => $applications,
             'stats' => $stats,
+            'filters' => Request::only(['search', 'account_search', 'status', 'date_from', 'date_to']),
+            'statusOptions' => $statusOptions,
         ]);
     }
 }

@@ -31,12 +31,89 @@
       </div>
     </div>
 
+    <!-- Filters -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-primary-800/30">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Search Application Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Search Application</label>
+          <input
+            v-model="form.search"
+            type="text"
+            placeholder="Search by name..."
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @input="debouncedFilter"
+          />
+        </div>
+
+        <!-- Search Account Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Search Account</label>
+          <input
+            v-model="form.account_search"
+            type="text"
+            placeholder="Search by account..."
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @input="debouncedFilter"
+          />
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Status</label>
+          <select
+            v-model="form.status"
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @change="filter"
+          >
+            <option value="">All Statuses</option>
+            <option v-for="(label, value) in statusOptions" :key="value" :value="value">
+              {{ label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Date From -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Updated From</label>
+          <input
+            v-model="form.date_from"
+            type="date"
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @change="filter"
+          />
+        </div>
+
+        <!-- Date To -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Updated To</label>
+          <input
+            v-model="form.date_to"
+            type="date"
+            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
+            @change="filter"
+          />
+        </div>
+      </div>
+
+      <!-- Clear Filters Button -->
+      <div v-if="hasFilters" class="mt-4">
+        <button
+          @click="clearFilters"
+          class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+        >
+          Clear Filters
+        </button>
+      </div>
+    </div>
+
     <!-- Applications Table -->
     <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-primary-800/30">
       <table class="w-full whitespace-nowrap">
         <thead>
           <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
             <th class="pb-4 pt-6 px-6 text-magenta-400">Application</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400">Account Name</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Status</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Progress</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Gateway</th>
@@ -65,6 +142,12 @@
                   class="shrink-0 ml-2 w-5 h-5 fill-red-500 animate-pulse" 
                 />
               </Link>
+            </td>
+            <td class="border-t border-primary-800/20 px-6 py-4">
+              <span v-if="application.account_name" class="text-gray-300">
+                {{ application.account_name }}
+              </span>
+              <span v-else class="text-gray-500">-</span>
             </td>
             <td class="border-t border-primary-800/20 px-6 py-4">
               <span 
@@ -105,8 +188,8 @@
               </Link>
             </td>
           </tr>
-          <tr v-if="applications.length === 0">
-            <td class="px-6 py-8 border-t border-primary-800/20 text-gray-400 text-center" colspan="6">
+          <tr v-if="applications.data.length === 0">
+            <td class="px-6 py-8 border-t border-primary-800/20 text-gray-400 text-center" colspan="7">
               No applications found.
             </td>
           </tr>
@@ -118,10 +201,12 @@
 </template>
 
 <script>
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import Icon from '@/Shared/Icon.vue'
 import Layout from '@/Shared/Layout.vue'
 import Pagination from '@/Shared/Pagination.vue'
+import { reactive, computed } from 'vue'
+import throttle from 'lodash/throttle'
 
 export default {
   components: {
@@ -134,6 +219,47 @@ export default {
   props: {
     applications: Object,
     stats: Object,
+    filters: Object,
+    statusOptions: Object,
+  },
+  setup(props) {
+    const form = reactive({
+      search: props.filters.search || '',
+      account_search: props.filters.account_search || '',
+      status: props.filters.status || '',
+      date_from: props.filters.date_from || '',
+      date_to: props.filters.date_to || '',
+    })
+
+    const hasFilters = computed(() => {
+      return form.search || form.account_search || form.status || form.date_from || form.date_to
+    })
+
+    const filter = () => {
+      router.get('/progress-tracker', form, {
+        preserveState: true,
+        preserveScroll: true,
+      })
+    }
+
+    const debouncedFilter = throttle(filter, 300)
+
+    const clearFilters = () => {
+      form.search = ''
+      form.account_search = ''
+      form.status = ''
+      form.date_from = ''
+      form.date_to = ''
+      filter()
+    }
+
+    return {
+      form,
+      hasFilters,
+      filter,
+      debouncedFilter,
+      clearFilters,
+    }
   },
   methods: {
     formatStatus(status) {
