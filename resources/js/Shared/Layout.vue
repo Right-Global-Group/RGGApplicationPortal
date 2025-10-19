@@ -26,9 +26,7 @@
           </div>
 
           <!-- User bar -->
-          <div class="md:text-md flex items-center justify-between md:pl-20 md:px-12 pl-10 pr-8 w-full text-sm bg-dark-800 border-b border-primary-700">
-            <div class="mr-4 mt-1 ml-9">Account: {{ auth.user.account?.name || 'Guest' }}</div>
-
+          <div class="md:text-md flex items-center justify-end md:pl-20 md:px-12 pl-10 pr-8 w-full text-sm bg-dark-800 border-b border-primary-700">
             <Dropdown class="mt-1" placement="bottom-end">
               <template #default>
                 <div class="group flex items-center cursor-pointer select-none">

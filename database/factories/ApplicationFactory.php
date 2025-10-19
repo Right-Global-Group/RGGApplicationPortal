@@ -13,7 +13,7 @@ class ApplicationFactory extends Factory
             'user_id' => User::inRandomOrder()->first()?->id,
             'name' => $this->faker->company(),
             'email' => $this->faker->companyEmail(),
-            'phone' => $this->faker->tollFreePhoneNumber(),
+            'phone' => '07' . $this->faker->numberBetween(100000000, 999999999),
             'address' => $this->faker->streetAddress(),
             'city' => $this->faker->city(),
             'region' => $this->faker->state(),

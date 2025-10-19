@@ -162,16 +162,40 @@ class ApplicationStatusController extends Controller
     /**
      * Callback after DocuSign signing is complete
      */
-    public function docusignCallback(Application $application): RedirectResponse
+    public function docusignCallback(Application $application): Response
     {
         $event = Request::query('event');
         
         if ($event === 'signing_complete') {
-            return Redirect::route('applications.status', $application)
-                ->with('success', 'Contract signed successfully!');
+            // Find the most recent sent DocuSign document
+            $document = $application->documents()
+                ->where('external_system', 'docusign')
+                ->where('status', 'sent')
+                ->latest()
+                ->first();
+                
+            if ($document) {
+                // Update document status
+                $document->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+                
+                // Update application status
+                $application->status->transitionTo('contract_completed', 'Contract signed via DocuSign');
+                $application->status->transitionTo('contract_submitted', 'Contract automatically submitted');
+            }
+            
+            // Return a view that closes the window and notifies the opener
+            return Inertia::render('DocuSign/Callback', [
+                'success' => true,
+                'message' => 'Contract signed successfully!',
+            ]);
         }
         
-        return Redirect::route('applications.status', $application)
-            ->with('info', 'Contract signing session ended.');
+        return Inertia::render('DocuSign/Callback', [
+            'success' => false,
+            'message' => 'Contract signing session ended.',
+        ]);
     }
 }

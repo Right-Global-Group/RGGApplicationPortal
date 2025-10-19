@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
 
         // Create account with a random user
         $account = Account::create([
-            'name' => 'Right Global Group',
+            'name' => 'Test Merchant Account',
             'user_id' => User::inRandomOrder()->first()->id,
         ]);
 

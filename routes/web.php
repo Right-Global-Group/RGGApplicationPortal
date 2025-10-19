@@ -15,7 +15,7 @@ use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
-Route::post('/webhooks/docusign', [DocuSignWebhookController::class, 'handle'])->name('webhooks.docusign');
+Route::post('/webhooks/docusign', [DocuSignWebhookController::class, 'handle'])->name('docusign.webhook');
 
 // DocuSign Callback (no auth required - user returns here after signing)
 Route::get('/docusign/callback/{application}', [ApplicationStatusController::class, 'docusignCallback'])
