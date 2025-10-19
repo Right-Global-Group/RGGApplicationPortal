@@ -6,23 +6,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('application_documents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained()->onDelete('cascade');
-            $table->enum('document_type', ['contract', 'pci_form', 'invoice', 'other']);
-            $table->string('file_path')->nullable();
-            $table->string('external_id')->nullable(); // DocuSign envelope ID, etc.
-            $table->string('external_system')->nullable(); // 'docusign', 'local', etc.
-            $table->enum('status', ['pending', 'sent', 'viewed', 'completed', 'declined'])->default('pending');
+            $table->string('document_type'); // contract, invoice, etc.
+            $table->string('file_path')->nullable(); // local storage path
+            $table->string('external_id')->nullable(); // DocuSign envelope ID
+            $table->string('external_system')->nullable(); // docusign, etc.
+            $table->string('status')->default('pending'); // pending, sent, viewed, completed, declined
             $table->timestamp('sent_at')->nullable();
+            $table->timestamp('viewed_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
+
+            $table->index(['application_id', 'document_type']);
+            $table->index('external_id');
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('application_documents');
     }
