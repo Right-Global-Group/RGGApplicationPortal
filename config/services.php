@@ -35,4 +35,25 @@ return [
         ],
     ],
 
+    'docusign' => [
+        'base_url' => env('DOCUSIGN_BASE_URL', 'https://demo.docusign.net/restapi'),
+        'account_id' => env('DOCUSIGN_ACCOUNT_ID'),
+        'integration_key' => env('DOCUSIGN_INTEGRATION_KEY'),
+        'user_id' => env('DOCUSIGN_USER_ID'),
+        'private_key' => storage_path('app/docusign/private.key'),
+        'webhook_secret' => env('DOCUSIGN_WEBHOOK_SECRET'),
+        'auth_url' => env('DOCUSIGN_AUTH_URL', 'https://account-d.docusign.com'),
+    ],
+
+    'cardstream' => [
+        'api_url' => env('CARDSTREAM_API_URL'),
+        'merchant_id' => env('CARDSTREAM_MERCHANT_ID'),
+        'api_key' => env('CARDSTREAM_API_KEY'),
+    ],
+
+    'acquired' => [
+        'api_url' => env('ACQUIRED_API_URL'),
+        'api_key' => env('ACQUIRED_API_KEY'),
+    ],
+
 ];
