@@ -1,14 +1,12 @@
 <?php
 
-// ApplicationStatusController.php
 namespace App\Http\Controllers;
 
 use App\Models\Application;
-use App\Models\ApplicationStatus;
 use App\Services\DocuSignService;
 use App\Services\EmailService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
 use Inertia\Inertia;
@@ -93,25 +91,36 @@ class ApplicationStatusController extends Controller
         return Redirect::back()->with('success', 'Application status updated.');
     }
 
-    public function sendContractLink(Application $application): RedirectResponse
+    /**
+     * Send contract link via DocuSign - returns JSON with signing URL
+     */
+    public function sendContractLink(Application $application): JsonResponse
     {
         try {
-            // Send via DocuSign
-            $envelopeId = $this->docuSignService->sendContract($application);
+            // Send via DocuSign and get signing URL
+            $result = $this->docuSignService->sendContract($application);
             
             $application->status->update([
-                'docusign_envelope_id' => $envelopeId,
+                'docusign_envelope_id' => $result['envelope_id'],
                 'docusign_status' => 'sent',
             ]);
 
             $application->status->transitionTo('application_sent', 'Contract sent via DocuSign');
 
-            // Send email with link
-            $this->emailService->sendApplicationLink($application);
+            // Optionally send email notification
+            // $this->emailService->sendApplicationLink($application);
 
-            return Redirect::back()->with('success', 'Contract link sent successfully.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Contract sent successfully',
+                'signing_url' => $result['signing_url'],
+                'envelope_id' => $result['envelope_id'],
+            ]);
         } catch (\Exception $e) {
-            return Redirect::back()->with('error', 'Failed to send contract: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send contract: ' . $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -148,5 +157,21 @@ class ApplicationStatusController extends Controller
         $application->status->transitionTo('application_approved', 'Application manually approved');
 
         return Redirect::back()->with('success', 'Application approved.');
+    }
+
+    /**
+     * Callback after DocuSign signing is complete
+     */
+    public function docusignCallback(Application $application): RedirectResponse
+    {
+        $event = Request::query('event');
+        
+        if ($event === 'signing_complete') {
+            return Redirect::route('applications.status', $application)
+                ->with('success', 'Contract signed successfully!');
+        }
+        
+        return Redirect::route('applications.status', $application)
+            ->with('info', 'Contract signing session ended.');
     }
 }

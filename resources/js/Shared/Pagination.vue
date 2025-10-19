@@ -5,7 +5,7 @@
         <div
           v-if="link.url === null"
           :key="key"
-          class="mb-1 mr-1 px-2 py-1 text-gray-400 text-xs leading-4 border rounded"
+          class="mb-1 mr-1 px-3 py-2 text-gray-400 text-xs leading-4 border rounded"
           v-html="link.label"
         />
         <Link
