@@ -1,10 +1,11 @@
 <template>
   <div>
-    <Head title="Users" />
-    <h1 class="mb-4 text-3xl font-bold text-white">Users</h1>
+    <Head title="Accounts" />
+    <h1 class="mb-4 text-3xl font-bold text-white">Merchant Accounts</h1>
 
     <!-- Filters + Create button -->
     <div class="flex items-center justify-between mb-6">
+
       <search-filter v-model="form.search" class="mr-4 w-full max-w-md" @reset="reset">
         <label class="block text-gray-300 font-medium mb-2">Trashed:</label>
         <select
@@ -17,9 +18,9 @@
         </select>
       </search-filter>
 
-      <Link class="btn-primary flex items-center gap-2" href="/users/create">
+      <Link class="btn-primary flex items-center gap-2" href="/accounts/create">
         <span>Create</span>
-        <span class="hidden md:inline">User</span>
+        <span class="hidden md:inline">Account</span>
       </Link>
     </div>
 
@@ -29,36 +30,34 @@
         <thead>
           <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
             <th class="pb-4 pt-6 px-6 text-magenta-400">Name</th>
-            <th class="pb-4 pt-6 px-6 text-magenta-400">Email</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400">Created By</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Created At</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Updated At</th>
-            <th class="pb-4 pt-6 px-6 text-magenta-400"></th>
           </tr>
         </thead>
 
         <tbody>
           <tr
-            v-for="user in users"
-            :key="user.id"
-            class="hover:bg-primary-900/30 focus-within:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
+            v-for="account in accounts.data"
+            :key="account.id"
+            class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
           >
-            <td class="border-t border-primary-800/20">
-              <Link
-                class="flex items-center px-6 py-4 text-gray-200 hover:text-magenta-400 focus:text-magenta-400 transition-colors"
-                :href="`/users/${user.id}/edit`"
-              >
-                <img v-if="user.photo" class="block -my-2 mr-2 w-6 h-6 rounded-full" :src="user.photo" />
-                {{ user.first_name }} {{ user.last_name }}
-                <icon v-if="user.deleted_at" name="trash" class="ml-2 w-3 h-3 fill-gray-500" />
-              </Link>
+            <td class="px-6 py-4 text-white">
+              {{ account.name }}
             </td>
-            <td class="px-6 py-4 text-gray-300">{{ user.email }}</td>
-            <td class="px-6 py-4 text-gray-300">{{ formatDate(user.created_at) }}</td>
-            <td class="px-6 py-4 text-gray-300">{{ formatDate(user.updated_at) }}</td>
+            <td class="px-6 py-4 text-gray-300">
+              {{ account.user_name || '—' }}
+            </td>
+            <td class="px-6 py-4 text-gray-300">
+              {{ formatDate(account.created_at) }}
+            </td>
+            <td class="px-6 py-4 text-gray-300">
+              {{ formatDate(account.updated_at) }}
+            </td>
             <td class="w-px border-t border-primary-800/20">
-              <Link
-                class="flex items-center px-4 py-4 rounded hover:bg-primary-800/50 transition-colors"
-                :href="`/users/${user.id}/edit`"
+              <Link 
+                class="flex items-center px-4 hover:bg-primary-800/50 py-4 rounded transition-colors" 
+                :href="`/accounts/${account.id}/edit`" 
                 tabindex="-1"
               >
                 <icon name="cheveron-right" class="block w-6 h-6 fill-gray-400 group-hover:fill-magenta-400" />
@@ -66,14 +65,16 @@
             </td>
           </tr>
 
-          <tr v-if="users.length === 0">
+          <tr v-if="accounts.data.length === 0">
             <td class="px-6 py-8 border-t border-primary-800/20 text-gray-400 text-center" colspan="5">
-              No users found.
+              No accounts found.
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <pagination class="mt-6" :links="accounts.links" />
   </div>
 </template>
 
@@ -84,12 +85,22 @@ import pickBy from 'lodash/pickBy'
 import Layout from '@/Shared/Layout.vue'
 import throttle from 'lodash/throttle'
 import mapValues from 'lodash/mapValues'
+import Pagination from '@/Shared/Pagination.vue'
 import SearchFilter from '@/Shared/SearchFilter.vue'
 
 export default {
-  components: { Head, Icon, Link, SearchFilter },
+  components: {
+    Head,
+    Icon,
+    Link,
+    Pagination,
+    SearchFilter,
+  },
   layout: Layout,
-  props: { filters: Object, users: Array },
+  props: {
+    filters: Object,
+    accounts: Object,
+  },
   data() {
     return {
       form: {
@@ -102,7 +113,7 @@ export default {
     form: {
       deep: true,
       handler: throttle(function () {
-        this.$inertia.get('/users', pickBy(this.form), { preserveState: true })
+        this.$inertia.get('/accounts', pickBy(this.form), { preserveState: true })
       }, 150),
     },
   },
@@ -121,6 +132,6 @@ export default {
         minute: '2-digit',
       })
     },
-  }
+  },
 }
 </script>

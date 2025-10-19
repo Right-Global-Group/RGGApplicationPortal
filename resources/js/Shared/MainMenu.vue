@@ -79,12 +79,13 @@ export default {
     return {
       mainMenu: [
         { name: 'dashboard', label: 'Dashboard', href: '/', match: '' },
+        { name: 'users', label: 'Users', href: '/users', match: 'users' },
+        { name: 'accounts', label: 'Accounts', href: '/accounts', match: 'accounts' },
         { name: 'office', label: 'Applications', href: '/applications', match: 'applications' },
-        { name: 'users', label: 'Contacts', href: '/contacts', match: 'contacts' },
-        { name: 'printer', label: 'Reports', href: '/reports', match: 'reports' },
       ],
       secondaryMenu: [
         { name: 'progress-tracker', label: 'Progress Tracker', href: '/progress-tracker', match: 'progress-tracker' },
+        { name: 'printer', label: 'Reports', href: '/reports', match: 'reports' },
       ],
     }
   },

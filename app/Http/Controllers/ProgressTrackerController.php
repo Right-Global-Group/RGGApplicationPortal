@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -11,7 +10,8 @@ class ProgressTrackerController extends Controller
 {
     public function index(): Response
     {
-        $applications = Auth::user()->account->applications()
+        // 🔹 Load all applications, not tied to user
+        $applications = Application::query()
             ->with(['status', 'gatewayIntegration'])
             ->latest()
             ->paginate(20)
@@ -25,14 +25,15 @@ class ProgressTrackerController extends Controller
                 'requires_attention' => $app->status?->requires_additional_info ?? false,
                 'updated_at' => $app->updated_at->format('Y-m-d H:i'),
             ]);
-    
+
+        // 🔹 Calculate stats based on the paginated collection
         $stats = [
-            'total_applications' => $applications->count(),
-            'pending_contracts' => $applications->where('current_step', 'application_sent')->count(),
-            'awaiting_approval' => $applications->where('current_step', 'contract_submitted')->count(),
-            'awaiting_payment' => $applications->where('current_step', 'invoice_sent')->count(),
-            'in_integration' => $applications->whereIn('current_step', ['invoice_paid', 'gateway_integrated'])->count(),
-            'live_accounts' => $applications->where('current_step', 'account_live')->count(),
+            'total_applications' => $applications->total(), // Use total() not count()
+            'pending_contracts' => $applications->getCollection()->where('current_step', 'application_sent')->count(),
+            'awaiting_approval' => $applications->getCollection()->where('current_step', 'contract_submitted')->count(),
+            'awaiting_payment' => $applications->getCollection()->where('current_step', 'invoice_sent')->count(),
+            'in_integration' => $applications->getCollection()->whereIn('current_step', ['invoice_paid', 'gateway_integrated'])->count(),
+            'live_accounts' => $applications->getCollection()->where('current_step', 'account_live')->count(),
         ];
 
         return Inertia::render('ProgressTracker/Index', [
@@ -40,5 +41,4 @@ class ProgressTrackerController extends Controller
             'stats' => $stats,
         ]);
     }
-    
 }

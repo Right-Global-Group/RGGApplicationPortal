@@ -15,7 +15,7 @@
   
       <!-- Application Info -->
       <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="flex justify-between">
           <div>
             <div class="text-sm text-gray-400 mb-1">Application Name</div>
             <div class="text-lg font-semibold text-white">{{ application.name }}</div>
@@ -32,6 +32,13 @@
             <div class="text-sm text-gray-400 mb-1">Phone</div>
             <div class="text-lg text-white">{{ application.phone }}</div>
           </div>
+          <Link
+            :href="`/applications/${application.id}/edit`"
+            class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2"
+          >
+            <icon name="edit" class="w-4 h-4 fill-current" />
+            Edit Application
+          </Link>
         </div>
       </div>
   

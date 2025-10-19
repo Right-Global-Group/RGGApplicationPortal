@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
+use App\Models\Account;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,33 +17,42 @@ class ApplicationsController extends Controller
     {
         return Inertia::render('Applications/Index', [
             'filters' => Request::all('search', 'trashed'),
-            'applications' => Auth::user()->account->applications()
-                ->with('account')
-                ->orderBy('name')
+            'applications' => Application::query()
+                ->with(['account', 'user'])
+                ->orderBy('id', 'desc')
                 ->filter(Request::only('search', 'trashed'))
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn ($application) => [
                     'id' => $application->id,
+                    'account_id' => $application->account_id,
                     'account_name' => $application->account?->name,
                     'name' => $application->name,
-                    'phone' => $application->phone,
-                    'city' => $application->city,
+                    'user_name' => $application->user
+                        ? ($application->user->first_name . ' ' . $application->user->last_name)
+                        : null,
                     'deleted_at' => $application->deleted_at,
+                    'created_at' => $application->created_at,
+                    'updated_at' => $application->updated_at,
                 ]),
         ]);
-        
     }
 
     public function create(): Response
     {
-        return Inertia::render('Applications/Create');
+        $accountId = Request::query('account_id');
+
+        return Inertia::render('Applications/Create', [
+            'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
+            'preselected_account_id' => $accountId ? (int) $accountId : null,
+        ]);
     }
 
     public function store(): RedirectResponse
     {
-        Auth::user()->account->applications()->create(
+        $application = Application::create(array_merge(
             Request::validate([
+                'account_id' => ['required', Rule::exists('accounts', 'id')],
                 'name' => ['required', 'max:100'],
                 'email' => ['nullable', 'max:50', 'email'],
                 'phone' => ['nullable', 'max:50'],
@@ -51,21 +61,27 @@ class ApplicationsController extends Controller
                 'region' => ['nullable', 'max:50'],
                 'country' => ['nullable', 'max:2'],
                 'postal_code' => ['nullable', 'max:25'],
-            ])
-        );
+            ]),
+            ['user_id' => auth()->id()]
+        ));
 
-        return Redirect::route('applications')->with('success', 'Application created.');
+        return Redirect::route('applications.status', $application)->with('success', 'Application created.');
     }
 
     public function edit(Application $application): Response
     {
-        $application->load('account'); 
+        $application->load(['account', 'user']);
 
         return Inertia::render('Applications/Edit', [
             'application' => [
                 'id' => $application->id,
+                'account_id' => $application->account_id,
                 'name' => $application->name,
                 'account_name' => $application->account?->name,
+                'user_id' => $application->user_id,
+                'user_name' => $application->user
+                    ? ($application->user->first_name . ' ' . $application->user->last_name)
+                    : null,
                 'email' => $application->email,
                 'phone' => $application->phone,
                 'address' => $application->address,
@@ -74,8 +90,10 @@ class ApplicationsController extends Controller
                 'country' => $application->country,
                 'postal_code' => $application->postal_code,
                 'deleted_at' => $application->deleted_at,
-                'contacts' => $application->contacts()->orderByName()->get()->map->only('id', 'name', 'city', 'phone'),
+                'created_at' => $application->created_at,
+                'updated_at' => $application->updated_at,
             ],
+            'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
         ]);
     }
 
@@ -83,6 +101,7 @@ class ApplicationsController extends Controller
     {
         $application->update(
             Request::validate([
+                'account_id' => ['required', Rule::exists('accounts', 'id')],
                 'name' => ['required', 'max:100'],
                 'email' => ['nullable', 'max:50', 'email'],
                 'phone' => ['nullable', 'max:50'],

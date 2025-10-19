@@ -2,15 +2,14 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
     /**
@@ -19,9 +18,12 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
         'password',
+        'owner',
+        'photo_path',
     ];
 
     /**
@@ -44,29 +46,31 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'owner' => 'boolean',
         ];
     }
 
-    public function account()
+    public function accounts(): HasMany
     {
-        return $this->belongsTo(Account::class);
+        return $this->hasMany(Account::class);
     }
-
-    public function contact()
+    
+    public function applications(): HasMany
     {
-        return $this->belongsTo(Contact::class);
+        return $this->hasMany(Application::class);
     }
-
+    
     public function scopeOrderByName($query)
     {
-        return $query->orderBy('name');
+        return $query->orderBy('first_name')->orderBy('last_name');
     }
 
     public function scopeFilter($query, array $filters)
     {
         // Search by name or email
         $query->when($filters['search'] ?? null, function ($query, $search) {
-            $query->where('name', 'like', "%{$search}%")
+            $query->where('first_name', 'like', "%{$search}%")
+                ->orWhere('last_name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%");
         });
 
@@ -85,5 +89,8 @@ class User extends Authenticatable
         });
     }
 
-
+    public function isDemoUser(): bool
+    {
+        return $this->email === 'demo@example.com';
+    }
 }

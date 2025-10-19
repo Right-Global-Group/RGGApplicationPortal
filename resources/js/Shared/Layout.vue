@@ -49,12 +49,6 @@
                     My Profile
                   </Link>
                   <Link 
-                    class="block px-6 py-2 text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
-                    href="/users"
-                  >
-                    Manage Users
-                  </Link>
-                  <Link 
                     class="block px-6 py-2 w-full text-left text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
                     href="/logout" method="delete" as="button"
                   >

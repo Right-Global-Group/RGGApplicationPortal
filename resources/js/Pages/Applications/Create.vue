@@ -10,6 +10,12 @@
     <div class="max-w-3xl bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
       <form @submit.prevent="store">
         <div class="flex flex-wrap -mb-8 -mr-6 p-8">
+          <select-input v-model="form.account_id" :error="form.errors.account_id" class="pb-8 pr-6 w-full lg:w-1/2" label="Account">
+            <option :value="null" />
+            <option v-for="account in accounts" :key="account.id" :value="account.id">
+              {{ account.name }}
+            </option>
+          </select-input>
           <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Name" />
           <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" />
           <text-input v-model="form.phone" :error="form.errors.phone" class="pb-8 pr-6 w-full lg:w-1/2" label="Phone" />
@@ -42,9 +48,14 @@ export default {
   components: { Head, Link, LoadingButton, SelectInput, TextInput },
   layout: Layout,
   remember: 'form',
+  props: {
+    accounts: Array,
+    preselected_account_id: [Number, null],
+  },
   data() {
     return {
       form: this.$inertia.form({
+        account_id: this.preselected_account_id,
         name: null,
         email: null,
         phone: null,

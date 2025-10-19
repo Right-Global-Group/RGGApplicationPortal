@@ -27,7 +27,7 @@
     <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-primary-800/30">
       <table class="w-full whitespace-nowrap">
         <thead>
-          <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-700/50">
+          <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
             <th class="pb-4 pt-6 px-6 text-magenta-400">Name</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Application</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">City</th>

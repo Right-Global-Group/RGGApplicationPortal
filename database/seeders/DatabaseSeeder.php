@@ -15,23 +15,29 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $account = Account::create(['name' => 'Right Global Group']);
-
-        User::factory()->create([
-            'account_id' => $account->id,
+        // Create the main user first
+        $mainUser = User::factory()->create([
             'first_name' => 'John',
             'last_name' => 'Doe',
             'email' => 'johndoe@example.com',
             'password' => 'secret',
-            'owner' => true,
         ]);
 
-        User::factory(5)->create(['account_id' => $account->id]);
+        // Create additional users for variety
+        User::factory(5)->create();
 
-        $applications = Application::factory(100)
+        // Create account with a random user
+        $account = Account::create([
+            'name' => 'Right Global Group',
+            'user_id' => User::inRandomOrder()->first()->id,
+        ]);
+
+        // Create applications with the account
+        $applications = Application::factory(20)
             ->create(['account_id' => $account->id]);
 
-        Contact::factory(100)
+        // Create contacts
+        Contact::factory(10)
             ->create(['account_id' => $account->id])
             ->each(function ($contact) use ($applications) {
                 $contact->update(['application_id' => $applications->random()->id]);

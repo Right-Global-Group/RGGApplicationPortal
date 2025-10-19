@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ApplicationsController;
 use App\Http\Controllers\ApplicationStatusController;
+use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocuSignWebhookController;
@@ -65,6 +66,15 @@ Route::middleware(['auth'])->group(function () {
 
     // Progress Tracker
     Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');
+
+    // Accounts
+    Route::get('/accounts', [AccountsController::class, 'index'])->name('accounts');
+    Route::get('/accounts/create', [AccountsController::class, 'create'])->name('account.create');
+    Route::post('/accounts', [AccountsController::class, 'store'])->name('account.store');
+    Route::get('/accounts/{account}/edit', [AccountsController::class, 'edit'])->name('account.edit');
+    Route::put('/accounts/{account}', [AccountsController::class, 'update'])->name('account.update');
+    Route::delete('/accounts/{account}', [AccountsController::class, 'destroy'])->name('account.destroy');
+    Route::put('/accounts/{account}/restore', [AccountsController::class, 'restore'])->name('account.restore');
 
     // Contacts
     Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts');

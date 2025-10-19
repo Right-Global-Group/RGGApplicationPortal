@@ -18,18 +18,20 @@ class UsersController extends Controller
     public function index(): Response
     {
         return Inertia::render('Users/Index', [
-            'filters' => Request::all('search', 'role', 'trashed'),
-            'users' => Auth::user()->account->users()
-                ->orderByName()
-                ->filter(Request::only('search', 'role', 'trashed'))
+            'filters' => Request::all('search', 'trashed'),
+            'users' => User::query()
+                ->filter(Request::only('search', 'trashed'))
                 ->get()
                 ->transform(fn ($user) => [
                     'id' => $user->id,
-                    'name' => $user->name,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
                     'email' => $user->email,
                     'owner' => $user->owner,
                     'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 40, 'h' => 40, 'fit' => 'crop']) : null,
                     'deleted_at' => $user->deleted_at,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
                 ]),
         ]);
     }
@@ -50,20 +52,28 @@ class UsersController extends Controller
             'photo' => ['nullable', 'image'],
         ]);
 
-        Auth::user()->account->users()->create([
+        User::create([
             'first_name' => Request::get('first_name'),
-            'last_name' => Request::get('last_name'),
-            'email' => Request::get('email'),
-            'password' => Request::get('password'),
-            'owner' => Request::get('owner'),
+            'last_name'  => Request::get('last_name'),
+            'email'      => Request::get('email'),
+            'password'   => Request::get('password'),
+            'owner'      => Request::get('owner'),
             'photo_path' => Request::file('photo') ? Request::file('photo')->store('users') : null,
-        ]);
+        ]);        
 
         return Redirect::route('users')->with('success', 'User created.');
     }
 
     public function edit(User $user): Response
     {
+        $applications = $user->applications()
+            ->with('account')
+            ->get(['id', 'name', 'account_id', 'created_at']);
+
+        $accounts = $user->accounts()
+            ->orderBy('name')
+            ->get(['id', 'name', 'created_at']);
+    
         return Inertia::render('Users/Edit', [
             'user' => [
                 'id' => $user->id,
@@ -74,8 +84,19 @@ class UsersController extends Controller
                 'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 60, 'h' => 60, 'fit' => 'crop']) : null,
                 'deleted_at' => $user->deleted_at,
             ],
+            'applications' => $applications->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'account_name' => $a->account?->name,
+                'created_at' => $a->created_at,
+            ]),
+            'accounts' => $accounts->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'created_at' => $a->created_at,
+            ]),
         ]);
-    }
+    }    
 
     public function update(User $user): RedirectResponse
     {

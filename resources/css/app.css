@@ -1,10 +1,10 @@
+@import './buttons.css';
+@import './form.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Then your custom files */
-@import './buttons.css';
-@import './form.css';
 
 @layer base {
   body {
