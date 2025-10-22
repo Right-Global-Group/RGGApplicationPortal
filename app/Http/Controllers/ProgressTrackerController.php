@@ -29,11 +29,17 @@ class ProgressTrackerController extends Controller
             });
         }
 
-        // Status filter
-        if ($status = Request::input('status')) {
-            $query->whereHas('status', function ($q) use ($status) {
-                $q->where('current_step', $status);
-            });
+        // Status filter (multi-select support)
+        if ($statuses = Request::input('status')) {
+            if (is_array($statuses)) {
+                $query->whereHas('status', function ($q) use ($statuses) {
+                    $q->whereIn('current_step', $statuses);
+                });
+            } else {
+                $query->whereHas('status', function ($q) use ($statuses) {
+                    $q->where('current_step', $statuses);
+                });
+            }
         }
 
         // Date range filter for last updated
@@ -88,8 +94,14 @@ class ProgressTrackerController extends Controller
         return Inertia::render('ProgressTracker/Index', [
             'applications' => $applications,
             'stats' => $stats,
-            'filters' => Request::only(['search', 'account_search', 'status', 'date_from', 'date_to']),
+            'filters' => [
+                'search' => Request::input('search'),
+                'account_search' => Request::input('account_search'),
+                'status' => (array) Request::input('status'),
+                'date_from' => Request::input('date_from'),
+                'date_to' => Request::input('date_to'),
+            ],
             'statusOptions' => $statusOptions,
-        ]);
+        ]);        
     }
 }

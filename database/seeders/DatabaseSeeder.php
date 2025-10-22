@@ -17,9 +17,9 @@ class DatabaseSeeder extends Seeder
     {
         // Create the main user first
         $mainUser = User::factory()->create([
-            'first_name' => 'John',
-            'last_name' => 'Doe',
-            'email' => 'johndoe@example.com',
+            'first_name' => 'Max',
+            'last_name' => 'Behrens',
+            'email' => 'max.behrens@rightglobalgroup.com',
             'password' => 'secret',
         ]);
 
