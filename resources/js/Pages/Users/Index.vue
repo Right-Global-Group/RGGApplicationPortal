@@ -1,7 +1,18 @@
 <template>
   <div>
     <Head title="Users" />
-    <h1 class="mb-4 text-3xl font-bold text-white">Users</h1>
+
+    <div class="flex justify-between">
+      <h1 class="mb-4 text-3xl font-bold text-white">Users</h1>
+
+      <!-- Create Button -->
+      <div class="flex justify-end mb-6">
+        <Link class="btn-primary flex items-center gap-2" href="/users/create">
+          <span>Create</span>
+          <span class="hidden md:inline">User</span>
+        </Link>
+      </div>
+    </div>
 
     <!-- Filters -->
     <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-primary-800/30">
@@ -62,14 +73,6 @@
           Clear Filters
         </button>
       </div>
-    </div>
-
-    <!-- Create Button -->
-    <div class="flex justify-end mb-6">
-      <Link class="btn-primary flex items-center gap-2" href="/users/create">
-        <span>Create</span>
-        <span class="hidden md:inline">User</span>
-      </Link>
     </div>
 
     <!-- Table -->

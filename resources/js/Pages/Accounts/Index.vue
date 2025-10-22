@@ -1,7 +1,17 @@
 <template>
   <div>
     <Head title="Accounts" />
-    <h1 class="mb-4 text-3xl font-bold text-white">Merchant Accounts</h1>
+    <div class="flex justify-between">
+      <h1 class="text-3xl font-bold text-white">Merchant Accounts</h1>
+
+      <!-- Create Button -->
+      <div class="flex justify-end mb-6">
+        <Link class="btn-primary flex items-center gap-2" href="/accounts/create">
+          <span>Create</span>
+          <span class="hidden md:inline">Account</span>
+        </Link>
+      </div>
+    </div>
 
     <!-- Filters -->
     <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-primary-800/30">
@@ -62,14 +72,6 @@
           Clear Filters
         </button>
       </div>
-    </div>
-
-    <!-- Create Button -->
-    <div class="flex justify-end mb-6">
-      <Link class="btn-primary flex items-center gap-2" href="/accounts/create">
-        <span>Create</span>
-        <span class="hidden md:inline">Account</span>
-      </Link>
     </div>
 
     <!-- Table -->

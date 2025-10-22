@@ -83,7 +83,11 @@
         </thead>
         <tbody>
           <tr v-for="app in applications" :key="app.id" class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20">
-            <td class="px-6 py-3 text-white">{{ app.name }}</td>
+            <td class="px-6 py-3 text-white">
+              <Link :href="`/applications/${app.id}/edit`" class="text-magenta-400 hover:text-magenta-300 transition-colors">
+                {{ app.name }}
+              </Link>
+            </td>
             <td class="px-6 py-3 text-gray-300">{{ app.account_name }}</td>
             <td class="px-6 py-3 text-gray-400">{{ formatDate(app.created_at) }}</td>
           </tr>

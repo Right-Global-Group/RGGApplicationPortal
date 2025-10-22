@@ -9,7 +9,7 @@
         <div class="md:flex md:shrink-0">
           <div class="flex items-center justify-between px-6 py-2 bg-dark-800 border-b border-primary-700">
             <Link class="mt-1" href="/">
-              <Logo class="fill-magenta-400" width="140" height="38" />
+              <Logo class="fill-magenta-400 p-2 ml-1" width="120" height="30" />
             </Link>
             <Dropdown class="md:hidden" placement="bottom-end">
               <template #default>

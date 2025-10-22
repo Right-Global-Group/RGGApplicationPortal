@@ -16,7 +16,7 @@ export default {
   },
   computed: {
     logoUrl() {
-      return '/images/RGGLogo.png'
+      return '/images/G2PayLogo.png'
     }
   }
 }

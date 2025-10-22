@@ -71,52 +71,39 @@
     </div>
 
     <!-- Applications List -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-primary-800/30">
+    <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-        <h2 class="text-magenta-400 font-bold text-lg">Applications</h2>
+        <h2 class="text-magenta-400 font-bold text-lg">Applications ({{ (applications || []).length }})</h2>
       </div>
-
-      <table v-if="applications.length > 0" class="w-full whitespace-nowrap">
+      <table v-if="(applications || []).length > 0" class="w-full text-left">
         <thead>
-          <tr class="text-left font-bold text-sm border-b border-primary-800/20">
-            <th class="px-8 py-3 text-magenta-400">Name</th>
-            <th class="px-8 py-3 text-magenta-400">Email</th>
-            <th class="px-8 py-3 text-magenta-400">City</th>
-            <th class="px-8 py-3 text-magenta-400">Created At</th>
+          <tr class="text-magenta-400 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+            <th class="px-6 py-3">Name</th>
+            <th class="px-6 py-3">Email</th>
+            <th class="px-6 py-3">City</th>
+            <th class="px-6 py-3">Created</th>
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="application in applications"
-            :key="application.id"
-            class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
-          >
-            <td class="px-8 py-4 text-white">
-              {{ application.name }}
+          <tr v-for="application in applications" :key="application.id" class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20">
+            <td class="px-6 py-3 text-white">
+              <Link :href="`/applications/${application.id}/edit`" class="text-magenta-400 hover:text-magenta-300 transition-colors">
+                {{ application.name }}
+              </Link>
             </td>
-            <td class="px-8 py-4 text-gray-300">
+            <td class="px-6 py-3 text-gray-300">
               {{ application.email || '—' }}
             </td>
-            <td class="px-8 py-4 text-gray-300">
+            <td class="px-6 py-3 text-gray-300">
               {{ application.city || '—' }}
             </td>
-            <td class="px-8 py-4 text-gray-300">
+            <td class="px-6 py-3 text-gray-400">
               {{ formatDate(application.created_at) }}
-            </td>
-            <td class="w-px border-t border-primary-800/20">
-              <Link 
-                class="flex items-center px-4 hover:bg-primary-800/50 py-4 rounded transition-colors" 
-                :href="`/applications/${application.id}/edit`" 
-                tabindex="-1"
-              >
-                <icon name="cheveron-right" class="block w-6 h-6 fill-gray-400 group-hover:fill-magenta-400" />
-              </Link>
             </td>
           </tr>
         </tbody>
       </table>
-
-      <div v-else class="px-8 py-8 text-center text-gray-400">
+      <div v-else class="px-6 py-8 text-gray-400 text-center">
         No applications found for this account.
       </div>
     </div>
@@ -128,10 +115,9 @@ import { Head, Link } from '@inertiajs/vue3'
 import Layout from '@/Shared/Layout.vue'
 import TextInput from '@/Shared/TextInput.vue'
 import LoadingButton from '@/Shared/LoadingButton.vue'
-import Icon from '@/Shared/Icon.vue'
 
 export default {
-  components: { Head, Link, LoadingButton, TextInput, Icon },
+  components: { Head, Link, LoadingButton, TextInput },
   layout: Layout,
   remember: 'form',
   props: {
@@ -156,8 +142,6 @@ export default {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
       })
     },
   },

@@ -58,19 +58,42 @@
           />
         </div>
 
-        <!-- Status Filter -->
+        <!-- Status Filter Dropdown -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Status</label>
-          <select
-            v-model="form.status"
-            class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
-            @change="filter"
-          >
-            <option value="">All Statuses</option>
-            <option v-for="(label, value) in statusOptions" :key="value" :value="value">
-              {{ label }}
-            </option>
-          </select>
+          <div class="relative">
+            <button
+              @click="statusDropdownOpen = !statusDropdownOpen"
+              class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent text-left flex items-center justify-between"
+            >
+              <span v-if="form.status.length === 0" class="text-gray-500">Select statuses...</span>
+              <span v-else class="text-gray-300">{{ form.status.length }} selected</span>
+              <svg class="w-5 h-5 text-gray-400" :class="{ 'rotate-180': statusDropdownOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div
+              v-if="statusDropdownOpen"
+              class="absolute bottom-full left-0 right-0 mb-2 bg-dark-700 border border-primary-800/30 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+            >
+              <div
+                v-for="(label, value) in statusOptions"
+                :key="value"
+                @click="toggleStatus(value)"
+                class="px-4 py-3 hover:bg-primary-800/50 cursor-pointer flex items-center gap-2 border-b border-primary-800/20 last:border-b-0 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  :checked="form.status.includes(value)"
+                  class="w-4 h-4 rounded accent-magenta-500"
+                  @click.stop="toggleStatus(value)"
+                />
+                <span class="text-gray-300">{{ label }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Date From -->
@@ -93,6 +116,25 @@
             class="w-full bg-dark-700 border border-primary-800/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-magenta-500 focus:border-transparent"
             @change="filter"
           />
+        </div>
+      </div>
+
+      <!-- Selected Status Bubbles -->
+      <div v-if="form.status.length > 0" class="mt-4 flex flex-wrap gap-2">
+        <div
+          v-for="statusValue in form.status"
+          :key="statusValue"
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-magenta-500/20 text-magenta-300 border border-magenta-500/50"
+        >
+          {{ statusOptions[statusValue] }}
+          <button
+            @click="removeStatus(statusValue)"
+            class="hover:text-magenta-100 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -205,7 +247,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import Icon from '@/Shared/Icon.vue'
 import Layout from '@/Shared/Layout.vue'
 import Pagination from '@/Shared/Pagination.vue'
-import { reactive, computed } from 'vue'
+import { reactive, computed, ref } from 'vue'
 import throttle from 'lodash/throttle'
 
 export default {
@@ -223,16 +265,24 @@ export default {
     statusOptions: Object,
   },
   setup(props) {
+    const statusDropdownOpen = ref(false)
+
     const form = reactive({
       search: props.filters.search || '',
       account_search: props.filters.account_search || '',
-      status: props.filters.status || '',
+      status: props.filters.status || [],
       date_from: props.filters.date_from || '',
       date_to: props.filters.date_to || '',
     })
 
     const hasFilters = computed(() => {
-      return form.search || form.account_search || form.status || form.date_from || form.date_to
+      return (
+        form.search ||
+        form.account_search ||
+        (Array.isArray(form.status) && form.status.length > 0) ||
+        form.date_from ||
+        form.date_to
+      )
     })
 
     const filter = () => {
@@ -247,10 +297,29 @@ export default {
     const clearFilters = () => {
       form.search = ''
       form.account_search = ''
-      form.status = ''
+      form.status = []
       form.date_from = ''
       form.date_to = ''
+      statusDropdownOpen.value = false
       filter()
+    }
+
+    const toggleStatus = (statusValue) => {
+      const index = form.status.indexOf(statusValue)
+      if (index > -1) {
+        form.status.splice(index, 1)
+      } else {
+        form.status.push(statusValue)
+      }
+      filter()
+    }
+
+    const removeStatus = (statusValue) => {
+      const index = form.status.indexOf(statusValue)
+      if (index > -1) {
+        form.status.splice(index, 1)
+        filter()
+      }
     }
 
     return {
@@ -259,6 +328,9 @@ export default {
       filter,
       debouncedFilter,
       clearFilters,
+      toggleStatus,
+      removeStatus,
+      statusDropdownOpen,
     }
   },
   methods: {
