@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
+use App\Models\Account;
 use Illuminate\Support\Facades\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -13,6 +14,25 @@ class ProgressTrackerController extends Controller
     {
         $query = Application::query()
             ->with(['status', 'gatewayIntegration', 'account']);
+
+        // Access control based on authentication guard
+        if (auth()->guard('account')->check()) {
+            // Accounts can only see their own applications
+            $query->where('account_id', auth()->guard('account')->id());
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if ($user->isAdmin()) {
+                // Admins see all applications
+                // No filtering needed
+            } else {
+                // Regular users see only applications from accounts they created
+                $userAccountIds = Account::where('user_id', $user->id)->pluck('id');
+                $query->whereIn('account_id', $userAccountIds);
+            }
+        } else {
+            abort(403, 'Unauthorized access.');
+        }
 
         // Search filter
         if ($search = Request::input('search')) {
@@ -66,8 +86,22 @@ class ProgressTrackerController extends Controller
                 'updated_at' => $app->updated_at->format('Y-m-d H:i'),
             ]);
 
-        // Calculate stats from all applications (not filtered)
-        $allApplications = Application::with('status')->get();
+        // Calculate stats based on what user can see (filtered applications)
+        // Get the base query again with same filters for stats
+        $statsQuery = Application::query()->with('status');
+        
+        // Apply same access control for stats
+        if (auth()->guard('account')->check()) {
+            $statsQuery->where('account_id', auth()->guard('account')->id());
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            if (!$user->isAdmin()) {
+                $userAccountIds = Account::where('user_id', $user->id)->pluck('id');
+                $statsQuery->whereIn('account_id', $userAccountIds);
+            }
+        }
+        
+        $allApplications = $statsQuery->get();
         $stats = [
             'total_applications' => $allApplications->count(),
             'pending_contracts' => $allApplications->filter(fn($app) => $app->status?->current_step === 'application_sent')->count(),

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ApplicationCreatedEvent;
 use App\Models\Application;
 use App\Models\Account;
+use App\Models\EmailReminder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
@@ -18,6 +20,25 @@ class ApplicationsController extends Controller
         $query = Application::query()
             ->with(['account', 'user'])
             ->orderBy('id', 'desc');
+
+        // Access control based on authentication guard
+        if (auth()->guard('account')->check()) {
+            // Accounts can only see their own applications
+            $query->where('account_id', auth()->guard('account')->id());
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if ($user->isAdmin()) {
+                // Admins see all applications
+                // No filtering needed
+            } else {
+                // Regular users see only applications from accounts they created
+                $userAccountIds = Account::where('user_id', $user->id)->pluck('id');
+                $query->whereIn('account_id', $userAccountIds);
+            }
+        } else {
+            abort(403, 'Unauthorized access.');
+        }
 
         // Search filter for application name
         if ($search = Request::input('search')) {
@@ -73,35 +94,94 @@ class ApplicationsController extends Controller
     public function create(): Response
     {
         $accountId = Request::query('account_id');
+        
+        // Get available accounts based on user role
+        if (auth()->guard('account')->check()) {
+            $accounts = Account::where('id', auth()->guard('account')->id())
+                ->orderBy('name')
+                ->get()
+                ->map->only('id', 'name');
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if ($user->isAdmin()) {
+                // Admins can create applications for any account
+                $accounts = Account::orderBy('name')
+                    ->get()
+                    ->map->only('id', 'name');
+            } else {
+                // Regular users can only create applications for accounts they created
+                $accounts = Account::where('user_id', $user->id)
+                    ->orderBy('name')
+                    ->get()
+                    ->map->only('id', 'name');
+            }
+        } else {
+            abort(403, 'Unauthorized access.');
+        }
 
         return Inertia::render('Applications/Create', [
-            'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
+            'accounts' => $accounts,
             'preselected_account_id' => $accountId ? (int) $accountId : null,
         ]);
     }
 
     public function store(): RedirectResponse
     {
+        $validated = Request::validate([
+            'account_id' => ['required', Rule::exists('accounts', 'id')],
+            'name' => ['required', 'max:100'],
+            'email' => ['nullable', 'max:50', 'email'],
+            'phone' => ['nullable', 'max:50'],
+            'address' => ['nullable', 'max:150'],
+            'city' => ['nullable', 'max:50'],
+            'region' => ['nullable', 'max:50'],
+            'country' => ['nullable', 'max:2'],
+            'postal_code' => ['nullable', 'max:25'],
+        ]);
+
+        // Verify user has permission to create application for this account
+        $account = Account::findOrFail($validated['account_id']);
+        
+        if (auth()->guard('account')->check()) {
+            // Accounts can only create for themselves
+            if ($account->id !== auth()->guard('account')->id()) {
+                abort(403, 'You can only create applications for your own account.');
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if (!$user->isAdmin() && $account->user_id !== $user->id) {
+                abort(403, 'You can only create applications for accounts you created.');
+            }
+        }
+
         $application = Application::create(array_merge(
-            Request::validate([
-                'account_id' => ['required', Rule::exists('accounts', 'id')],
-                'name' => ['required', 'max:100'],
-                'email' => ['nullable', 'max:50', 'email'],
-                'phone' => ['nullable', 'max:50'],
-                'address' => ['nullable', 'max:150'],
-                'city' => ['nullable', 'max:50'],
-                'region' => ['nullable', 'max:50'],
-                'country' => ['nullable', 'max:2'],
-                'postal_code' => ['nullable', 'max:25'],
-            ]),
+            $validated,
             ['user_id' => auth()->id()]
         ));
+
+        // Fire event to send email notification to account
+        event(new ApplicationCreatedEvent($application));
 
         return Redirect::route('applications.status', $application)->with('success', 'Application created.');
     }
 
     public function edit(Application $application): Response
     {
+        // Check permissions
+        if (auth()->guard('account')->check()) {
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403, 'You can only edit applications for accounts you created.');
+            }
+        }
+
         $application->load(['account', 'user']);
 
         return Inertia::render('Applications/Edit', [
@@ -131,6 +211,19 @@ class ApplicationsController extends Controller
 
     public function update(Application $application): RedirectResponse
     {
+        // Check permissions
+        if (auth()->guard('account')->check()) {
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403, 'You can only update applications for accounts you created.');
+            }
+        }
+
         $application->update(
             Request::validate([
                 'account_id' => ['required', Rule::exists('accounts', 'id')],
@@ -146,6 +239,47 @@ class ApplicationsController extends Controller
         );
 
         return Redirect::back()->with('success', 'Application updated.');
+    }
+
+    public function setEmailReminder(Application $application): RedirectResponse
+    {
+        $validated = Request::validate([
+            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+        ]);
+
+        // Deactivate existing reminders
+        $application->emailReminders()
+            ->where('email_type', 'application_created')
+            ->update(['is_active' => false]);
+
+        // Create new reminder
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'application_created',
+            'interval' => $validated['interval'],
+            'next_send_at' => $intervals[$validated['interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'Email reminder configured.');
+    }
+
+    public function cancelEmailReminder(Application $application): RedirectResponse
+    {
+        $application->emailReminders()
+            ->where('email_type', 'application_created')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'Email reminder cancelled.');
     }
 
     public function destroy(Application $application): RedirectResponse
