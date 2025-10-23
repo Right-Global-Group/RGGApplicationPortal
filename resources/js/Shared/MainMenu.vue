@@ -2,13 +2,13 @@
   <div>
     <!-- Main Menu -->
     <div
-        v-for="(item, index) in mainMenu"
-        :key="item.href"
-        :class="[
-          'mb-2',
-          index === 0 ? 'mt-6' : ''
-        ]"
-      >
+      v-for="(item, index) in filteredMainMenu"
+      :key="item.href"
+      :class="[
+        'mb-2',
+        index === 0 ? 'mt-6' : ''
+      ]"
+    >
       <Link
         class="group flex items-center py-3 px-4 rounded-lg transition-all duration-200 hover:bg-primary-800/50"
         :class="{ 'bg-primary-800/50': isUrl(item.match) }"
@@ -33,11 +33,11 @@
     </div>
 
     <!-- Divider -->
-    <div class="my-4 border-t border-primary-700"></div>
+    <div v-if="filteredSecondaryMenu.length > 0" class="my-4 border-t border-primary-700"></div>
 
     <!-- Secondary Menu -->
     <div
-      v-for="item in secondaryMenu"
+      v-for="item in filteredSecondaryMenu"
       :key="item.href"
       class="mb-2"
     >
@@ -78,16 +78,67 @@ export default {
   data() {
     return {
       mainMenu: [
-        { name: 'dashboard', label: 'Dashboard', href: '/', match: '' },
-        { name: 'users', label: 'Users', href: '/users', match: 'users' },
-        { name: 'accounts', label: 'Accounts', href: '/accounts', match: 'accounts' },
-        { name: 'office', label: 'Applications', href: '/applications', match: 'applications' },
+        { 
+          name: 'dashboard', 
+          label: 'Dashboard', 
+          href: '/', 
+          match: '',
+          adminOnly: false 
+        },
+        { 
+          name: 'users', 
+          label: 'Users', 
+          href: '/users', 
+          match: 'users',
+          adminOnly: true // Only admins can see users
+        },
+        { 
+          name: 'office', 
+          label: 'Accounts', 
+          href: '/accounts', 
+          match: 'accounts',
+          adminOnly: false
+        },
+        { 
+          name: 'printer', 
+          label: 'Applications', 
+          href: '/applications', 
+          match: 'applications',
+          adminOnly: false 
+        },
       ],
       secondaryMenu: [
-        { name: 'progress-tracker', label: 'Progress Tracker', href: '/progress-tracker', match: 'progress-tracker' },
-        { name: 'printer', label: 'Reports', href: '/reports', match: 'reports' },
+        { 
+          name: 'dashboard', 
+          label: 'Progress Tracker', 
+          href: '/progress-tracker', 
+          match: 'progress-tracker',
+          adminOnly: false 
+        },
+        // Settings removed from menu - only in dropdown
       ],
     }
+  },
+  computed: {
+    isAdmin() {
+      return this.$page.props.auth?.user?.isAdmin || false
+    },
+    filteredMainMenu() {
+      return this.mainMenu.filter(item => {
+        if (item.adminOnly) {
+          return this.isAdmin
+        }
+        return true
+      })
+    },
+    filteredSecondaryMenu() {
+      return this.secondaryMenu.filter(item => {
+        if (item.adminOnly) {
+          return this.isAdmin
+        }
+        return true
+      })
+    },
   },
   methods: {
     isUrl(...urls) {

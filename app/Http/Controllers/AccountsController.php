@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\AccountCredentialsEvent;
 use App\Models\Account;
+use App\Models\EmailReminder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
@@ -13,16 +15,33 @@ class AccountsController extends Controller
 {
     public function index(): Response
     {
-        $query = Account::query()
-            ->with(['applications', 'user'])
-            ->orderBy('name');
+        $query = Account::query()->with(['applications', 'user']);
 
-        // Search filter for account name
+        // Access control based on authentication guard
+        if (auth()->guard('account')->check()) {
+            // Accounts can only see themselves
+            $query->where('id', auth()->guard('account')->id());
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if ($user->isAdmin()) {
+                // Admins see all accounts
+                // No filtering needed
+            } else {
+                // Regular users can't access accounts list at all
+                abort(403, 'Only administrators can access the accounts list.');
+            }
+        } else {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $query->orderBy('name');
+
+        // Filters (same as before)
         if ($search = Request::input('search')) {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        // Search filter for creator name
         if ($creatorSearch = Request::input('creator_search')) {
             $query->whereHas('user', function ($q) use ($creatorSearch) {
                 $q->where('first_name', 'like', "%{$creatorSearch}%")
@@ -30,7 +49,6 @@ class AccountsController extends Controller
             });
         }
 
-        // Date range filter
         if ($dateFrom = Request::input('date_from')) {
             $query->whereDate('created_at', '>=', $dateFrom);
         }
@@ -38,7 +56,6 @@ class AccountsController extends Controller
             $query->whereDate('created_at', '<=', $dateTo);
         }
 
-        // Deleted filter
         if ($deleted = Request::input('deleted')) {
             if ($deleted === 'with') {
                 $query->withTrashed();
@@ -53,6 +70,9 @@ class AccountsController extends Controller
             ->through(fn ($account) => [
                 'id' => $account->id,
                 'name' => $account->name,
+                'email' => $account->email,
+                'status' => $account->status,
+                'is_confirmed' => $account->isConfirmed(),
                 'user_name' => $account->user 
                     ? ($account->user->first_name . ' ' . $account->user->last_name)
                     : null,
@@ -61,6 +81,8 @@ class AccountsController extends Controller
                     'id' => $app->id,
                     'name' => $app->name,
                 ]),
+                'credentials_sent_at' => $account->credentials_sent_at?->format('Y-m-d H:i'),
+                'first_login_at' => $account->first_login_at?->format('Y-m-d H:i'),
                 'deleted_at' => $account->deleted_at,
                 'created_at' => $account->created_at?->format('Y-m-d H:i'),
                 'updated_at' => $account->updated_at?->format('Y-m-d H:i'),
@@ -72,40 +94,53 @@ class AccountsController extends Controller
         ]);
     }
 
-    /**
-     * Show the form to create a new account.
-     */
     public function create(): Response
     {
-        // Pass the currently authenticated user for display in the read-only field
         return Inertia::render('Accounts/Create', [
             'user' => auth()->user()?->only('id', 'first_name', 'last_name'),
         ]);
     }
 
-    /**
-     * Store a new account.
-     */
     public function store(): RedirectResponse
     {
-        // Validate the name and automatically set user_id to the current user
-        $account = Account::create(array_merge(
-            Request::validate([
-                'name' => ['required', 'max:50'],
-            ]),
-            ['user_id' => auth()->id()]
-        ));
+        $validated = Request::validate([
+            'name' => ['required', 'max:50'],
+            'email' => ['required', 'email', 'unique:accounts,email'],
+        ]);
+
+        // Generate random password
+        $plainPassword = Account::generatePassword();
+
+        $account = Account::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $plainPassword,
+            'user_id' => auth()->id(),
+            'status' => Account::STATUS_PENDING,
+        ]);
 
         return Redirect::route('accounts.edit', $account)->with('success', 'Account created.');
     }
 
-    /**
-     * Show the form to edit an existing account.
-     */
     public function edit(Account $account): Response
     {
-        // Load the user relation so we can show "Created By" in the form
-        $account->load('user');
+        // Access control
+        if (auth()->guard('account')->check()) {
+            // Accounts can only view/edit themselves
+            if ($account->id !== auth()->guard('account')->id()) {
+                abort(403, 'You can only view your own account.');
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            if (!$user->isAdmin() && $account->user_id !== $user->id) {
+                abort(403, 'You can only view accounts you created.');
+            }
+        } else {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $account->load(['user', 'emailReminders', 'emailLogs']);
 
         $applications = $account->applications()
             ->orderBy('name')
@@ -115,28 +150,97 @@ class AccountsController extends Controller
             'account' => [
                 'id' => $account->id,
                 'name' => $account->name,
-                'user_id' => $account->user_id, // original creator
+                'email' => $account->email,
+                'status' => $account->status,
+                'is_confirmed' => $account->isConfirmed(),
+                'user_id' => $account->user_id,
                 'user_name' => $account->user?->first_name . ' ' . $account->user?->last_name,
+                'credentials_sent_at' => $account->credentials_sent_at?->format('Y-m-d H:i'),
+                'first_login_at' => $account->first_login_at?->format('Y-m-d H:i'),
                 'created_at' => $account->created_at?->toDateTimeString(),
                 'updated_at' => $account->updated_at?->toDateTimeString(),
             ],
             'applications' => $applications,
+            'emailReminder' => $account->emailReminders()
+                ->where('email_type', 'account_credentials')
+                ->where('is_active', true)
+                ->first(),
+            'emailLogs' => $account->emailLogs()
+                ->orderBy('sent_at', 'desc')
+                ->get()
+                ->map(fn ($log) => [
+                    'id' => $log->id,
+                    'email_type' => $log->email_type,
+                    'subject' => $log->subject,
+                    'sent_at' => $log->sent_at->format('Y-m-d H:i'),
+                    'opened' => $log->opened,
+                ]),
         ]);
     }
 
-    /**
-     * Update an existing account.
-     */
     public function update(Account $account): RedirectResponse
     {
-        // Only allow updating the account name
         $account->update(
             Request::validate([
                 'name' => ['required', 'max:50'],
+                'email' => ['required', 'email', 'unique:accounts,email,' . $account->id],
             ])
         );
 
         return Redirect::back()->with('success', 'Account updated.');
+    }
+
+    public function sendCredentialsEmail(Account $account): RedirectResponse
+    {
+        // Generate new password
+        $plainPassword = Account::generatePassword();
+        $account->update(['password' => $plainPassword]);
+
+        // Fire event to send email
+        event(new AccountCredentialsEvent($account, $plainPassword));
+
+        return Redirect::back()->with('success', 'Credentials email sent to account.');
+    }
+
+    public function setEmailReminder(Account $account): RedirectResponse
+    {
+        $validated = Request::validate([
+            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+        ]);
+
+        // Deactivate existing reminders
+        $account->emailReminders()
+            ->where('email_type', 'account_credentials')
+            ->update(['is_active' => false]);
+
+        // Create new reminder
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Account::class,
+            'remindable_id' => $account->id,
+            'email_type' => 'account_credentials',
+            'interval' => $validated['interval'],
+            'next_send_at' => $intervals[$validated['interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'Email reminder configured.');
+    }
+
+    public function cancelEmailReminder(Account $account): RedirectResponse
+    {
+        $account->emailReminders()
+            ->where('email_type', 'account_credentials')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'Email reminder cancelled.');
     }
 
     public function destroy(Account $account): RedirectResponse

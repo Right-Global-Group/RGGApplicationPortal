@@ -15,22 +15,30 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create the main user first
+        // First, run the permission seeder to create roles
+        $this->call(PermissionSeeder::class);
+
+        // Create the main user (YOU) as admin
         $mainUser = User::factory()->create([
             'first_name' => 'Max',
             'last_name' => 'Behrens',
             'email' => 'max.behrens@rightglobalgroup.com',
             'password' => 'secret',
         ]);
+        $mainUser->assignRole('admin');
 
-        // Create additional users for variety
+        // Create additional users (they can be regular users or you can make them admin too)
         User::factory(5)->create();
 
         // Create account with a random user
         $account = Account::create([
             'name' => 'Test Merchant Account',
+            'email' => 'test@merchant.com',
+            'password' => 'secret123',
             'user_id' => User::inRandomOrder()->first()->id,
+            'status' => Account::STATUS_PENDING,
         ]);
+        $account->assignRole('account');
 
         // Create applications with the account
         $applications = Application::factory(20)
@@ -42,5 +50,9 @@ class DatabaseSeeder extends Seeder
             ->each(function ($contact) use ($applications) {
                 $contact->update(['application_id' => $applications->random()->id]);
             });
+
+        $this->command->info('Database seeding completed!');
+        $this->command->info('Admin user: max.behrens@rightglobalgroup.com / secret');
+        $this->command->info('Test account: test@merchant.com / secret123');
     }
 }

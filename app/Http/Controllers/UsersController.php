@@ -56,7 +56,6 @@ class UsersController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
-                'owner' => $user->owner,
                 'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 40, 'h' => 40, 'fit' => 'crop']) : null,
                 'deleted_at' => $user->deleted_at,
                 'created_at' => $user->created_at?->format('Y-m-d H:i'),
@@ -81,7 +80,6 @@ class UsersController extends Controller
             'last_name' => ['required', 'max:50'],
             'email' => ['required', 'max:50', 'email', Rule::unique('users')],
             'password' => ['nullable'],
-            'owner' => ['required', 'boolean'],
             'photo' => ['nullable', 'image'],
         ]);
 
@@ -90,7 +88,6 @@ class UsersController extends Controller
             'last_name'  => Request::get('last_name'),
             'email'      => Request::get('email'),
             'password'   => Request::get('password'),
-            'owner'      => Request::get('owner'),
             'photo_path' => Request::file('photo') ? Request::file('photo')->store('users') : null,
         ]);        
 
@@ -113,7 +110,6 @@ class UsersController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
-                'owner' => $user->owner,
                 'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 60, 'h' => 60, 'fit' => 'crop']) : null,
                 'deleted_at' => $user->deleted_at,
             ],
@@ -142,11 +138,10 @@ class UsersController extends Controller
             'last_name' => ['required', 'max:50'],
             'email' => ['required', 'max:50', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => ['nullable'],
-            'owner' => ['required', 'boolean'],
             'photo' => ['nullable', 'image'],
         ]);
 
-        $user->update(Request::only('first_name', 'last_name', 'email', 'owner'));
+        $user->update(Request::only('first_name', 'last_name', 'email'));
 
         if (Request::file('photo')) {
             $user->update(['photo_path' => Request::file('photo')->store('users')]);
