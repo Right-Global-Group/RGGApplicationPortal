@@ -55,6 +55,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         
         // Application Status & Actions
         Route::get('/{application}/status', [ApplicationStatusController::class, 'show'])->name('applications.status');
+        Route::post('/{application}/confirm-fees', [ApplicationStatusController::class, 'confirmFees'])->name('applications.confirm-fees'); // ADD THIS LINE
         Route::post('/{application}/update-step', [ApplicationStatusController::class, 'updateStep']);
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
         Route::post('/{application}/send-approval-email', [ApplicationStatusController::class, 'sendApprovalEmail']);

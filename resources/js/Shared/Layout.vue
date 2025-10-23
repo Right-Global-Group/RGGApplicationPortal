@@ -55,7 +55,9 @@
                   </Link>
                   <Link 
                     class="block px-6 py-2 w-full text-left text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
-                    href="/logout" method="delete" as="button"
+                    :href="logoutUrl" 
+                    method="delete" 
+                    as="button"
                   >
                     Logout
                   </Link>
@@ -80,6 +82,7 @@
 
 <script>
 import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import Icon from '@/Shared/Icon.vue'
 import Logo from '@/Shared/Logo.vue'
 import Dropdown from '@/Shared/Dropdown.vue'
@@ -98,5 +101,16 @@ export default {
   props: {
     auth: Object,
   },
+  setup(props) {
+    const logoutUrl = computed(() => {
+      // Check if the user is an account (you can add a guard property to auth)
+      // or check if they have an 'isAccount' property
+      return props.auth.guard === 'account' ? '/account/logout' : '/logout'
+    })
+
+    return {
+      logoutUrl
+    }
+  }
 }
 </script>

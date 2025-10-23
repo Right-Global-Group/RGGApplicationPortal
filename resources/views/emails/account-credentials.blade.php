@@ -104,8 +104,7 @@
         <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
         
         <div class="footer">
-            <p>This is an automated email. Please do not reply to this message.</p>
-            <p>&copy; {{ date('Y') }} Your Company. All rights reserved.</p>
+            <p>This is an automated notification from the G2Pay Portal.</p>
         </div>
     </div>
 </body>

@@ -34,6 +34,7 @@ class DynamicEmail extends Mailable
         $subjects = [
             'account_credentials' => 'Your Account Credentials',
             'application_created' => 'New Application Created',
+            'fees_confirmed' => 'Application Fees Confirmed',
             'wallet_order_confirmed' => 'Wallet Transaction Confirmed',
         ];
 
@@ -50,6 +51,7 @@ class DynamicEmail extends Mailable
         $views = [
             'account_credentials' => 'emails.account-credentials',
             'application_created' => 'emails.application-created',
+            'fees_confirmed' => 'emails.fees-confirmed',
             'wallet_order_confirmed' => 'emails.wallet-order-confirmed',
         ];
 

@@ -12,6 +12,7 @@ class ApplicationStatus extends Model
         'application_id',
         'current_step',
         'step_history',
+        'fees_confirmed_at',
         'contract_sent_at',
         'contract_completed_at',
         'contract_submitted_at',
@@ -28,6 +29,7 @@ class ApplicationStatus extends Model
 
     protected $casts = [
         'step_history' => 'array',
+        'fees_confirmed_at' => 'datetime',
         'contract_sent_at' => 'datetime',
         'contract_completed_at' => 'datetime',
         'contract_submitted_at' => 'datetime',
@@ -48,6 +50,7 @@ class ApplicationStatus extends Model
     {
         $steps = [
             'created' => 0,
+            'fees_confirmed' => 5,
             'application_sent' => 10,
             'contract_completed' => 30,
             'contract_submitted' => 40,
@@ -95,6 +98,7 @@ class ApplicationStatus extends Model
     private function getTimestampField(string $step): ?string
     {
         $mapping = [
+            'fees_confirmed' => 'fees_confirmed_at',
             'application_sent' => 'contract_sent_at',
             'contract_completed' => 'contract_completed_at',
             'contract_submitted' => 'contract_submitted_at',

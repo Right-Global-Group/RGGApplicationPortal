@@ -183,34 +183,31 @@
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
         <h2 class="text-magenta-400 font-bold text-lg">Applications ({{ (applications || []).length }})</h2>
       </div>
-      <table v-if="(applications || []).length > 0" class="w-full text-left">
-        <thead>
-          <tr class="text-magenta-400 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <th class="px-6 py-3">Name</th>
-            <th class="px-6 py-3">Email</th>
-            <th class="px-6 py-3">City</th>
-            <th class="px-6 py-3">Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="application in applications" :key="application.id" class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20">
-            <td class="px-6 py-3 text-white">
-              <Link :href="`/applications/${application.id}/edit`" class="text-magenta-400 hover:text-magenta-300 transition-colors">
-                {{ application.name }}
-              </Link>
-            </td>
-            <td class="px-6 py-3 text-gray-300">
-              {{ application.email || '—' }}
-            </td>
-            <td class="px-6 py-3 text-gray-300">
-              {{ application.city || '—' }}
-            </td>
-            <td class="px-6 py-3 text-gray-400">
-              {{ formatDate(application.created_at) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-if="(applications || []).length > 0" class="divide-y divide-primary-800/20">
+        <Link
+          v-for="application in applications"
+          :key="application.id"
+          :href="`/applications/${application.id}/edit`"
+          class="flex items-center justify-between px-6 py-4 hover:bg-primary-900/30 transition-colors duration-150 group cursor-pointer"
+        >
+          <div class="flex-1">
+            <div class="font-semibold text-magenta-400 group-hover:text-magenta-300 transition-colors">
+              {{ application.name }}
+            </div>
+            <div class="text-sm text-gray-400 mt-1">
+              Created {{ formatDate(application.created_at) }}
+            </div>
+          </div>
+          <svg 
+            class="w-5 h-5 text-gray-400 group-hover:text-magenta-400 transition-colors" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </div>
       <div v-else class="px-6 py-8 text-gray-400 text-center">
         No applications found for this account.
       </div>

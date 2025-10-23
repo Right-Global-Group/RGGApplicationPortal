@@ -45,25 +45,118 @@
                 </div>
               </div>
             </div>
+
+            <!-- Fee Structure Display (Read-only) -->
+            <div class="mt-6 pt-6 border-t border-primary-800/30">
+              <h3 class="text-lg font-semibold text-magenta-400 mb-4">Fee Structure</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-gray-300 font-medium mb-2">Setup Fee</label>
+                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                    £{{ parseFloat(application.setup_fee).toFixed(2)}}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-gray-300 font-medium mb-2">Transaction Fee</label>
+                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                    {{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-gray-300 font-medium mb-2">Monthly Fee</label>
+                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                    £{{ parseFloat(application.monthly_fee).toFixed(2) }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-gray-300 font-medium mb-2">Monthly Minimum</label>
+                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                    £{{ parseFloat(application.monthly_minimum).toFixed(2) }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-gray-300 font-medium mb-2">Service Fee</label>
+                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                    £{{ parseFloat(application.service_fee).toFixed(2) }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-gray-300 font-medium mb-2">Fees Confirmed</label>
+                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                    <span v-if="application.fees_confirmed" class="text-green-400">
+                      ✓ Confirmed {{ application.fees_confirmed_at ? `at ${application.fees_confirmed_at}` : '' }}
+                    </span>
+                    <span v-else class="text-yellow-400">Pending Confirmation</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Edit Application Form -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+            <h2 class="text-magenta-400 font-bold text-lg">Edit Application</h2>
+          </div>
           <form @submit.prevent="update">
             <div class="flex flex-wrap -mb-8 -mr-6 p-8">
-              <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Name" />
-              <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" />
-              <text-input v-model="form.phone" :error="form.errors.phone" class="pb-8 pr-6 w-full lg:w-1/2" label="Phone" />
-              <text-input v-model="form.address" :error="form.errors.address" class="pb-8 pr-6 w-full lg:w-1/2" label="Address" />
-              <text-input v-model="form.city" :error="form.errors.city" class="pb-8 pr-6 w-full lg:w-1/2" label="City" />
-              <text-input v-model="form.region" :error="form.errors.region" class="pb-8 pr-6 w-full lg:w-1/2" label="Province/State" />
-              <select-input v-model="form.country" :error="form.errors.country" class="pb-8 pr-6 w-full lg:w-1/2" label="Country">
-                <option :value="null" />
-                <option value="CA">Canada</option>
-                <option value="US">United States</option>
-              </select-input>
-              <text-input v-model="form.postal_code" :error="form.errors.postal_code" class="pb-8 pr-6 w-full lg:w-1/2" label="Postal code" />
+              <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Application Name" />
+              
+              <!-- Editable Fee Fields -->
+              <div class="pb-4 pr-6 w-full">
+                <h3 class="text-md font-semibold text-gray-300">Fee Adjustments</h3>
+                <p class="text-sm text-gray-400">Modify the fee structure if needed.</p>
+              </div>
+              
+              <text-input 
+                v-model="form.setup_fee" 
+                :error="form.errors.setup_fee" 
+                type="number" 
+                step="0.01" 
+                class="pb-8 pr-6 w-full lg:w-1/2" 
+                label="Setup Fee (£)" 
+              />
+              <text-input 
+                v-model="form.transaction_percentage" 
+                :error="form.errors.transaction_percentage" 
+                type="number" 
+                step="0.01" 
+                class="pb-8 pr-6 w-full lg:w-1/2" 
+                label="Transaction Percentage (%)" 
+              />
+              <text-input 
+                v-model="form.transaction_fixed_fee" 
+                :error="form.errors.transaction_fixed_fee" 
+                type="number" 
+                step="0.01" 
+                class="pb-8 pr-6 w-full lg:w-1/2" 
+                label="Fixed Fee Per Transaction (£)" 
+              />
+              <text-input 
+                v-model="form.monthly_fee" 
+                :error="form.errors.monthly_fee" 
+                type="number" 
+                step="0.01" 
+                class="pb-8 pr-6 w-full lg:w-1/2" 
+                label="Monthly Fee (£)" 
+              />
+              <text-input 
+                v-model="form.monthly_minimum" 
+                :error="form.errors.monthly_minimum" 
+                type="number" 
+                step="0.01" 
+                class="pb-8 pr-6 w-full lg:w-1/2" 
+                label="Monthly Minimum (£)" 
+              />
+              <text-input 
+                v-model="form.service_fee" 
+                :error="form.errors.service_fee" 
+                type="number" 
+                step="0.01" 
+                class="pb-8 pr-6 w-full lg:w-1/2" 
+                label="Service Fee (£)" 
+              />
             </div>
             <div class="flex items-center justify-between px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
               <Link href="/applications" class="text-gray-400 hover:text-gray-300 transition-colors">
@@ -115,13 +208,12 @@ export default {
       form: this.$inertia.form({
         account_id: this.application.account_id,
         name: this.application.name,
-        email: this.application.email,
-        phone: this.application.phone,
-        address: this.application.address,
-        city: this.application.city,
-        region: this.application.region,
-        country: this.application.country,
-        postal_code: this.application.postal_code,
+        setup_fee: this.application.setup_fee,
+        transaction_percentage: this.application.transaction_percentage,
+        transaction_fixed_fee: this.application.transaction_fixed_fee,
+        monthly_fee: this.application.monthly_fee,
+        monthly_minimum: this.application.monthly_minimum,
+        service_fee: this.application.service_fee,
       }),
     }
   },

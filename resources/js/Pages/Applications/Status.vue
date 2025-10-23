@@ -1,84 +1,156 @@
 <template>
-    <div>
-      <Head :title="`Status - ${application.name}`" />
-      
-      <div class="flex items-center justify-between mb-6">
-        <h1 class="text-3xl font-bold text-white">Application Status</h1>
-        <Link 
-          href="/progress-tracker" 
+  <div>
+    <Head :title="`Status - ${application.name}`" />
+    
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold text-white">Application Status</h1>
+      <Link 
+        href="/progress-tracker" 
+        class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2"
+      >
+        <icon name="arrow-left" class="w-4 h-4 fill-current" />
+        Back to Tracker
+      </Link>
+    </div>
+
+    <!-- Application Info -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+      <div class="flex justify-between">
+        <div>
+          <div class="text-sm text-gray-400 mb-1">Application Name</div>
+          <div class="text-lg font-semibold text-white">{{ application.name }}</div>
+        </div>
+        <div v-if="application.trading_name">
+          <div class="text-sm text-gray-400 mb-1">Trading Name</div>
+          <div class="text-lg font-semibold text-white">{{ application.trading_name }}</div>
+        </div>
+        <Link
+          :href="`/applications/${application.id}/edit`"
           class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2"
         >
-          <icon name="arrow-left" class="w-4 h-4 fill-current" />
-          Back to Tracker
+          <icon name="edit" class="w-4 h-4 fill-current" />
+          Edit Application
         </Link>
       </div>
-  
-      <!-- Application Info -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <div class="flex justify-between">
-          <div>
-            <div class="text-sm text-gray-400 mb-1">Application Name</div>
-            <div class="text-lg font-semibold text-white">{{ application.name }}</div>
+    </div>
+
+    <!-- Fee Structure Display -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 shadow-2xl overflow-hidden mb-6">
+      <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+        <h2 class="text-xl font-bold text-magenta-400">Fee Structure</h2>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">Setup Fee (+ VAT)</div>
+            <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.setup_fee).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Taken on approval</div>
           </div>
-          <div v-if="application.trading_name">
-            <div class="text-sm text-gray-400 mb-1">Trading Name</div>
-            <div class="text-lg font-semibold text-white">{{ application.trading_name }}</div>
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">Transaction Fee</div>
+            <div class="text-2xl font-bold text-magenta-400">{{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Per transaction</div>
           </div>
-          <div>
-            <div class="text-sm text-gray-400 mb-1">Email</div>
-            <div class="text-lg text-white">{{ application.email }}</div>
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">Monthly Fee</div>
+            <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.monthly_fee).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Fixed monthly charge</div>
           </div>
-          <div>
-            <div class="text-sm text-gray-400 mb-1">Phone</div>
-            <div class="text-lg text-white">{{ application.phone }}</div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">Monthly Minimum</div>
+            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.monthly_minimum).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Made up of transactional fees</div>
           </div>
-          <Link
-            :href="`/applications/${application.id}/edit`"
-            class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2"
-          >
-            <icon name="edit" class="w-4 h-4 fill-current" />
-            Edit Application
-          </Link>
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">Service Fee</div>
+            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.service_fee).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Additional service charge</div>
+          </div>
+        </div>
+
+        <!-- Fee Example -->
+        <div class="bg-primary-900/20 border border-primary-700/30 rounded-lg p-4 mb-4">
+          <div class="text-gray-300 text-sm font-semibold mb-2">Example Calculation:</div>
+          <div class="text-gray-400 text-sm">
+            {{ Math.floor(parseFloat(application.monthly_minimum) / parseFloat(application.transaction_fixed_fee)) }} transactions × £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }} = 
+            £{{ (Math.floor(parseFloat(application.monthly_minimum) / parseFloat(application.transaction_fixed_fee)) * parseFloat(application.transaction_fixed_fee)).toFixed(2) }}
+          </div>
+        </div>
+
+        <!-- Fees Confirmation Status and Button -->
+        <div v-if="!application.fees_confirmed && is_account" class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-yellow-400 font-semibold mb-1">Fees Require Confirmation</div>
+              <div class="text-gray-400 text-sm">Please review and confirm the fee structure to proceed with your application.</div>
+            </div>
+            <button @click="confirmFees" :disabled="confirmingFees" class="btn-primary whitespace-nowrap ml-4">
+              {{ confirmingFees ? 'Confirming...' : 'Confirm Fees' }}
+            </button>
+          </div>
+        </div>
+        
+        <div v-else-if="application.fees_confirmed" class="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
+          <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+              <div class="text-green-400 font-semibold">Fees Confirmed</div>
+              <div class="text-gray-400 text-sm">Confirmed {{ application.fees_confirmed_at }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!is_account" class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+          <div class="text-gray-400 text-sm">
+            <span v-if="!application.fees_confirmed" class="text-yellow-400">⏳ Awaiting fee confirmation from account</span>
+            <span v-else class="text-green-400">✓ Fees confirmed</span>
+          </div>
         </div>
       </div>
-  
-      <!-- Progress Bar -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-bold text-white">Overall Progress</h2>
-          <span class="text-2xl font-bold text-magenta-400">
-            {{ application.status?.progress_percentage || 0 }}%
-          </span>
-        </div>
-        <div class="bg-gray-700 rounded-full h-4 overflow-hidden">
-          <div 
-            class="h-full bg-gradient-to-r from-magenta-500 to-primary-500 transition-all duration-500"
-            :style="{ width: (application.status?.progress_percentage || 0) + '%' }"
-          ></div>
-        </div>
-        <div class="mt-2 text-sm text-gray-400">
-          Current Step: <span class="text-magenta-400 font-semibold">
-            {{ formatStatus(application.status?.current_step) }}
-          </span>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-bold text-white">Overall Progress</h2>
+        <span class="text-2xl font-bold text-magenta-400">
+          {{ application.status?.progress_percentage || 0 }}%
+        </span>
+      </div>
+      <div class="bg-gray-700 rounded-full h-4 overflow-hidden">
+        <div 
+          class="h-full bg-gradient-to-r from-magenta-500 to-primary-500 transition-all duration-500"
+          :style="{ width: (application.status?.progress_percentage || 0) + '%' }"
+        ></div>
+      </div>
+      <div class="mt-2 text-sm text-gray-400">
+        Current Step: <span class="text-magenta-400 font-semibold">
+          {{ formatStatus(application.status?.current_step) }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Alert for Additional Info -->
+    <div 
+      v-if="application.status?.requires_additional_info" 
+      class="bg-red-900/30 border border-red-700/50 rounded-xl p-4 mb-6"
+    >
+      <div class="flex items-start gap-3">
+        <icon name="alert-circle" class="w-6 h-6 fill-red-400 flex-shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <h3 class="text-lg font-semibold text-red-300 mb-2">Additional Information Required</h3>
+          <p class="text-gray-300">{{ application.status.additional_info_notes }}</p>
         </div>
       </div>
-  
-      <!-- Alert for Additional Info -->
-      <div 
-        v-if="application.status?.requires_additional_info" 
-        class="bg-red-900/30 border border-red-700/50 rounded-xl p-4 mb-6"
-      >
-        <div class="flex items-start gap-3">
-          <icon name="alert-circle" class="w-6 h-6 fill-red-400 flex-shrink-0 mt-0.5" />
-          <div class="flex-1">
-            <h3 class="text-lg font-semibold text-red-300 mb-2">Additional Information Required</h3>
-            <p class="text-gray-300">{{ application.status.additional_info_notes }}</p>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Action Buttons -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    </div>
+
+    <!-- Action Buttons (only for users, not accounts) -->
+    <div v-if="!is_account" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
       <h2 class="text-xl font-bold text-white mb-4">Quick Actions</h2>
       <div class="flex flex-wrap gap-3">
         <button
@@ -135,13 +207,6 @@
           Mark as Approved
         </button>
         <button
-          v-if="canSendApprovalEmail"
-          @click="sendApprovalEmail"
-          class="btn-primary"
-        >
-          Send Approval Email
-        </button>
-        <button
           @click="requestAdditionalInfo"
           class="btn-primary bg-yellow-600 hover:bg-yellow-700"
         >
@@ -156,354 +221,285 @@
         </button>
       </div>
     </div>
-  
-      <!-- Timeline/Process Flow -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <h2 class="text-xl font-bold text-white mb-6">Process Timeline</h2>
-        <div class="space-y-4">
-          <timeline-step
-            v-for="(step, index) in processSteps"
-            :key="step.id"
-            :step="step"
-            :is-current="step.id === application.status?.current_step"
-            :is-completed="isStepCompleted(step.id)"
-            :timestamp="getStepTimestamp(step.id)"
-          />
-        </div>
+
+    <!-- Timeline/Process Flow -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+      <h2 class="text-xl font-bold text-white mb-6">Process Timeline</h2>
+      <div class="space-y-4">
+        <timeline-step
+          v-for="(step, index) in processSteps"
+          :key="step.id"
+          :step="step"
+          :is-current="step.id === application.status?.current_step"
+          :is-completed="isStepCompleted(step.id)"
+          :timestamp="getStepTimestamp(step.id)"
+        />
       </div>
-  
-      <!-- Documents -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <h2 class="text-xl font-bold text-white mb-4">Documents</h2>
-        <div v-if="application.documents?.length > 0" class="space-y-3">
-          <div
-            v-for="doc in application.documents"
-            :key="doc.id"
-            class="flex items-center justify-between p-4 bg-primary-900/30 rounded-lg border border-primary-700/30"
-          >
-            <div class="flex items-center gap-3">
-              <icon name="file" class="w-5 h-5 fill-gray-400" />
-              <div>
-                <div class="font-semibold text-white capitalize">{{ doc.type }}</div>
-                <div class="text-sm text-gray-400">
-                  Sent: {{ doc.sent_at || 'Not sent' }}
-                </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+      <h2 class="text-xl font-bold text-white mb-4">Documents</h2>
+      <div v-if="application.documents?.length > 0" class="space-y-3">
+        <div
+          v-for="doc in application.documents"
+          :key="doc.id"
+          class="flex items-center justify-between p-4 bg-primary-900/30 rounded-lg border border-primary-700/30"
+        >
+          <div class="flex items-center gap-3">
+            <icon name="file" class="w-5 h-5 fill-gray-400" />
+            <div>
+              <div class="font-semibold text-white capitalize">{{ doc.type }}</div>
+              <div class="text-sm text-gray-400">
+                Sent: {{ doc.sent_at || 'Not sent' }}
               </div>
             </div>
+          </div>
+          <span
+            class="px-3 py-1 rounded-full text-xs font-semibold"
+            :class="getDocumentStatusClass(doc.status)"
+          >
+            {{ doc.status }}
+          </span>
+        </div>
+      </div>
+      <div v-else class="text-gray-400 text-center py-4">No documents yet</div>
+    </div>
+
+    <!-- Invoices -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+      <h2 class="text-xl font-bold text-white mb-4">Invoices</h2>
+      <div v-if="application.invoices?.length > 0" class="space-y-3">
+        <div
+          v-for="invoice in application.invoices"
+          :key="invoice.id"
+          class="flex items-center justify-between p-4 bg-primary-900/30 rounded-lg border border-primary-700/30"
+        >
+          <div>
+            <div class="font-semibold text-white">{{ invoice.invoice_number }}</div>
+            <div class="text-sm text-gray-400">Amount: £{{ invoice.amount }}</div>
+            <div class="text-xs text-gray-500">Due: {{ invoice.due_date }}</div>
+          </div>
+          <div class="flex items-center gap-3">
             <span
               class="px-3 py-1 rounded-full text-xs font-semibold"
-              :class="getDocumentStatusClass(doc.status)"
+              :class="getInvoiceStatusClass(invoice.status)"
             >
-              {{ doc.status }}
+              {{ invoice.status }}
             </span>
-          </div>
-        </div>
-        <div v-else class="text-gray-400 text-center py-4">No documents yet</div>
-      </div>
-  
-      <!-- Invoices -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <h2 class="text-xl font-bold text-white mb-4">Invoices</h2>
-        <div v-if="application.invoices?.length > 0" class="space-y-3">
-          <div
-            v-for="invoice in application.invoices"
-            :key="invoice.id"
-            class="flex items-center justify-between p-4 bg-primary-900/30 rounded-lg border border-primary-700/30"
-          >
-            <div>
-              <div class="font-semibold text-white">{{ invoice.invoice_number }}</div>
-              <div class="text-sm text-gray-400">Amount: £{{ invoice.amount }}</div>
-              <div class="text-xs text-gray-500">Due: {{ invoice.due_date }}</div>
-            </div>
-            <div class="flex items-center gap-3">
-              <span
-                class="px-3 py-1 rounded-full text-xs font-semibold"
-                :class="getInvoiceStatusClass(invoice.status)"
-              >
-                {{ invoice.status }}
-              </span>
-              <button
-                v-if="invoice.status === 'sent'"
-                @click="markInvoiceAsPaid(invoice.id)"
-                class="text-sm px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white"
-              >
-                Mark as Paid
-              </button>
-            </div>
-          </div>
-        </div>
-        <div v-else class="text-gray-400 text-center py-4">No invoices yet</div>
-      </div>
-  
-      <!-- Gateway Integration -->
-      <div v-if="application.gateway" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-        <h2 class="text-xl font-bold text-white mb-4">Gateway Integration</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <div class="text-sm text-gray-400 mb-1">Provider</div>
-            <div class="text-lg font-semibold text-white capitalize">{{ application.gateway.provider }}</div>
-          </div>
-          <div v-if="application.gateway.merchant_id">
-            <div class="text-sm text-gray-400 mb-1">Merchant ID</div>
-            <div class="text-lg font-semibold text-white">{{ application.gateway.merchant_id }}</div>
-          </div>
-          <div>
-            <div class="text-sm text-gray-400 mb-1">Status</div>
-            <span
-              class="inline-flex px-3 py-1 rounded-full text-sm font-semibold"
-              :class="getGatewayStatusClass(application.gateway.status)"
+            <button
+              v-if="invoice.status === 'sent'"
+              @click="markInvoiceAsPaid(invoice.id)"
+              class="text-sm px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white"
             >
-              {{ application.gateway.status }}
-            </span>
+              Mark as Paid
+            </button>
           </div>
         </div>
       </div>
-  
-      <!-- Activity Log -->
-      <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl">
-        <h2 class="text-xl font-bold text-white mb-4">Activity Log</h2>
-        <div v-if="application.activity_logs?.length > 0" class="space-y-3">
-          <div
-            v-for="log in application.activity_logs"
-            :key="log.created_at"
-            class="flex items-start gap-3 p-3 hover:bg-primary-900/20 rounded-lg transition-colors"
-          >
-            <div class="w-2 h-2 bg-magenta-500 rounded-full mt-2 flex-shrink-0"></div>
-            <div class="flex-1">
-              <div class="text-white">{{ log.description }}</div>
-              <div class="text-sm text-gray-400 mt-1">
-                {{ log.created_at }}
-                <span v-if="log.user_name" class="ml-2">by {{ log.user_name }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div v-else class="text-gray-400 text-center py-4">No activity yet</div>
-      </div>
-  
-      <!-- Modals -->
-      <invoice-modal
-        v-if="showInvoiceModal"
-        :application-id="application.id"
-        @close="showInvoiceModal = false"
-      />
-  
-      <additional-info-modal
-        v-if="showAdditionalInfoModal"
-        :application-id="application.id"
-        @close="showAdditionalInfoModal = false"
-      />
+      <div v-else class="text-gray-400 text-center py-4">No invoices yet</div>
     </div>
-  </template>
-  
-  <script>
-  import { Head, Link } from '@inertiajs/vue3'
-  import Icon from '@/Shared/Icon.vue'
-  import Layout from '@/Shared/Layout.vue'
-  import TimelineStep from '@/Shared/TimelineStep.vue'
-  import InvoiceModal from '@/Shared/InvoiceModal.vue'
-  import AdditionalInfoModal from '@/Shared/AdditionalInfoModal.vue'
-  import axios from 'axios'
-  
-  export default {
-    components: {
-      Head,
-      Link,
-      Icon,
-      TimelineStep,
-      InvoiceModal,
-      AdditionalInfoModal,
+
+    <!-- Gateway Integration -->
+    <div v-if="application.gateway" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+      <h2 class="text-xl font-bold text-white mb-4">Gateway Integration</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <div class="text-sm text-gray-400 mb-1">Provider</div>
+          <div class="text-lg font-semibold text-white capitalize">{{ application.gateway.provider }}</div>
+        </div>
+        <div v-if="application.gateway.merchant_id">
+          <div class="text-sm text-gray-400 mb-1">Merchant ID</div>
+          <div class="text-lg font-semibold text-white">{{ application.gateway.merchant_id }}</div>
+        </div>
+        <div>
+          <div class="text-sm text-gray-400 mb-1">Status</div>
+          <span
+            class="inline-flex px-3 py-1 rounded-full text-sm font-semibold"
+            :class="getGatewayStatusClass(application.gateway.status)"
+          >
+            {{ application.gateway.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl">
+      <h2 class="text-xl font-bold text-white mb-4">Activity Log</h2>
+      <div v-if="application.activity_logs?.length > 0" class="space-y-3">
+        <div
+          v-for="log in application.activity_logs"
+          :key="log.created_at"
+          class="flex items-start gap-3 p-3 hover:bg-primary-900/20 rounded-lg transition-colors"
+        >
+          <div class="w-2 h-2 bg-magenta-500 rounded-full mt-2 flex-shrink-0"></div>
+          <div class="flex-1">
+            <div class="text-white">{{ log.description }}</div>
+            <div class="text-sm text-gray-400 mt-1">
+              {{ log.created_at }}
+              <span v-if="log.user_name" class="ml-2">by {{ log.user_name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="text-gray-400 text-center py-4">No activity yet</div>
+    </div>
+
+    <!-- Modals -->
+    <invoice-modal
+      v-if="showInvoiceModal"
+      :application-id="application.id"
+      @close="showInvoiceModal = false"
+    />
+
+    <additional-info-modal
+      v-if="showAdditionalInfoModal"
+      :application-id="application.id"
+      @close="showAdditionalInfoModal = false"
+    />
+  </div>
+</template>
+
+<script>
+import { Head, Link } from '@inertiajs/vue3'
+import Layout from '@/Shared/Layout.vue'
+import TimelineStep from '@/Shared/TimelineStep.vue'
+import InvoiceModal from '@/Shared/InvoiceModal.vue'
+import AdditionalInfoModal from '@/Shared/AdditionalInfoModal.vue'
+import Icon from '@/Shared/Icon.vue'
+
+export default {
+  components: {
+    Head,
+    Link,
+    TimelineStep,
+    InvoiceModal,
+    AdditionalInfoModal,
+    Icon,
+  },
+  layout: Layout,
+  props: {
+    application: Object,
+    is_account: Boolean,
+  },
+  data() {
+    return {
+      confirmingFees: false,
+      isLoading: false,
+      showInvoiceModal: false,
+      showAdditionalInfoModal: false,
+      processSteps: [
+        { id: 'created', label: 'Application Created', description: 'Initial application setup' },
+        { id: 'fees_confirmed', label: 'Fees Confirmed', description: 'Account confirmed fee structure' },
+        { id: 'application_sent', label: 'Contract Sent', description: 'Contract sent to client' },
+        { id: 'contract_completed', label: 'Contract Signed', description: 'Client signed the contract' },
+        { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted for review' },
+        { id: 'application_approved', label: 'Application Approved', description: 'Application approved by admin' },
+        { id: 'invoice_sent', label: 'Invoice Sent', description: 'Setup fee invoice sent' },
+        { id: 'invoice_paid', label: 'Payment Received', description: 'Setup fee paid' },
+        { id: 'gateway_integrated', label: 'Gateway Integration', description: 'Payment gateway integrated' },
+        { id: 'account_live', label: 'Account Live', description: 'Merchant account is live' },
+      ],
+    }
+  },
+  computed: {
+    canSendContract() {
+      return this.application.status?.current_step === 'fees_confirmed' && !this.is_account
     },
-    layout: Layout,
-    props: {
-      application: Object,
+    canApprove() {
+      return ['contract_submitted'].includes(this.application.status?.current_step) && !this.is_account
     },
-    data() {
-      return {
-        showInvoiceModal: false,
-        showAdditionalInfoModal: false,
-        isLoading: false,
-        docusignWindow: null,
-        processSteps: [
-          { id: 'created', label: 'Application Created' },
-          { id: 'application_sent', label: 'Contract Sent' },
-          { id: 'contract_completed', label: 'Contract Signed' },
-          { id: 'contract_submitted', label: 'Contract Submitted' },
-          { id: 'application_approved', label: 'Application Approved' },
-          { id: 'approval_email_sent', label: 'Approval Email Sent' },
-          { id: 'invoice_sent', label: 'Invoice Sent' },
-          { id: 'invoice_paid', label: 'Payment Received' },
-          { id: 'gateway_integrated', label: 'Gateway Integrated & Tested' },
-          { id: 'account_live', label: 'Account Live' },
-        ],
+    canCreateInvoice() {
+      return this.application.status?.current_step === 'application_approved' && !this.is_account
+    },
+  },
+  methods: {
+    confirmFees() {
+      if (confirm('Are you sure you want to confirm these fees? This action cannot be undone.')) {
+        this.confirmingFees = true
+        this.$inertia.post(`/applications/${this.application.id}/confirm-fees`, {}, {
+          onFinish: () => {
+            this.confirmingFees = false
+          }
+        })
       }
     },
-    mounted() {
-      console.log('Status component mounted, adding message listener')
-      // Listen for messages from DocuSign callback window
-      window.addEventListener('message', this.handleDocuSignCallback)
-    },
-    beforeUnmount() {
-      console.log('Status component unmounting, removing message listener')
-      // Clean up event listener
-      window.removeEventListener('message', this.handleDocuSignCallback)
-    },
-    computed: {
-      canSendContract() {
-        return this.application.status?.current_step === 'created'
-      },
-      canApprove() {
-        return this.application.status?.current_step === 'contract_submitted'
-      },
-      canSendApprovalEmail() {
-        return this.application.status?.current_step === 'application_approved'
-      },
-      canCreateInvoice() {
-        return ['application_approved', 'approval_email_sent'].includes(this.application.status?.current_step)
-      },
-    },
-    methods: {
-      handleDocuSignCallback(event) {
-        console.log('Message received:', event)
-        console.log('Event origin:', event.origin)
-        console.log('Window origin:', window.location.origin)
-        console.log('Event data:', event.data)
+    async sendContractLink() {
+      this.isLoading = true
+      try {
+        const response = await fetch(`/applications/${this.application.id}/send-contract`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          },
+        })
+        const data = await response.json()
         
-        // Verify the message is from our domain
-        if (event.origin !== window.location.origin) {
-          console.warn('Message origin mismatch, ignoring')
-          return
+        if (data.success && data.signing_url) {
+          window.open(data.signing_url, '_blank', 'width=800,height=600')
+        } else {
+          alert(data.message || 'Failed to send contract')
         }
-        
-        // Check if it's a DocuSign completion message
-        if (event.data && event.data.type === 'docusign_complete') {
-          console.log('DocuSign complete message received!')
-          
-          if (event.data.success) {
-            console.log('Contract signed successfully, reloading page...')
-            
-            // Show success notification
-            alert('Contract signed successfully! The page will now refresh.')
-            
-            // Reload the entire page to ensure fresh data
-            window.location.reload()
-          } else {
-            console.log('DocuSign session ended without completion')
-            alert(event.data.message || 'Contract signing session ended.')
-          }
-        }
-      },
-      formatStatus(status) {
-        const statusMap = {
-          created: 'Created',
-          application_sent: 'Contract Sent',
-          contract_completed: 'Contract Signed',
-          contract_submitted: 'Submitted',
-          application_approved: 'Approved',
-          approval_email_sent: 'Approval Sent',
-          invoice_sent: 'Invoice Sent',
-          invoice_paid: 'Payment Received',
-          gateway_integrated: 'Integration Complete',
-          account_live: 'Live',
-        }
-        return statusMap[status] || status
-      },
-      isStepCompleted(stepId) {
-        const currentIndex = this.processSteps.findIndex(s => s.id === this.application.status?.current_step)
-        const stepIndex = this.processSteps.findIndex(s => s.id === stepId)
-        return stepIndex <= currentIndex
-      },
-      getStepTimestamp(stepId) {
-        return this.application.status?.timestamps?.[stepId]
-      },
-      getDocumentStatusClass(status) {
-        const classes = {
-          pending: 'bg-gray-700 text-gray-300',
-          sent: 'bg-blue-900/50 text-blue-300',
-          viewed: 'bg-yellow-900/50 text-yellow-300',
-          completed: 'bg-green-900/50 text-green-300',
-          declined: 'bg-red-900/50 text-red-300',
-        }
-        return classes[status] || classes.pending
-      },
-      getInvoiceStatusClass(status) {
-        const classes = {
-          draft: 'bg-gray-700 text-gray-300',
-          sent: 'bg-blue-900/50 text-blue-300',
-          paid: 'bg-green-900/50 text-green-300',
-          overdue: 'bg-red-900/50 text-red-300',
-          cancelled: 'bg-gray-700 text-gray-400',
-        }
-        return classes[status] || classes.draft
-      },
-      getGatewayStatusClass(status) {
-        const classes = {
-          pending: 'bg-gray-700 text-gray-300',
-          in_progress: 'bg-blue-900/50 text-blue-300',
-          testing: 'bg-yellow-900/50 text-yellow-300',
-          live: 'bg-green-900/50 text-green-300',
-          failed: 'bg-red-900/50 text-red-300',
-        }
-        return classes[status] || classes.pending
-      },
-      async sendContractLink() {
-        if (this.isLoading) return
-  
-        this.isLoading = true
-  
-        try {
-          const response = await axios.post(`/applications/${this.application.id}/send-contract`)
-          
-          if (response.data.success && response.data.signing_url) {
-            console.log('Opening DocuSign window...')
-            
-            // Open DocuSign in a new tab with specific features
-            this.docusignWindow = window.open(
-              response.data.signing_url, 
-              'docusign_signing',
-              'width=1024,height=768,resizable=yes,scrollbars=yes'
-            )
-            
-            // Check if popup was blocked
-            if (!this.docusignWindow || this.docusignWindow.closed || typeof this.docusignWindow.closed === 'undefined') {
-              alert('Popup was blocked! Please allow popups for this site and try again.')
-              return
-            }
-            
-            // Show success message
-            this.$page.props.flash = {
-              success: 'Contract sent! DocuSign opened in new window. Please complete signing there.'
-            }
-          } else {
-            this.$page.props.flash = {
-              error: response.data.message || 'Failed to send contract'
-            }
-          }
-        } catch (error) {
-          console.error('DocuSign error:', error)
-          this.$page.props.flash = {
-            error: error.response?.data?.message || 'Failed to send contract. Please try again.'
-          }
-        } finally {
-          this.isLoading = false
-        }
-      },
-      markAsApproved() {
-        this.$inertia.post(`/applications/${this.application.id}/approve`)
-      },
-      sendApprovalEmail() {
-        this.$inertia.post(`/applications/${this.application.id}/send-approval-email`)
-      },
-      requestAdditionalInfo() {
-        this.showAdditionalInfoModal = true
-      },
-      markInvoiceAsPaid(invoiceId) {
-        if (confirm('Mark this invoice as paid?')) {
-          this.$inertia.post(`/invoices/${invoiceId}/mark-paid`, {
-            payment_method: 'Bank Transfer',
-          })
-        }
-      },
+      } catch (error) {
+        console.error('Error sending contract:', error)
+        alert('Failed to send contract')
+      } finally {
+        this.isLoading = false
+      }
     },
-  }
-  </script>
+    markAsApproved() {
+      if (confirm('Mark this application as approved?')) {
+        this.$inertia.post(`/applications/${this.application.id}/mark-approved`)
+      }
+    },
+    requestAdditionalInfo() {
+      this.showAdditionalInfoModal = true
+    },
+    markInvoiceAsPaid(invoiceId) {
+      if (confirm('Mark this invoice as paid?')) {
+        this.$inertia.post(`/invoices/${invoiceId}/mark-paid`)
+      }
+    },
+    isStepCompleted(stepId) {
+      const currentStep = this.application.status?.current_step
+      const stepOrder = ['created', 'fees_confirmed', 'application_sent', 'contract_completed', 'contract_submitted', 'application_approved', 'invoice_sent', 'invoice_paid', 'gateway_integrated', 'account_live']
+      const currentIndex = stepOrder.indexOf(currentStep)
+      const checkIndex = stepOrder.indexOf(stepId)
+      return checkIndex < currentIndex
+    },
+    getStepTimestamp(stepId) {
+      return this.application.status?.timestamps?.[stepId] || null
+    },
+    formatStatus(status) {
+      if (!status) return 'Created'
+      return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    },
+    getDocumentStatusClass(status) {
+      const classes = {
+        sent: 'bg-blue-900/30 text-blue-400',
+        completed: 'bg-green-900/30 text-green-400',
+        pending: 'bg-yellow-900/30 text-yellow-400',
+      }
+      return classes[status] || 'bg-gray-900/30 text-gray-400'
+    },
+    getInvoiceStatusClass(status) {
+      const classes = {
+        sent: 'bg-blue-900/30 text-blue-400',
+        paid: 'bg-green-900/30 text-green-400',
+        overdue: 'bg-red-900/30 text-red-400',
+      }
+      return classes[status] || 'bg-gray-900/30 text-gray-400'
+    },
+    getGatewayStatusClass(status) {
+      const classes = {
+        active: 'bg-green-900/30 text-green-400',
+        pending: 'bg-yellow-900/30 text-yellow-400',
+        inactive: 'bg-gray-900/30 text-gray-400',
+      }
+      return classes[status] || 'bg-gray-900/30 text-gray-400'
+    },
+  },
+}
+</script>

@@ -144,7 +144,7 @@ class AccountsController extends Controller
 
         $applications = $account->applications()
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'city', 'created_at']);
+            ->get(['id', 'name', 'created_at']);
 
         return Inertia::render('Accounts/Edit', [
             'account' => [

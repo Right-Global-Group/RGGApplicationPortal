@@ -104,7 +104,8 @@ class ProgressTrackerController extends Controller
         $allApplications = $statsQuery->get();
         $stats = [
             'total_applications' => $allApplications->count(),
-            'pending_contracts' => $allApplications->filter(fn($app) => $app->status?->current_step === 'application_sent')->count(),
+            'pending_fees' => $allApplications->filter(fn($app) => $app->status?->current_step === 'created')->count(),  // UPDATED: Created = Pending Fees
+            'pending_contracts' => $allApplications->filter(fn($app) => $app->status?->current_step === 'fees_confirmed')->count(),  // UPDATED: Fees Confirmed = Pending Contracts
             'awaiting_approval' => $allApplications->filter(fn($app) => $app->status?->current_step === 'contract_submitted')->count(),
             'awaiting_payment' => $allApplications->filter(fn($app) => $app->status?->current_step === 'invoice_sent')->count(),
             'in_integration' => $allApplications->filter(fn($app) => in_array($app->status?->current_step, ['invoice_paid', 'gateway_integrated']))->count(),
@@ -114,6 +115,7 @@ class ProgressTrackerController extends Controller
         // Available status options for filter dropdown
         $statusOptions = [
             'created' => 'Created',
+            'fees_confirmed' => 'Fees Confirmed',
             'application_sent' => 'Contract Sent',
             'contract_completed' => 'Contract Signed',
             'contract_submitted' => 'Submitted',

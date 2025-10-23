@@ -16,18 +16,77 @@
               {{ account.name }}
             </option>
           </select-input>
-          <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Name" />
-          <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" />
-          <text-input v-model="form.phone" :error="form.errors.phone" class="pb-8 pr-6 w-full lg:w-1/2" label="Phone" />
-          <text-input v-model="form.address" :error="form.errors.address" class="pb-8 pr-6 w-full lg:w-1/2" label="Address" />
-          <text-input v-model="form.city" :error="form.errors.city" class="pb-8 pr-6 w-full lg:w-1/2" label="City" />
-          <text-input v-model="form.region" :error="form.errors.region" class="pb-8 pr-6 w-full lg:w-1/2" label="Province/State" />
-          <select-input v-model="form.country" :error="form.errors.country" class="pb-8 pr-6 w-full lg:w-1/2" label="Country">
-            <option :value="null" />
-            <option value="CA">Canada</option>
-            <option value="US">United States</option>
-          </select-input>
-          <text-input v-model="form.postal_code" :error="form.errors.postal_code" class="pb-8 pr-6 w-full lg:w-1/2" label="Postal code" />
+          <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Application Name" />
+          
+          <!-- Fee Structure Section -->
+          <div class="pb-4 pr-6 w-full">
+            <h3 class="text-lg font-semibold text-magenta-400 mb-2">Fee Structure</h3>
+            <p class="text-sm text-gray-400">Configure the payment processing fees for this application.</p>
+          </div>
+          
+          <text-input 
+            v-model="form.setup_fee" 
+            :error="form.errors.setup_fee" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Setup Fee (£)" 
+          />
+          <text-input 
+            v-model="form.transaction_percentage" 
+            :error="form.errors.transaction_percentage" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Transaction Percentage (%)" 
+          />
+          <text-input 
+            v-model="form.transaction_fixed_fee" 
+            :error="form.errors.transaction_fixed_fee" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Fixed Fee Per Transaction (£)" 
+          />
+          <text-input 
+            v-model="form.monthly_fee" 
+            :error="form.errors.monthly_fee" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Monthly Fee (£)" 
+          />
+          <text-input 
+            v-model="form.monthly_minimum" 
+            :error="form.errors.monthly_minimum" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Monthly Minimum (£)" 
+          />
+          <text-input 
+            v-model="form.service_fee" 
+            :error="form.errors.service_fee" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Service Fee (£)" 
+          />
+          
+          <!-- Fee Explanation -->
+          <div class="pb-8 pr-6 w-full">
+            <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4 text-gray-300 text-sm">
+              <p class="font-semibold mb-2 text-magenta-400">Fee Structure Summary:</p>
+              <ul class="list-disc list-inside space-y-1">
+                <li>Setup fee of £{{ parseFloat(form.setup_fee || 0).toFixed(2) }} (+ VAT) taken on approval</li>
+                <li>{{ form.transaction_percentage || 0 }}% + £{{ parseFloat(form.transaction_fixed_fee || 0).toFixed(2) }} per transaction</li>
+                <li>£{{ parseFloat(form.monthly_fee || 0).toFixed(2) }} monthly fee</li>
+                <li>£{{ parseFloat(form.monthly_minimum || 0).toFixed(2) }} monthly minimum made up of transactional fees</li>
+                <li v-if="form.transaction_fixed_fee > 0">Example: {{ Math.floor(parseFloat(form.monthly_minimum || 100) / parseFloat(form.transaction_fixed_fee || 0.20)) }} transactions × £{{ parseFloat(form.transaction_fixed_fee || 0.20).toFixed(2) }} = £{{ (Math.floor(parseFloat(form.monthly_minimum || 100) / parseFloat(form.transaction_fixed_fee || 0.20)) * parseFloat(form.transaction_fixed_fee || 0.20)).toFixed(2) }}</li>
+                <li>A service fee of £{{ parseFloat(form.service_fee || 0).toFixed(2) }} is added</li>
+              </ul>
+            </div>
+          </div>
         </div>
         <div class="flex items-center justify-end px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
           <loading-button :loading="form.processing" class="btn-primary" type="submit">Create Application</loading-button>
@@ -57,13 +116,12 @@ export default {
       form: this.$inertia.form({
         account_id: this.preselected_account_id,
         name: null,
-        email: null,
-        phone: null,
-        address: null,
-        city: null,
-        region: null,
-        country: null,
-        postal_code: null,
+        setup_fee: 450.00,
+        transaction_percentage: 2.00,
+        transaction_fixed_fee: 0.20,
+        monthly_fee: 18.00,
+        monthly_minimum: 100.00,
+        service_fee: 10.00,
       }),
     }
   },

@@ -28,9 +28,10 @@ class HandleInertiaRequests extends Middleware
                             'first_name' => $user->first_name,
                             'last_name' => $user->last_name,
                             'email' => $user->email,
-                            'isAdmin' => $user->isAdmin(),
-                            'account' => null, // Users don't have account relation
+                            'isAdmin' => $user->isAdmin(),  // ← WITH PARENTHESES
+                            'account' => null,
                         ],
+                        'guard' => 'web',  // ← ADDED
                     ];
                 }
 
@@ -43,16 +44,17 @@ class HandleInertiaRequests extends Middleware
                             'first_name' => $account->name,
                             'last_name' => '',
                             'email' => $account->email,
-                            'isAdmin' => false, // Accounts are never admin
+                            'isAdmin' => false,
                             'account' => [
                                 'id' => $account->id,
                                 'name' => $account->name,
                             ],
                         ],
+                        'guard' => 'account',  // ← ADDED
                     ];
                 }
 
-                return ['user' => null];
+                return ['user' => null, 'guard' => null];  // ← ADDED 'guard'
             },
             'flash' => function () use ($request) {
                 return [

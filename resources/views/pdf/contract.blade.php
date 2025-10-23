@@ -161,10 +161,8 @@
         </div>
     </div>
 
-    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #718096;">
-        <p><strong>G2Pay Payment Solutions</strong></p>
-        <p>123 Business Street, London, UK | support@g2pay.co.uk | www.g2pay.co.uk</p>
-        <p>© {{ date('Y') }} G2Pay Payment Solutions. All rights reserved.</p>
+    <div class="footer">
+        <p>This is an automated notification from the G2Pay Portal.</p>
     </div>
 </body>
 </html>

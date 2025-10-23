@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Application;
 use App\Services\DocuSignService;
-use App\Services\EmailService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
@@ -15,19 +14,41 @@ use Inertia\Response;
 class ApplicationStatusController extends Controller
 {
     public function __construct(
-        private DocuSignService $docuSignService,
-        private EmailService $emailService
+        private DocuSignService $docuSignService
     ) {}
 
     public function show(Application $application): Response
     {
+        // Check permissions
+        $isAccount = auth()->guard('account')->check();
+        $canViewStatus = false;
+        
+        if ($isAccount && $application->account_id === auth()->guard('account')->id()) {
+            $canViewStatus = true;
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            if ($user->isAdmin() || $application->account->user_id === $user->id) {
+                $canViewStatus = true;
+            }
+        }
+        
+        if (!$canViewStatus) {
+            abort(403, 'Unauthorized access.');
+        }
+
         return Inertia::render('Applications/Status', [
             'application' => [
                 'id' => $application->id,
                 'name' => $application->name,
                 'trading_name' => $application->trading_name,
-                'email' => $application->email,
-                'phone' => $application->phone,
+                'setup_fee' => $application->setup_fee,
+                'transaction_percentage' => $application->transaction_percentage,
+                'transaction_fixed_fee' => $application->transaction_fixed_fee,
+                'monthly_fee' => $application->monthly_fee,
+                'monthly_minimum' => $application->monthly_minimum,
+                'service_fee' => $application->service_fee,
+                'fees_confirmed' => $application->fees_confirmed,
+                'fees_confirmed_at' => $application->fees_confirmed_at?->format('Y-m-d H:i'),
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
@@ -35,6 +56,7 @@ class ApplicationStatusController extends Controller
                     'additional_info_notes' => $application->status->additional_info_notes,
                     'step_history' => $application->status->step_history,
                     'timestamps' => [
+                        'fees_confirmed' => $application->status->fees_confirmed_at?->format('Y-m-d H:i'),
                         'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
                         'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
                         'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
@@ -76,7 +98,24 @@ class ApplicationStatusController extends Controller
                         'created_at' => $log->created_at->format('Y-m-d H:i'),
                     ]),
             ],
+            'is_account' => $isAccount,
         ]);
+    }
+
+    public function confirmFees(Application $application): RedirectResponse
+    {
+        // Only accounts can confirm fees
+        if (!auth()->guard('account')->check() || $application->account_id !== auth()->guard('account')->id()) {
+            abort(403, 'Only the associated account can confirm fees.');
+        }
+
+        if ($application->fees_confirmed) {
+            return Redirect::back()->with('error', 'Fees have already been confirmed.');
+        }
+
+        $application->confirmFees();
+
+        return Redirect::back()->with('success', 'Fees confirmed successfully.');
     }
 
     public function updateStep(Application $application): RedirectResponse
@@ -107,9 +146,6 @@ class ApplicationStatusController extends Controller
 
             $application->status->transitionTo('application_sent', 'Contract sent via DocuSign');
 
-            // Optionally send email notification
-            // $this->emailService->sendApplicationLink($application);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Contract sent successfully',
@@ -122,34 +158,6 @@ class ApplicationStatusController extends Controller
                 'message' => 'Failed to send contract: ' . $e->getMessage(),
             ], 500);
         }
-    }
-
-    public function sendApprovalEmail(Application $application): RedirectResponse
-    {
-        try {
-            $this->emailService->sendApprovalEmail($application);
-            $application->status->transitionTo('approval_email_sent', 'Approval email sent');
-
-            return Redirect::back()->with('success', 'Approval email sent.');
-        } catch (\Exception $e) {
-            return Redirect::back()->with('error', 'Failed to send email: ' . $e->getMessage());
-        }
-    }
-
-    public function requestAdditionalInfo(Application $application): RedirectResponse
-    {
-        $validated = Request::validate([
-            'notes' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $application->status->update([
-            'requires_additional_info' => true,
-            'additional_info_notes' => $validated['notes'],
-        ]);
-
-        $this->emailService->sendAdditionalInfoRequest($application, $validated['notes']);
-
-        return Redirect::back()->with('success', 'Additional information requested.');
     }
 
     public function markAsApproved(Application $application): RedirectResponse

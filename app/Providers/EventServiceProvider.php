@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Events\AccountCredentialsEvent;
 use App\Events\ApplicationCreatedEvent;
 use App\Events\ApplicationStatusChanged;
+use App\Events\FeesConfirmedEvent;
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
+use App\Listeners\SendFeesConfirmedEmail;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -22,6 +24,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         ApplicationCreatedEvent::class => [
             SendApplicationCreatedEmail::class,
+        ],
+        FeesConfirmedEvent::class => [
+            SendFeesConfirmedEmail::class,
         ],
     ];
 
