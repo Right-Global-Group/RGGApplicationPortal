@@ -62,7 +62,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
         Route::post('/{application}/send-approval-email', [ApplicationStatusController::class, 'sendApprovalEmail']);
         Route::post('/{application}/request-additional-info', [ApplicationStatusController::class, 'requestAdditionalInfo']);
-        Route::post('/{application}/approve', [ApplicationStatusController::class, 'markAsApproved']);
+        Route::post('/{application}/mark-approved', [ApplicationStatusController::class, 'markAsApproved']);
         Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
         
         // Application Email Reminders

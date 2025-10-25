@@ -34,6 +34,15 @@ class DocuSignService
      */
     public function sendContract(Application $application): array
     {
+        $account = $application->account; // relationship to Account model
+
+        $recipientEmail = $account->email;
+        $recipientName  = $account->name ?? $application->trading_name;
+    
+        if (empty($recipientEmail)) {
+            throw new \Exception('Account email is missing for this application.');
+        }
+    
         try {
             $accessToken = $this->getAccessToken();
 
@@ -54,8 +63,8 @@ class DocuSignService
                 'recipients' => [
                     'signers' => [
                         [
-                            'email' => $application->email,
-                            'name' => $application->name,
+                            'email' => $recipientEmail,
+                            'name' => $recipientName,
                             'recipientId' => '1',
                             'routingOrder' => '1',
                             'clientUserId' => (string) $application->id, // For embedded signing

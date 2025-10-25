@@ -199,13 +199,36 @@
           </div>
           <form @submit.prevent="update">
             <div class="flex flex-wrap -mb-8 -mr-6 p-8">
-              <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Application Name" />
+              <text-input
+                v-if="$page.props.auth.user.isAdmin"
+                v-model="form.name"
+                :error="form.errors.name"
+                class="pb-8 pr-6 w-full lg:w-1/2"
+                label="Application Name"
+              />
+
+              <!-- Show as read-only for non-admin users -->
+              <div
+                v-else
+                class="pb-8 pr-6 w-full lg:w-1/2"
+              >
+                <label class="block text-gray-300 font-medium mb-2">Application Name</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  {{ form.name }}
+                </div>
+              </div>
             </div>
+
             <div class="flex items-center justify-between px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
               <Link href="/applications" class="text-gray-400 hover:text-gray-300 transition-colors">
                 Back to Applications
               </Link>
-              <loading-button :loading="form.processing" class="btn-primary" type="submit">
+              <loading-button
+                v-if="$page.props.auth.user.isAdmin"
+                :loading="form.processing"
+                class="btn-primary"
+                type="submit"
+              >
                 Save Changes
               </loading-button>
             </div>

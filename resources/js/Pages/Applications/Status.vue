@@ -3,10 +3,25 @@
     <Head :title="`Status - ${application.name}`" />
     
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-bold text-white">Application Status</h1>
+      <div class="flex-1">
+        <h1 class="text-3xl font-bold text-white mb-3">Application Status</h1>
+        
+        <!-- Quick Navigation -->
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="section in sections"
+            :key="section.id"
+            @click="scrollToSection(section.id)"
+            class="text-sm px-3 py-1.5 bg-primary-900/50 hover:bg-primary-800/50 text-magenta-300 hover:text-magenta-200 rounded-lg border border-primary-700/30 transition-colors"
+          >
+            {{ section.label }}
+          </button>
+        </div>
+      </div>
+      
       <Link 
         href="/progress-tracker" 
-        class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2"
+        class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2 ml-6"
       >
         <icon name="arrow-left" class="w-4 h-4 fill-current" />
         Back to Tracker
@@ -14,7 +29,7 @@
     </div>
 
     <!-- Application Info -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div id="section-application-info" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <div class="flex justify-between">
         <div>
           <div class="text-sm text-gray-400 mb-1">Application Name</div>
@@ -35,7 +50,7 @@
     </div>
 
     <!-- Fee Structure Display -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 shadow-2xl overflow-hidden mb-6">
+    <div id="section-fee-structure" class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 shadow-2xl overflow-hidden mb-6 scroll-mt-6">
       <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
         <h2 class="text-xl font-bold text-magenta-400">Fee Structure</h2>
       </div>
@@ -106,7 +121,7 @@
     </div>
 
     <!-- Progress Bar -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div id="section-progress" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-xl font-bold text-white">Overall Progress</h2>
         <span class="text-2xl font-bold text-magenta-400">
@@ -141,7 +156,7 @@
     </div>
 
     <!-- Action Buttons (only for users, not accounts) -->
-    <div v-if="!is_account" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div v-if="!is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Quick Actions</h2>
       <div class="flex flex-wrap gap-3">
         <button
@@ -216,7 +231,7 @@
     </div>
 
     <!-- Progress Timeline -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div id="section-timeline" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-6">Progress Timeline</h2>
       <div class="space-y-4">
         <timeline-step
@@ -233,7 +248,7 @@
     </div>
 
     <!-- Documents Section -->
-    <div v-if="application.documents?.length > 0" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div v-if="application.documents?.length > 0" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Documents</h2>
       <div 
         v-for="(label, category) in documentCategories" 
@@ -272,7 +287,7 @@
     </div>
 
     <!-- Invoices Section -->
-    <div v-if="application.invoices?.length > 0" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div v-if="application.invoices?.length > 0" id="section-invoices" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Invoices</h2>
       <div class="space-y-2">
         <div
@@ -307,7 +322,7 @@
     </div>
 
     <!-- Gateway Integration Section -->
-    <div v-if="application.gateway" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <div v-if="application.gateway" id="section-gateway" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Gateway Integration</h2>
       <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
         <div class="flex items-center justify-between mb-2">
@@ -331,7 +346,7 @@
     </div>
 
     <!-- Activity Log -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl">
+    <div id="section-activity-log" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Activity Log</h2>
       <div v-if="application.activity_logs?.length > 0" class="space-y-3">
         <div
@@ -413,6 +428,34 @@ export default {
     }
   },
   computed: {
+    sections() {
+      const baseSections = [
+        { id: 'section-application-info', label: 'Application Info' },
+        { id: 'section-fee-structure', label: 'Fee Structure' },
+        { id: 'section-progress', label: 'Progress' },
+        { id: 'section-timeline', label: 'Timeline' },
+      ]
+
+      if (!this.is_account) {
+        baseSections.push({ id: 'section-actions', label: 'Actions' })
+      }
+
+      if (this.application.documents?.length > 0) {
+        baseSections.push({ id: 'section-documents', label: 'Documents' })
+      }
+
+      if (this.application.invoices?.length > 0) {
+        baseSections.push({ id: 'section-invoices', label: 'Invoices' })
+      }
+
+      if (this.application.gateway) {
+        baseSections.push({ id: 'section-gateway', label: 'Gateway' })
+      }
+
+      baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
+
+      return baseSections
+    },
     canSendContract() {
       return this.application.status?.current_step === 'documents_uploaded' && !this.is_account
     },
@@ -424,6 +467,12 @@ export default {
     },
   },
   methods: {
+    scrollToSection(sectionId) {
+      const element = document.getElementById(sectionId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    },
     confirmFees() {
       if (confirm('Are you sure you want to confirm these fees? This action cannot be undone.')) {
         this.confirmingFees = true

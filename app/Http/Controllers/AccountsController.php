@@ -190,19 +190,25 @@ class AccountsController extends Controller
         return Redirect::back()->with('success', 'Account updated.');
     }
 
+    /**
+     * Send credentials email NOW (immediate, not scheduled)
+     */
     public function sendCredentialsEmail(Account $account): RedirectResponse
     {
         // Generate new password
         $plainPassword = Account::generatePassword();
         $account->update(['password' => $plainPassword]);
 
-        // Fire event to send email
+        // Fire event to send email immediately
         event(new AccountCredentialsEvent($account, $plainPassword));
 
-        return Redirect::back()->with('success', 'Credentials email sent to account.');
+        return Redirect::back()->with('success', 'Credentials email sent immediately to account.');
     }
 
-    public function setEmailReminder(Account $account): RedirectResponse
+    /**
+     * Set credentials email reminder (schedules future emails, does NOT send now)
+     */
+    public function setCredentialsReminder(Account $account): RedirectResponse
     {
         $validated = Request::validate([
             'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
@@ -213,7 +219,7 @@ class AccountsController extends Controller
             ->where('email_type', 'account_credentials')
             ->update(['is_active' => false]);
 
-        // Create new reminder
+        // Create new reminder (scheduled for future, not sent now)
         $intervals = [
             '1_day' => now()->addDay(),
             '3_days' => now()->addDays(3),
@@ -231,16 +237,31 @@ class AccountsController extends Controller
             'is_active' => true,
         ]);
 
-        return Redirect::back()->with('success', 'Email reminder configured.');
+        return Redirect::back()->with('success', 'Reminder scheduled to send credentials ' . str_replace('_', ' ', $validated['interval']) . '.');
     }
 
-    public function cancelEmailReminder(Account $account): RedirectResponse
+    /**
+     * Cancel credentials reminder
+     */
+    public function cancelCredentialsReminder(Account $account): RedirectResponse
     {
         $account->emailReminders()
             ->where('email_type', 'account_credentials')
             ->update(['is_active' => false]);
 
-        return Redirect::back()->with('success', 'Email reminder cancelled.');
+        return Redirect::back()->with('success', 'Credentials reminder cancelled.');
+    }
+
+    // Legacy method kept for backward compatibility (can be removed if no longer used)
+    public function setEmailReminder(Account $account): RedirectResponse
+    {
+        return $this->setCredentialsReminder($account);
+    }
+
+    // Legacy method kept for backward compatibility (can be removed if no longer used)
+    public function cancelEmailReminder(Account $account): RedirectResponse
+    {
+        return $this->cancelCredentialsReminder($account);
     }
 
     public function destroy(Account $account): RedirectResponse

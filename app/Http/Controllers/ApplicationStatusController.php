@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\AdditionalInfoRequestedEvent;
 use App\Models\Application;
+use App\Models\EmailReminder;
 use App\Services\DocuSignService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,12 +23,14 @@ class ApplicationStatusController extends Controller
     {
         // Check permissions
         $isAccount = auth()->guard('account')->check();
+        $isAdmin = false;
         $canViewStatus = false;
         
         if ($isAccount && $application->account_id === auth()->guard('account')->id()) {
             $canViewStatus = true;
         } elseif (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
+            $isAdmin = $user?->isAdmin() ?? false;
             if ($user->isAdmin() || $application->account->user_id === $user->id) {
                 $canViewStatus = true;
             }
@@ -82,6 +86,28 @@ class ApplicationStatusController extends Controller
                     'paid_at' => $inv->paid_at?->format('Y-m-d'),
                     'due_date' => $inv->due_date?->format('Y-m-d'),
                 ]),
+                'email_logs' => $application->morphMany(\App\Models\EmailLog::class, 'emailable')
+                    ->latest()
+                    ->get()
+                    ->map(fn ($log) => [
+                        'id' => $log->id,
+                        'email_type' => $log->email_type,
+                        'recipient_email' => $log->recipient_email,
+                        'subject' => $log->subject,
+                        'sent_at' => $log->sent_at?->format('Y-m-d H:i'),
+                        'opened' => $log->opened,
+                        'opened_at' => $log->opened_at?->format('Y-m-d H:i'),
+                    ]),
+                'scheduled_emails' => $application->morphMany(\App\Models\EmailReminder::class, 'remindable')
+                    ->where('is_active', true)
+                    ->get()
+                    ->map(fn ($reminder) => [
+                        'id' => $reminder->id,
+                        'email_type' => $reminder->email_type,
+                        'interval' => $reminder->interval,
+                        'next_send_at' => $reminder->next_send_at?->format('Y-m-d H:i'),
+                        'is_active' => $reminder->is_active,
+                    ]),
                 'gateway' => $application->gatewayIntegration ? [
                     'provider' => $application->gatewayIntegration->gateway_provider,
                     'status' => $application->gatewayIntegration->status,
@@ -100,10 +126,16 @@ class ApplicationStatusController extends Controller
                     ]),
             ],
             'is_account' => $isAccount,
+            'is_admin' => $isAdmin,
             'documentCategories' => \App\Models\ApplicationDocument::getRequiredCategories(),
             'categoryDescriptions' => collect(\App\Models\ApplicationDocument::getRequiredCategories())
                 ->mapWithKeys(fn ($label, $key) => [$key => \App\Models\ApplicationDocument::getCategoryDescription($key)])
                 ->toArray(),
+            // Get active additional info reminder
+            'additionalInfoReminder' => $application->emailReminders()
+                ->where('email_type', 'additional_info_requested')
+                ->where('is_active', true)
+                ->first(),
         ]);
     }
 
@@ -133,6 +165,91 @@ class ApplicationStatusController extends Controller
         $application->status->transitionTo($validated['step'], $validated['notes'] ?? null);
 
         return Redirect::back()->with('success', 'Application status updated.');
+    }
+
+    /**
+     * Request additional information from account
+     */
+    public function requestAdditionalInfo(Application $application): RedirectResponse
+    {
+        // Only admins and application creators can request additional info
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot request additional information.');
+        }
+
+        $validated = Request::validate([
+            'notes' => ['required', 'string', 'max:1000'],
+        ]);
+
+        // Update application status
+        $application->status->update([
+            'requires_additional_info' => true,
+            'additional_info_notes' => $validated['notes'],
+        ]);
+
+        // Fire event to send email
+        event(new AdditionalInfoRequestedEvent($application, $validated['notes']));
+
+        return Redirect::back()->with('success', 'Additional information request sent to account.');
+    }
+
+    /**
+     * Set email reminder for additional info request (schedules future emails, does NOT send now)
+     */
+    public function setAdditionalInfoReminder(Application $application): RedirectResponse
+    {
+        // Only admins and application creators can set reminders
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot set email reminders.');
+        }
+
+        $validated = Request::validate([
+            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+            'notes' => ['required', 'string', 'max:1000'],
+        ]);
+
+        // Update application status with notes
+        $application->status->update([
+            'requires_additional_info' => true,
+            'additional_info_notes' => $validated['notes'],
+        ]);
+
+        // Deactivate existing additional info reminders
+        $application->emailReminders()
+            ->where('email_type', 'additional_info_requested')
+            ->update(['is_active' => false]);
+
+        // Create new reminder (scheduled for future, not sent now)
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'additional_info_requested',
+            'interval' => $validated['interval'],
+            'next_send_at' => $intervals[$validated['interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'Reminder scheduled to send ' . str_replace('_', ' ', $validated['interval']) . '.');
+    }
+
+    /**
+     * Cancel additional info reminder
+     */
+    public function cancelAdditionalInfoReminder(Application $application): RedirectResponse
+    {
+        $application->emailReminders()
+            ->where('email_type', 'additional_info_requested')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'Additional info reminder cancelled.');
     }
 
     /**
@@ -166,10 +283,16 @@ class ApplicationStatusController extends Controller
     }
 
     public function markAsApproved(Application $application): RedirectResponse
-    {
-        $application->status->transitionTo('application_approved', 'Application manually approved');
+    {    
+        $application->update(['status' => 'application_approved', 'approved_at' => now()]);
 
-        return Redirect::back()->with('success', 'Application approved.');
+        // Change Status:
+        $application->status->transitionTo('application_approved', 'User marked application as approved');
+    
+        // Send approval email to account
+        event(new \App\Events\ApplicationApprovedEvent($application->account, $application));
+    
+        return Redirect::back()->with('success', 'Application approved and email sent.');
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Events\AccountCredentialsEvent;
+use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\ApplicationCreatedEvent;
 use App\Models\EmailReminder;
 use Illuminate\Bus\Queueable;
@@ -72,6 +73,14 @@ class SendScheduledEmails implements ShouldQueue
             case 'application_created':
                 if ($remindable instanceof \App\Models\Application) {
                     event(new ApplicationCreatedEvent($remindable));
+                }
+                break;
+
+            case 'additional_info_requested':
+                if ($remindable instanceof \App\Models\Application) {
+                    // Get the notes from the application status
+                    $notes = $remindable->status?->additional_info_notes ?? 'Additional information is required.';
+                    event(new AdditionalInfoRequestedEvent($remindable, $notes));
                 }
                 break;
 

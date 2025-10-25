@@ -9,7 +9,11 @@ use App\Events\FeesChangedEvent;
 use App\Events\FeesConfirmedEvent;
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
+use App\Events\ApplicationApprovedEvent;
+use App\Listeners\SendApplicationApprovedEmail;
 use App\Listeners\SendFeesChangedEmailListener;
+use App\Listeners\SendAdditionalInfoRequestEmail;
+use App\Events\AdditionalInfoRequestedEvent;
 use App\Listeners\SendFeesConfirmedEmail;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -39,6 +43,13 @@ class EventServiceProvider extends ServiceProvider
         AllDocumentsUploadedEvent::class => [
             SendAllDocumentsUploadedEmailListener::class,
         ],
+        ApplicationApprovedEvent::class => [
+            SendApplicationApprovedEmail::class,
+        ],
+        SendAdditionalInfoRequestEmail::class => [
+            AdditionalInfoRequestedEvent::class,
+        ],
+
     ];
 
     /**
