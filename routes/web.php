@@ -40,8 +40,15 @@ Route::middleware(['auth:web,account'])->group(function () {
         
         // Account Email Actions
         Route::post('/{account}/send-credentials', [AccountsController::class, 'sendCredentialsEmail'])->middleware('role:admin');
-        Route::post('/{account}/set-email-reminder', [AccountsController::class, 'setEmailReminder'])->middleware('role:admin');
-        Route::post('/{account}/cancel-email-reminder', [AccountsController::class, 'cancelEmailReminder'])->middleware('role:admin');
+        // Set credentials reminder (scheduled, not immediate)
+        Route::post('/{account}/set-credentials-reminder', [AccountsController::class, 'setCredentialsReminder'])
+            ->name('accounts.set-credentials-reminder')
+            ->middleware('role:admin');
+
+        // Cancel credentials reminder
+        Route::post('/{account}/cancel-credentials-reminder', [AccountsController::class, 'cancelCredentialsReminder'])
+            ->name('accounts.cancel-credentials-reminder')
+            ->middleware('role:admin');
     });
 
     // Applications Routes
@@ -62,6 +69,14 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
         Route::post('/{application}/send-approval-email', [ApplicationStatusController::class, 'sendApprovalEmail']);
         Route::post('/{application}/request-additional-info', [ApplicationStatusController::class, 'requestAdditionalInfo']);
+        Route::post('/{application}/set-additional-info-reminder', [ApplicationStatusController::class, 'setAdditionalInfoReminder'])
+            ->name('applications.set-additional-info-reminder')
+            ->middleware('role:admin');
+
+        // Cancel additional info reminder
+        Route::post('/{application}/cancel-additional-info-reminder', [ApplicationStatusController::class, 'cancelAdditionalInfoReminder'])
+            ->name('applications.cancel-additional-info-reminder')
+            ->middleware('role:admin');
         Route::post('/{application}/mark-approved', [ApplicationStatusController::class, 'markAsApproved']);
         Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
         

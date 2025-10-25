@@ -66,42 +66,72 @@
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
         <h2 class="text-magenta-400 font-bold text-lg">Account Credentials</h2>
       </div>
-      <div class="p-8 space-y-4">
-        <div class="flex items-start gap-4">
+      <div class="p-8 space-y-6">
+        <!-- Send Now Section -->
+        <div>
+          <label class="block text-gray-300 font-medium mb-3">Send Credentials Now</label>
           <button
             @click="sendCredentialsEmail"
             class="btn-primary flex items-center gap-2"
           >
             <icon name="mail" class="w-5 h-5 fill-current" />
-            Send Login Credentials
+            Send Login Credentials Now
           </button>
+          <p class="text-sm text-gray-400 mt-2">
+            Generates a new password and emails it immediately to the account.
+          </p>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-primary-800/30"></div>
+
+        <!-- Schedule Reminders Section -->
+        <div>
+          <label class="block text-gray-300 font-medium mb-3">Schedule Credential Reminders</label>
           
-          <div class="flex-1">
-            <label class="block text-gray-300 font-medium mb-2">Email Reminder</label>
-            <div v-if="emailReminder" class="flex items-center gap-2">
-              <span class="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-lg text-sm">
-                Active: {{ formatInterval(emailReminder.interval) }}
-              </span>
+          <!-- Active Reminder Display -->
+          <div v-if="emailReminder" class="mb-4">
+            <div class="flex items-center gap-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+              <div class="flex-1">
+                <div class="text-blue-300 font-semibold">Active Reminder</div>
+                <div class="text-sm text-gray-400 mt-1">
+                  Sending {{ formatInterval(emailReminder.interval) }}
+                </div>
+              </div>
               <button
                 @click="cancelReminder"
-                class="text-sm text-red-400 hover:text-red-300"
+                class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
               >
                 Cancel
               </button>
             </div>
+          </div>
+
+          <!-- Set New Reminder -->
+          <div v-else class="space-y-3">
             <select
-              v-else
               v-model="reminderInterval"
-              @change="setReminder"
               class="w-full px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 focus:outline-none focus:border-magenta-500"
             >
-              <option value="">Set reminder interval...</option>
+              <option value="">Select reminder interval...</option>
               <option value="1_day">Every 1 day</option>
               <option value="3_days">Every 3 days</option>
               <option value="1_week">Every week</option>
               <option value="2_weeks">Every 2 weeks</option>
               <option value="1_month">Every month</option>
             </select>
+            
+            <button
+              @click="setReminder"
+              :disabled="!reminderInterval"
+              class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            >
+              Set Reminder
+            </button>
+            
+            <p class="text-sm text-gray-400">
+              Schedules future reminder emails. <strong>Does not send immediately.</strong>
+            </p>
           </div>
         </div>
       </div>
@@ -251,8 +281,12 @@ export default {
       }
     },
     setReminder() {
-      if (this.reminderInterval) {
-        this.$inertia.post(`/accounts/${this.account.id}/set-email-reminder`, {
+      if (!this.reminderInterval) {
+        return
+      }
+      
+      if (confirm(`Schedule credentials to be sent ${this.formatInterval(this.reminderInterval).toLowerCase()}? No email will be sent now.`)) {
+        this.$inertia.post(`/accounts/${this.account.id}/set-credentials-reminder`, {
           interval: this.reminderInterval,
         }, {
           onSuccess: () => {
@@ -262,8 +296,8 @@ export default {
       }
     },
     cancelReminder() {
-      if (confirm('Cancel the email reminder?')) {
-        this.$inertia.post(`/accounts/${this.account.id}/cancel-email-reminder`)
+      if (confirm('Cancel scheduled credential reminders?')) {
+        this.$inertia.post(`/accounts/${this.account.id}/cancel-credentials-reminder`)
       }
     },
     formatDate(date) {

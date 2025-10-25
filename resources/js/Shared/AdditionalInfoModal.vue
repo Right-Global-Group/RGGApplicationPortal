@@ -1,66 +1,170 @@
 <template>
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div class="bg-dark-800 rounded-xl shadow-2xl border border-primary-700 max-w-lg w-full p-6">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-2xl font-bold text-white">Request Additional Information</h2>
-          <button @click="$emit('close')" class="text-gray-400 hover:text-white">
-            <icon name="close" class="w-6 h-6 fill-current" />
+  <modal @close="$emit('close')" max-width="2xl">
+    <div class="p-6">
+      <h2 class="text-2xl font-bold text-white mb-6">Request Additional Information</h2>
+      
+      <!-- Notes Input -->
+      <div class="mb-6">
+        <label class="block text-gray-300 font-medium mb-2">
+          What information do you need?
+        </label>
+        <textarea
+          v-model="notes"
+          placeholder="Please provide details about what information is required..."
+          rows="5"
+          class="w-full px-4 py-3 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:border-magenta-500 resize-none"
+        ></textarea>
+        <p class="text-sm text-gray-400 mt-2">
+          This message will be sent to the account holder.
+        </p>
+      </div>
+
+      <!-- Send Now Section -->
+      <div class="mb-6 p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex-1">
+            <h3 class="font-semibold text-white mb-1">Send Request Now</h3>
+            <p class="text-sm text-gray-400">
+              Sends the request immediately to the account holder.
+            </p>
+          </div>
+        </div>
+        <button
+          @click="sendNow"
+          :disabled="!notes.trim()"
+          class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+        >
+          Send Request Now
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-primary-800/30 mb-6"></div>
+
+      <!-- Schedule Reminders Section -->
+      <div class="p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg">
+        <div class="mb-3">
+          <h3 class="font-semibold text-white mb-1">Schedule Reminder Emails</h3>
+          <p class="text-sm text-gray-400">
+            Automatically send reminder emails at the selected interval. <strong>Does not send immediately.</strong>
+          </p>
+        </div>
+
+        <!-- Active Reminder Warning -->
+        <div v-if="hasActiveReminder" class="mb-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
+          <p class="text-sm text-yellow-400">
+            ⚠️ An active reminder exists. Setting a new one will replace it.
+          </p>
+        </div>
+
+        <!-- Interval Selector -->
+        <div class="space-y-3">
+          <select
+            v-model="interval"
+            class="w-full px-4 py-2 bg-dark-800 border border-primary-800/30 rounded-lg text-gray-300 focus:outline-none focus:border-magenta-500"
+          >
+            <option value="">Select reminder interval...</option>
+            <option value="1_day">Every 1 day</option>
+            <option value="3_days">Every 3 days</option>
+            <option value="1_week">Every week</option>
+            <option value="2_weeks">Every 2 weeks</option>
+            <option value="1_month">Every month</option>
+          </select>
+
+          <button
+            @click="setReminder"
+            :disabled="!interval || !notes.trim()"
+            class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+          >
+            Set Reminder
           </button>
         </div>
-  
-        <form @submit.prevent="submit">
-          <div>
-            <label class="block text-gray-300 font-medium mb-2">Information Needed</label>
-            <textarea
-              v-model="form.notes"
-              rows="6"
-              required
-              placeholder="Please provide details about what additional information is required..."
-              class="form-textarea w-full bg-primary-900/50 border-primary-700 text-white rounded-lg"
-            ></textarea>
-          </div>
-  
-          <div class="flex justify-end gap-3 mt-6">
-            <button
-              type="button"
-              @click="$emit('close')"
-              class="px-4 py-2 text-gray-300 hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="btn-primary bg-yellow-600 hover:bg-yellow-700"
-            >
-              Send Request
-            </button>
-          </div>
-        </form>
+      </div>
+
+      <!-- Cancel Button -->
+      <div class="mt-6 flex justify-end">
+        <button
+          @click="$emit('close')"
+          class="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
+        >
+          Cancel
+        </button>
       </div>
     </div>
-  </template>
-  
-  <script>
-  import Icon from '@/Shared/Icon.vue'
-  
-  export default {
-    components: { Icon },
-    props: {
-      applicationId: Number,
+  </modal>
+</template>
+
+<script>
+import Modal from '@/Shared/Modal.vue'
+
+export default {
+  components: { Modal },
+  props: {
+    applicationId: {
+      type: Number,
+      required: true,
     },
-    data() {
-      return {
-        form: {
-          notes: '',
-        },
+    hasActiveReminder: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  data() {
+    return {
+      notes: '',
+      interval: '',
+    }
+  },
+  methods: {
+    sendNow() {
+      if (!this.notes.trim()) {
+        alert('Please enter the information you need.')
+        return
+      }
+
+      if (confirm('Send additional information request now?')) {
+        this.$inertia.post(`/applications/${this.applicationId}/request-additional-info`, {
+          notes: this.notes
+        }, {
+          onSuccess: () => {
+            this.$emit('close')
+          }
+        })
       }
     },
-    methods: {
-      submit() {
-        this.$inertia.post(`/applications/${this.applicationId}/request-additional-info`, this.form, {
-          onSuccess: () => this.$emit('close'),
+    setReminder() {
+      if (!this.notes.trim()) {
+        alert('Please enter the information you need.')
+        return
+      }
+
+      if (!this.interval) {
+        alert('Please select a reminder interval.')
+        return
+      }
+
+      const intervalText = this.formatInterval(this.interval)
+      if (confirm(`Schedule reminder emails to be sent ${intervalText.toLowerCase()}? No email will be sent immediately.`)) {
+        this.$inertia.post(`/applications/${this.applicationId}/set-additional-info-reminder`, {
+          notes: this.notes,
+          interval: this.interval
+        }, {
+          onSuccess: () => {
+            this.$emit('close')
+          }
         })
-      },
+      }
     },
-  }
-  </script>
+    formatInterval(interval) {
+      const intervals = {
+        '1_day': 'Every 1 day',
+        '3_days': 'Every 3 days',
+        '1_week': 'Every week',
+        '2_weeks': 'Every 2 weeks',
+        '1_month': 'Every month',
+      }
+      return intervals[interval] || interval
+    },
+  },
+}
+</script>

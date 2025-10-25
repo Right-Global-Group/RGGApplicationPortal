@@ -227,6 +227,15 @@
         >
           Request Additional Info
         </button>
+        <!-- Cancel Additional Info Reminder (if active) -->
+        <button
+          v-if="additionalInfoReminder"
+          @click="cancelAdditionalInfoReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel Info Request Reminder
+        </button>
       </div>
     </div>
 
@@ -345,6 +354,79 @@
       </div>
     </div>
 
+    <!-- Email History Section -->
+    <div 
+      id="section-email-history" v-if="application.email_logs?.length > 0" 
+      class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6"
+    >
+      <h2 class="text-xl font-bold text-white mb-4">Email History</h2>
+      <div class="space-y-3">
+        <div
+          v-for="log in application.email_logs"
+          :key="log.id"
+          class="flex items-start justify-between p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg hover:bg-primary-900/20 transition-colors"
+        >
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="font-semibold text-white">{{ log.subject }}</span>
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                :class="log.opened ? 'bg-green-900/50 text-green-300' : 'bg-gray-700 text-gray-300'"
+              >
+                {{ log.opened ? 'Opened' : 'Sent' }}
+              </span>
+            </div>
+            <div class="text-sm text-gray-400 space-y-1">
+              <div>
+                <span class="text-gray-500">To:</span> {{ log.recipient_email }}
+              </div>
+              <div>
+                <span class="text-gray-500">Type:</span> {{ formatEmailType(log.email_type) }}
+              </div>
+              <div>
+                <span class="text-gray-500">Sent:</span> {{ log.sent_at }}
+              </div>
+              <div v-if="log.opened && log.opened_at">
+                <span class="text-gray-500">Opened:</span> {{ log.opened_at }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scheduled Emails Section -->
+    <div 
+      v-if="application.scheduled_emails?.length > 0" 
+      class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6"
+    >
+      <h2 class="text-xl font-bold text-white mb-4">Scheduled Email Reminders</h2>
+      <div class="space-y-3">
+        <div
+          v-for="reminder in application.scheduled_emails"
+          :key="reminder.id"
+          class="flex items-center justify-between p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg"
+        >
+          <div class="flex-1">
+            <div class="font-semibold text-blue-300 mb-1">
+              {{ formatEmailType(reminder.email_type) }}
+            </div>
+            <div class="text-sm text-gray-400">
+              Sending {{ formatInterval(reminder.interval) }}
+            </div>
+            <div class="text-sm text-gray-500 mt-1">
+              Next: {{ reminder.next_send_at }}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs font-semibold">
+              Active
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Activity Log -->
     <div id="section-activity-log" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Activity Log</h2>
@@ -377,6 +459,7 @@
     <additional-info-modal
       v-if="showAdditionalInfoModal"
       :application-id="application.id"
+      :has-active-reminder="!!additionalInfoReminder"
       @close="showAdditionalInfoModal = false"
     />
   </div>
@@ -403,12 +486,14 @@ export default {
   props: {
     application: Object,
     is_account: Boolean,
+    additionalInfoReminder: Object,
     documentCategories: Object,
     categoryDescriptions: Object,
   },
   data() {
     return {
       confirmingFees: false,
+      showScrollTop: false,
       isLoading: false,
       showInvoiceModal: false,
       showAdditionalInfoModal: false,
@@ -452,6 +537,8 @@ export default {
         baseSections.push({ id: 'section-gateway', label: 'Gateway' })
       }
 
+      baseSections.push({ id: 'section-email-history', label: 'Email History' })
+
       baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
 
       return baseSections
@@ -473,6 +560,9 @@ export default {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 300
+    },
     confirmFees() {
       if (confirm('Are you sure you want to confirm these fees? This action cannot be undone.')) {
         this.confirmingFees = true
@@ -481,6 +571,34 @@ export default {
             this.confirmingFees = false
           }
         })
+      }
+    },
+    formatEmailType(type) {
+      const types = {
+        'account_credentials': 'Account Credentials',
+        'application_created': 'Application Created',
+        'fees_changed': 'Fees Changed',
+        'fees_confirmed': 'Fees Confirmed',
+        'document_uploaded': 'Document Uploaded',
+        'all_documents_uploaded': 'All Documents Uploaded',
+        'additional_info_requested': 'Additional Info Requested',
+        'application_approved': 'Application Approved',
+      }
+      return types[type] || type
+    },
+    formatInterval(interval) {
+      const intervals = {
+        '1_day': 'Every 1 day',
+        '3_days': 'Every 3 days',
+        '1_week': 'Every week',
+        '2_weeks': 'Every 2 weeks',
+        '1_month': 'Every month',
+      }
+      return intervals[interval] || interval
+    },
+    cancelAdditionalInfoReminder() {
+      if (confirm('Cancel scheduled additional info reminders?')) {
+        this.$inertia.post(`/applications/${this.application.id}/cancel-additional-info-reminder`)
       }
     },
     async sendContractLink() {
@@ -564,6 +682,13 @@ export default {
     getCategoryDescription(category) {
       return this.categoryDescriptions?.[category] || ''
     },
+  },
+  mounted() {
+    window.addEventListener('scroll', this.handleScroll)
+    this.handleScroll() // Check initial scroll position
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll)
   },
 }
 </script>
