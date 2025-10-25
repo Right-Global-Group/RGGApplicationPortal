@@ -35,6 +35,7 @@ class DynamicEmail extends Mailable
             'account_credentials' => 'Your Account Credentials',
             'application_created' => 'New Application Created',
             'fees_confirmed' => 'Application Fees Confirmed',
+            'fees_changed' => 'Application Fees Changed - Confirmation Required',
             'wallet_order_confirmed' => 'Wallet Transaction Confirmed',
         ];
 
@@ -52,6 +53,7 @@ class DynamicEmail extends Mailable
             'account_credentials' => 'emails.account-credentials',
             'application_created' => 'emails.application-created',
             'fees_confirmed' => 'emails.fees-confirmed',
+            'fees_changed' => 'emails.fees-changed',
             'wallet_order_confirmed' => 'emails.wallet-order-confirmed',
         ];
 

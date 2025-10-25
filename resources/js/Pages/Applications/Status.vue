@@ -71,15 +71,6 @@
           </div>
         </div>
 
-        <!-- Fee Example -->
-        <div class="bg-primary-900/20 border border-primary-700/30 rounded-lg p-4 mb-4">
-          <div class="text-gray-300 text-sm font-semibold mb-2">Example Calculation:</div>
-          <div class="text-gray-400 text-sm">
-            {{ Math.floor(parseFloat(application.monthly_minimum) / parseFloat(application.transaction_fixed_fee)) }} transactions × £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }} = 
-            £{{ (Math.floor(parseFloat(application.monthly_minimum) / parseFloat(application.transaction_fixed_fee)) * parseFloat(application.transaction_fixed_fee)).toFixed(2) }}
-          </div>
-        </div>
-
         <!-- Fees Confirmation Status and Button -->
         <div v-if="!application.fees_confirmed && is_account" class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
           <div class="flex items-center justify-between">

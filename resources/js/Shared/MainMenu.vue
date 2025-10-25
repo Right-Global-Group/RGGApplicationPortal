@@ -100,7 +100,7 @@ export default {
           adminOnly: false
         },
         { 
-          name: 'printer', 
+          name: 'accounts', 
           label: 'Applications', 
           href: '/applications', 
           match: 'applications',

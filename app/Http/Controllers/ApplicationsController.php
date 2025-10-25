@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\ApplicationCreatedEvent;
+use App\Events\FeesChangedEvent;
 use App\Models\Application;
 use App\Models\Account;
 use App\Models\EmailReminder;
@@ -182,7 +183,11 @@ class ApplicationsController extends Controller
             }
         }
 
-        $application->load(['account', 'user']);
+        // Load relationships including parent application
+        $application->load(['account', 'user', 'parentApplication']);
+
+        // Determine if current user can change fees (admin only)
+        $canChangeFees = auth()->guard('web')->check() && auth()->guard('web')->user()->isAdmin();
 
         return Inertia::render('Applications/Edit', [
             'application' => [
@@ -194,6 +199,8 @@ class ApplicationsController extends Controller
                 'user_name' => $application->user
                     ? ($application->user->first_name . ' ' . $application->user->last_name)
                     : null,
+                'parent_application_id' => $application->parent_application_id,
+                'parent_application_name' => $application->parentApplication?->name,
                 'setup_fee' => $application->setup_fee,
                 'transaction_percentage' => $application->transaction_percentage,
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
@@ -207,6 +214,7 @@ class ApplicationsController extends Controller
                 'updated_at' => $application->updated_at,
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
+            'canChangeFees' => $canChangeFees,
         ]);
     }
 
@@ -240,6 +248,46 @@ class ApplicationsController extends Controller
         );
 
         return Redirect::back()->with('success', 'Application updated.');
+    }
+
+    public function changeFees(Application $application): RedirectResponse
+    {
+        // Check permissions - only admins can change fees
+        if (!auth()->guard('web')->check() || !auth()->guard('web')->user()->isAdmin()) {
+            abort(403, 'Only administrators can change application fees.');
+        }
+
+        $validated = Request::validate([
+            'name' => ['required', 'max:100'],
+            'setup_fee' => ['required', 'numeric', 'min:0'],
+            'transaction_percentage' => ['required', 'numeric', 'min:0'],
+            'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
+            'monthly_fee' => ['required', 'numeric', 'min:0'],
+            'monthly_minimum' => ['required', 'numeric', 'min:0'],
+            'service_fee' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        // Create new application with updated fees
+        $newApplication = Application::create([
+            'account_id' => $application->account_id,
+            'user_id' => auth()->id(),
+            'name' => $validated['name'],
+            'parent_application_id' => $application->id,
+            'setup_fee' => $validated['setup_fee'],
+            'transaction_percentage' => $validated['transaction_percentage'],
+            'transaction_fixed_fee' => $validated['transaction_fixed_fee'],
+            'monthly_fee' => $validated['monthly_fee'],
+            'monthly_minimum' => $validated['monthly_minimum'],
+            'service_fee' => $validated['service_fee'],
+            'fees_confirmed' => false,
+            'fees_confirmed_at' => null,
+        ]);
+
+        // Fire event to send email notification
+        event(new FeesChangedEvent($newApplication, $application));
+
+        return Redirect::route('applications.edit', $newApplication)
+            ->with('success', 'New application created with updated fees. Email notification sent to account.');
     }
 
     public function setEmailReminder(Application $application): RedirectResponse

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Events\FeesConfirmedEvent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,6 +18,7 @@ class Application extends Model
         'name',
         'account_id',
         'user_id',
+        'parent_application_id',
         'setup_fee',
         'transaction_percentage',
         'transaction_fixed_fee',
@@ -57,7 +59,17 @@ class Application extends Model
     public function account()
     {
         return $this->belongsTo(Account::class);
-    }    
+    }
+
+    public function parentApplication(): BelongsTo
+    {
+        return $this->belongsTo(Application::class, 'parent_application_id');
+    }
+
+    public function childApplications(): HasMany
+    {
+        return $this->hasMany(Application::class, 'parent_application_id');
+    }
 
     public function contacts(): HasMany
     {

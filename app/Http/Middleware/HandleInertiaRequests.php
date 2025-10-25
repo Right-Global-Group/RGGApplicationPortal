@@ -28,10 +28,10 @@ class HandleInertiaRequests extends Middleware
                             'first_name' => $user->first_name,
                             'last_name' => $user->last_name,
                             'email' => $user->email,
-                            'isAdmin' => $user->isAdmin(),  // ← WITH PARENTHESES
+                            'isAdmin' => $user->isAdmin(),
                             'account' => null,
                         ],
-                        'guard' => 'web',  // ← ADDED
+                        'guard' => 'web',
                     ];
                 }
 
@@ -50,11 +50,11 @@ class HandleInertiaRequests extends Middleware
                                 'name' => $account->name,
                             ],
                         ],
-                        'guard' => 'account',  // ← ADDED
+                        'guard' => 'account',
                     ];
                 }
 
-                return ['user' => null, 'guard' => null];  // ← ADDED 'guard'
+                return ['user' => null, 'guard' => null];
             },
             'flash' => function () use ($request) {
                 return [

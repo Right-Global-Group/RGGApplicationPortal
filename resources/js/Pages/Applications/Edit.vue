@@ -28,6 +28,29 @@
                 {{ application.account_name || '—' }}
               </div>
             </div>
+            
+            <!-- Parent Application (if exists) -->
+            <div v-if="application.parent_application_id" class="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
+              <label class="block text-blue-300 font-medium mb-2">
+                <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Created from Fee Change
+              </label>
+              <Link 
+                :href="`/applications/${application.parent_application_id}/edit`" 
+                class="inline-flex items-center px-4 py-2 bg-dark-900/50 border border-blue-700/30 rounded-lg text-blue-300 hover:text-blue-200 hover:border-blue-500/50 transition-colors"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                View Original Application ({{ application.parent_application_name || `#${application.parent_application_id}` }})
+              </Link>
+              <p class="text-xs text-gray-400 mt-2">
+                This application was created because the fee structure was updated on the original application.
+              </p>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-gray-300 font-medium mb-2">Created By</label>
@@ -45,49 +68,60 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Fee Structure Display (Read-only) -->
-            <div class="mt-6 pt-6 border-t border-primary-800/30">
-              <h3 class="text-lg font-semibold text-magenta-400 mb-4">Fee Structure</h3>
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-gray-300 font-medium mb-2">Setup Fee</label>
-                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                    £{{ parseFloat(application.setup_fee).toFixed(2)}}
-                  </div>
+        <!-- Fee Structure Display (Read-only) with Change Fees Button -->
+        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
+            <h2 class="text-magenta-400 font-bold text-lg">Fee Structure</h2>
+            <button 
+              v-if="canChangeFees"
+              @click="showChangeFeesModal = true" 
+              class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              Change Fees
+            </button>
+          </div>
+          <div class="p-8">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-gray-300 font-medium mb-2">Setup Fee</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  £{{ parseFloat(application.setup_fee).toFixed(2)}}
                 </div>
-                <div>
-                  <label class="block text-gray-300 font-medium mb-2">Transaction Fee</label>
-                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                    {{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}
-                  </div>
+              </div>
+              <div>
+                <label class="block text-gray-300 font-medium mb-2">Transaction Fee</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  {{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}
                 </div>
-                <div>
-                  <label class="block text-gray-300 font-medium mb-2">Monthly Fee</label>
-                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                    £{{ parseFloat(application.monthly_fee).toFixed(2) }}
-                  </div>
+              </div>
+              <div>
+                <label class="block text-gray-300 font-medium mb-2">Monthly Fee</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  £{{ parseFloat(application.monthly_fee).toFixed(2) }}
                 </div>
-                <div>
-                  <label class="block text-gray-300 font-medium mb-2">Monthly Minimum</label>
-                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                    £{{ parseFloat(application.monthly_minimum).toFixed(2) }}
-                  </div>
+              </div>
+              <div>
+                <label class="block text-gray-300 font-medium mb-2">Monthly Minimum</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  £{{ parseFloat(application.monthly_minimum).toFixed(2) }}
                 </div>
-                <div>
-                  <label class="block text-gray-300 font-medium mb-2">Service Fee</label>
-                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                    £{{ parseFloat(application.service_fee).toFixed(2) }}
-                  </div>
+              </div>
+              <div>
+                <label class="block text-gray-300 font-medium mb-2">Service Fee</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  £{{ parseFloat(application.service_fee).toFixed(2) }}
                 </div>
-                <div>
-                  <label class="block text-gray-300 font-medium mb-2">Fees Confirmed</label>
-                  <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                    <span v-if="application.fees_confirmed" class="text-green-400">
-                      ✓ Confirmed {{ application.fees_confirmed_at ? `at ${application.fees_confirmed_at}` : '' }}
-                    </span>
-                    <span v-else class="text-yellow-400">Pending Confirmation</span>
-                  </div>
+              </div>
+              <div>
+                <label class="block text-gray-300 font-medium mb-2">Fees Confirmed</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  <span v-if="application.fees_confirmed" class="text-green-400">
+                    ✓ Confirmed {{ application.fees_confirmed_at ? `at ${application.fees_confirmed_at}` : '' }}
+                  </span>
+                  <span v-else class="text-yellow-400">Pending Confirmation</span>
                 </div>
               </div>
             </div>
@@ -102,61 +136,6 @@
           <form @submit.prevent="update">
             <div class="flex flex-wrap -mb-8 -mr-6 p-8">
               <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Application Name" />
-              
-              <!-- Editable Fee Fields -->
-              <div class="pb-4 pr-6 w-full">
-                <h3 class="text-md font-semibold text-gray-300">Fee Adjustments</h3>
-                <p class="text-sm text-gray-400">Modify the fee structure if needed.</p>
-              </div>
-              
-              <text-input 
-                v-model="form.setup_fee" 
-                :error="form.errors.setup_fee" 
-                type="number" 
-                step="0.01" 
-                class="pb-8 pr-6 w-full lg:w-1/2" 
-                label="Setup Fee (£)" 
-              />
-              <text-input 
-                v-model="form.transaction_percentage" 
-                :error="form.errors.transaction_percentage" 
-                type="number" 
-                step="0.01" 
-                class="pb-8 pr-6 w-full lg:w-1/2" 
-                label="Transaction Percentage (%)" 
-              />
-              <text-input 
-                v-model="form.transaction_fixed_fee" 
-                :error="form.errors.transaction_fixed_fee" 
-                type="number" 
-                step="0.01" 
-                class="pb-8 pr-6 w-full lg:w-1/2" 
-                label="Fixed Fee Per Transaction (£)" 
-              />
-              <text-input 
-                v-model="form.monthly_fee" 
-                :error="form.errors.monthly_fee" 
-                type="number" 
-                step="0.01" 
-                class="pb-8 pr-6 w-full lg:w-1/2" 
-                label="Monthly Fee (£)" 
-              />
-              <text-input 
-                v-model="form.monthly_minimum" 
-                :error="form.errors.monthly_minimum" 
-                type="number" 
-                step="0.01" 
-                class="pb-8 pr-6 w-full lg:w-1/2" 
-                label="Monthly Minimum (£)" 
-              />
-              <text-input 
-                v-model="form.service_fee" 
-                :error="form.errors.service_fee" 
-                type="number" 
-                step="0.01" 
-                class="pb-8 pr-6 w-full lg:w-1/2" 
-                label="Service Fee (£)" 
-              />
             </div>
             <div class="flex items-center justify-between px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
               <Link href="/applications" class="text-gray-400 hover:text-gray-300 transition-colors">
@@ -185,6 +164,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Change Fees Modal (Only shown if canChangeFees is true) -->
+    <change-fees-modal 
+      v-if="canChangeFees"
+      :show="showChangeFeesModal" 
+      :application="application" 
+      @close="showChangeFeesModal = false" 
+    />
   </div>
 </template>
 
@@ -194,26 +181,26 @@ import Layout from '@/Shared/Layout.vue'
 import TextInput from '@/Shared/TextInput.vue'
 import SelectInput from '@/Shared/SelectInput.vue'
 import LoadingButton from '@/Shared/LoadingButton.vue'
+import ChangeFeesModal from '@/Shared/ChangeFeesModal.vue'
 
 export default {
-  components: { Head, Link, LoadingButton, SelectInput, TextInput },
+  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal },
   layout: Layout,
   remember: 'form',
   props: {
     application: Object,
     accounts: Array,
+    canChangeFees: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
+      showChangeFeesModal: false,
       form: this.$inertia.form({
         account_id: this.application.account_id,
         name: this.application.name,
-        setup_fee: this.application.setup_fee,
-        transaction_percentage: this.application.transaction_percentage,
-        transaction_fixed_fee: this.application.transaction_fixed_fee,
-        monthly_fee: this.application.monthly_fee,
-        monthly_minimum: this.application.monthly_minimum,
-        service_fee: this.application.service_fee,
       }),
     }
   },
