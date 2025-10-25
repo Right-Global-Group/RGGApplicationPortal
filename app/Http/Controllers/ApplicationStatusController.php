@@ -35,7 +35,7 @@ class ApplicationStatusController extends Controller
         if (!$canViewStatus) {
             abort(403, 'Unauthorized access.');
         }
-
+    
         return Inertia::render('Applications/Status', [
             'application' => [
                 'id' => $application->id,
@@ -57,6 +57,7 @@ class ApplicationStatusController extends Controller
                     'step_history' => $application->status->step_history,
                     'timestamps' => [
                         'fees_confirmed' => $application->status->fees_confirmed_at?->format('Y-m-d H:i'),
+                        'documents_uploaded' => $application->status->documents_uploaded_at?->format('Y-m-d H:i'),
                         'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
                         'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
                         'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
@@ -67,10 +68,10 @@ class ApplicationStatusController extends Controller
                 ] : null,
                 'documents' => $application->documents()->get()->map(fn ($doc) => [
                     'id' => $doc->id,
-                    'type' => $doc->document_type,
+                    'document_category' => $doc->document_category,
+                    'original_filename' => $doc->original_filename,
                     'status' => $doc->status,
-                    'sent_at' => $doc->sent_at?->format('Y-m-d H:i'),
-                    'completed_at' => $doc->completed_at?->format('Y-m-d H:i'),
+                    'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
                 ]),
                 'invoices' => $application->invoices()->get()->map(fn ($inv) => [
                     'id' => $inv->id,
@@ -99,6 +100,10 @@ class ApplicationStatusController extends Controller
                     ]),
             ],
             'is_account' => $isAccount,
+            'documentCategories' => \App\Models\ApplicationDocument::getRequiredCategories(),
+            'categoryDescriptions' => collect(\App\Models\ApplicationDocument::getRequiredCategories())
+                ->mapWithKeys(fn ($label, $key) => [$key => \App\Models\ApplicationDocument::getCategoryDescription($key)])
+                ->toArray(),
         ]);
     }
 

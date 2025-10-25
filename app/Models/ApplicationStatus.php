@@ -13,6 +13,7 @@ class ApplicationStatus extends Model
         'current_step',
         'step_history',
         'fees_confirmed_at',
+        'documents_uploaded_at',
         'contract_sent_at',
         'contract_completed_at',
         'contract_submitted_at',
@@ -30,6 +31,7 @@ class ApplicationStatus extends Model
     protected $casts = [
         'step_history' => 'array',
         'fees_confirmed_at' => 'datetime',
+        'documents_uploaded_at' => 'datetime',
         'contract_sent_at' => 'datetime',
         'contract_completed_at' => 'datetime',
         'contract_submitted_at' => 'datetime',
@@ -51,14 +53,15 @@ class ApplicationStatus extends Model
         $steps = [
             'created' => 0,
             'fees_confirmed' => 5,
-            'application_sent' => 10,
-            'contract_completed' => 30,
-            'contract_submitted' => 40,
-            'application_approved' => 60,
-            'approval_email_sent' => 65,
-            'invoice_sent' => 70,
-            'invoice_paid' => 80,
-            'gateway_integrated' => 90,
+            'documents_uploaded' => 15,
+            'application_sent' => 25,
+            'contract_completed' => 40,
+            'contract_submitted' => 50,
+            'application_approved' => 65,
+            'approval_email_sent' => 70,
+            'invoice_sent' => 75,
+            'invoice_paid' => 85,
+            'gateway_integrated' => 92,
             'account_live' => 100,
         ];
 
@@ -99,6 +102,7 @@ class ApplicationStatus extends Model
     {
         $mapping = [
             'fees_confirmed' => 'fees_confirmed_at',
+            'documents_uploaded' => 'documents_uploaded_at',
             'application_sent' => 'contract_sent_at',
             'contract_completed' => 'contract_completed_at',
             'contract_submitted' => 'contract_submitted_at',
@@ -110,5 +114,20 @@ class ApplicationStatus extends Model
         ];
 
         return $mapping[$step] ?? null;
+    }
+
+    /**
+     * Check if all required documents have been uploaded
+     */
+    public function hasAllRequiredDocuments(): bool
+    {
+        $requiredCategories = array_keys(ApplicationDocument::getRequiredCategories());
+        $uploadedCategories = $this->application->documents()
+            ->whereIn('document_category', $requiredCategories)
+            ->pluck('document_category')
+            ->unique()
+            ->toArray();
+
+        return count($uploadedCategories) === count($requiredCategories);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\ApplicationCreatedEvent;
 use App\Events\FeesChangedEvent;
+use App\Models\ApplicationDocument;
 use App\Models\Application;
 use App\Models\Account;
 use App\Models\EmailReminder;
@@ -215,6 +216,16 @@ class ApplicationsController extends Controller
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
             'canChangeFees' => $canChangeFees,
+            'documents' => $application->documents()->get()->map(fn ($doc) => [
+                'id' => $doc->id,
+                'document_category' => $doc->document_category,
+                'original_filename' => $doc->original_filename,
+                'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
+            ]),
+            'documentCategories' => ApplicationDocument::getRequiredCategories(),
+            'categoryDescriptions' => collect(ApplicationDocument::getRequiredCategories())
+                ->mapWithKeys(fn ($label, $key) => [$key => ApplicationDocument::getCategoryDescription($key)])
+                ->toArray(),
         ]);
     }
 

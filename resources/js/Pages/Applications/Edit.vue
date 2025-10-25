@@ -128,6 +128,70 @@
           </div>
         </div>
 
+        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
+            <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
+            <button 
+              @click="showDocumentUploadModal = true" 
+              class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              Upload Document
+            </button>
+          </div>
+          <div class="p-8">
+            <div 
+              v-for="(label, category) in documentCategories" 
+              :key="category"
+              class="mb-6 last:mb-0"
+            >
+              <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
+              <p class="text-sm text-gray-400 mb-3">{{ getCategoryDescription(category) }}</p>
+              
+              <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
+                <div 
+                  v-for="doc in getDocumentsByCategory(category)"
+                  :key="doc.id"
+                  class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+                >
+                  <div class="flex items-center flex-1">
+                    <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <a 
+                      :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                      class="text-blue-400 hover:text-blue-300 text-sm"
+                    >
+                      Download
+                    </a>
+                    <button 
+                      v-if="canChangeFees"
+                      @click="deleteDocument(doc.id)"
+                      class="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
+                <p class="text-yellow-300 text-sm">No documents uploaded yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Document Upload Modal -->
+        <document-upload-modal 
+          :show="showDocumentUploadModal"
+          :application-id="application.id"
+          :categories="documentCategories"
+          :category-descriptions="categoryDescriptions"
+          @close="showDocumentUploadModal = false"
+        />
+
         <!-- Edit Application Form -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
@@ -183,13 +247,18 @@ import SelectInput from '@/Shared/SelectInput.vue'
 import LoadingButton from '@/Shared/LoadingButton.vue'
 import ChangeFeesModal from '@/Shared/ChangeFeesModal.vue'
 
+import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
+
 export default {
-  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal },
+  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal, DocumentUploadModal, },
   layout: Layout,
   remember: 'form',
   props: {
     application: Object,
     accounts: Array,
+    documents: Array,
+    documentCategories: Object,
+    categoryDescriptions: Object,
     canChangeFees: {
       type: Boolean,
       default: false,
@@ -198,6 +267,7 @@ export default {
   data() {
     return {
       showChangeFeesModal: false,
+      showDocumentUploadModal: false,
       form: this.$inertia.form({
         account_id: this.application.account_id,
         name: this.application.name,
@@ -207,6 +277,17 @@ export default {
   methods: {
     update() {
       this.form.put(`/applications/${this.application.id}`)
+    },
+    getDocumentsByCategory(category) {
+      return this.documents.filter(doc => doc.document_category === category)
+    },
+    getCategoryDescription(category) {
+      return this.categoryDescriptions[category] || ''
+    },
+    deleteDocument(documentId) {
+      if (confirm('Are you sure you want to delete this document?')) {
+        this.$inertia.delete(`/applications/${this.application.id}/documents/${documentId}`)
+      }
     },
     formatDate(date) {
       if (!date) return '—'

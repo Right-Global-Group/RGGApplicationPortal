@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountAuthController;
 use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\ApplicationsController;
+use App\Http\Controllers\ApplicationDocumentsController;
 use App\Http\Controllers\ApplicationStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
@@ -67,6 +68,14 @@ Route::middleware(['auth:web,account'])->group(function () {
         // Application Email Reminders
         Route::post('/{application}/set-email-reminder', [ApplicationsController::class, 'setEmailReminder']);
         Route::post('/{application}/cancel-email-reminder', [ApplicationsController::class, 'cancelEmailReminder']);
+
+        // Document Upload
+        Route::post('/{application}/documents', [ApplicationDocumentsController::class, 'store'])
+            ->name('applications.documents.store');
+        Route::get('/{application}/documents/{document}/download', [ApplicationDocumentsController::class, 'download'])
+            ->name('applications.documents.download');
+        Route::delete('/{application}/documents/{document}', [ApplicationDocumentsController::class, 'destroy'])
+            ->name('applications.documents.destroy');
     });
 
     // Progress Tracker

@@ -33,6 +33,12 @@ class EventServiceProvider extends ServiceProvider
         FeesChangedEvent::class => [
             SendFeesChangedEmailListener::class,
         ],
+        DocumentUploadedEvent::class => [
+            SendDocumentUploadedEmailListener::class,
+        ],
+        AllDocumentsUploadedEvent::class => [
+            SendAllDocumentsUploadedEmailListener::class,
+        ],
     ];
 
     /**

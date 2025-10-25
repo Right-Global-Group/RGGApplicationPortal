@@ -189,122 +189,137 @@
           <span v-if="isLoading">Opening DocuSign...</span>
           <span v-else>Send Contract Link (DocuSign)</span>
         </button>
-        
+
         <button
           v-if="canApprove"
           @click="markAsApproved"
-          class="btn-primary bg-green-600 hover:bg-green-700"
+          class="btn-primary"
         >
-          Mark as Approved
+          Approve Application
         </button>
-        <button
-          @click="requestAdditionalInfo"
-          class="btn-primary bg-yellow-600 hover:bg-yellow-700"
-        >
-          Request Additional Info
-        </button>
+
         <button
           v-if="canCreateInvoice"
           @click="showInvoiceModal = true"
-          class="btn-primary bg-purple-600 hover:bg-purple-700"
+          class="btn-primary"
         >
           Create Invoice
+        </button>
+
+        <button
+          @click="requestAdditionalInfo"
+          class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+        >
+          Request Additional Info
         </button>
       </div>
     </div>
 
-    <!-- Timeline/Process Flow -->
+    <!-- Progress Timeline -->
     <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
-      <h2 class="text-xl font-bold text-white mb-6">Process Timeline</h2>
+      <h2 class="text-xl font-bold text-white mb-6">Progress Timeline</h2>
       <div class="space-y-4">
         <timeline-step
           v-for="(step, index) in processSteps"
           :key="step.id"
-          :step="step"
-          :is-current="step.id === application.status?.current_step"
+          :label="step.label"
+          :description="step.description"
           :is-completed="isStepCompleted(step.id)"
+          :is-current="application.status?.current_step === step.id"
           :timestamp="getStepTimestamp(step.id)"
+          :show-connector="index < processSteps.length - 1"
         />
       </div>
     </div>
 
-    <!-- Documents -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <!-- Documents Section -->
+    <div v-if="application.documents?.length > 0" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
       <h2 class="text-xl font-bold text-white mb-4">Documents</h2>
-      <div v-if="application.documents?.length > 0" class="space-y-3">
-        <div
-          v-for="doc in application.documents"
-          :key="doc.id"
-          class="flex items-center justify-between p-4 bg-primary-900/30 rounded-lg border border-primary-700/30"
-        >
-          <div class="flex items-center gap-3">
-            <icon name="file" class="w-5 h-5 fill-gray-400" />
-            <div>
-              <div class="font-semibold text-white capitalize">{{ doc.type }}</div>
-              <div class="text-sm text-gray-400">
-                Sent: {{ doc.sent_at || 'Not sent' }}
-              </div>
+      <div 
+        v-for="(label, category) in documentCategories" 
+        :key="category"
+        class="mb-6 last:mb-0"
+      >
+        <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
+        <p class="text-sm text-gray-400 mb-3">{{ getCategoryDescription(category) }}</p>
+        
+        <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
+          <div 
+            v-for="doc in getDocumentsByCategory(category)"
+            :key="doc.id"
+            class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+          >
+            <div class="flex items-center flex-1">
+              <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <a 
+                :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                class="text-blue-400 hover:text-blue-300 text-sm"
+              >
+                Download
+              </a>
             </div>
           </div>
-          <span
-            class="px-3 py-1 rounded-full text-xs font-semibold"
-            :class="getDocumentStatusClass(doc.status)"
-          >
-            {{ doc.status }}
-          </span>
+        </div>
+        <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
+          <p class="text-yellow-300 text-sm">No documents uploaded yet</p>
         </div>
       </div>
-      <div v-else class="text-gray-400 text-center py-4">No documents yet</div>
     </div>
 
-    <!-- Invoices -->
-    <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
+    <!-- Invoices Section -->
+    <div v-if="application.invoices?.length > 0" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
       <h2 class="text-xl font-bold text-white mb-4">Invoices</h2>
-      <div v-if="application.invoices?.length > 0" class="space-y-3">
+      <div class="space-y-2">
         <div
           v-for="invoice in application.invoices"
           :key="invoice.id"
-          class="flex items-center justify-between p-4 bg-primary-900/30 rounded-lg border border-primary-700/30"
+          class="flex items-center justify-between p-3 bg-dark-900/50 border border-primary-800/30 rounded-lg"
         >
           <div>
-            <div class="font-semibold text-white">{{ invoice.invoice_number }}</div>
-            <div class="text-sm text-gray-400">Amount: £{{ invoice.amount }}</div>
-            <div class="text-xs text-gray-500">Due: {{ invoice.due_date }}</div>
+            <div class="text-white font-semibold">{{ invoice.invoice_number }}</div>
+            <div class="text-sm text-gray-400">
+              Amount: £{{ parseFloat(invoice.amount).toFixed(2) }}
+              <span v-if="invoice.due_date" class="ml-2">Due: {{ invoice.due_date }}</span>
+            </div>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
             <span
-              class="px-3 py-1 rounded-full text-xs font-semibold"
+              class="inline-flex px-3 py-1 rounded-full text-sm font-semibold"
               :class="getInvoiceStatusClass(invoice.status)"
             >
               {{ invoice.status }}
             </span>
             <button
-              v-if="invoice.status === 'sent'"
+              v-if="invoice.status === 'sent' && !is_account"
               @click="markInvoiceAsPaid(invoice.id)"
-              class="text-sm px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white"
+              class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
             >
               Mark as Paid
             </button>
           </div>
         </div>
       </div>
-      <div v-else class="text-gray-400 text-center py-4">No invoices yet</div>
     </div>
 
-    <!-- Gateway Integration -->
+    <!-- Gateway Integration Section -->
     <div v-if="application.gateway" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6">
       <h2 class="text-xl font-bold text-white mb-4">Gateway Integration</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <div class="text-sm text-gray-400 mb-1">Provider</div>
-          <div class="text-lg font-semibold text-white capitalize">{{ application.gateway.provider }}</div>
+      <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-gray-400">Provider</div>
+          <div class="text-white font-semibold">{{ application.gateway.provider }}</div>
         </div>
-        <div v-if="application.gateway.merchant_id">
-          <div class="text-sm text-gray-400 mb-1">Merchant ID</div>
-          <div class="text-lg font-semibold text-white">{{ application.gateway.merchant_id }}</div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-gray-400">Merchant ID</div>
+          <div class="text-white">{{ application.gateway.merchant_id }}</div>
         </div>
-        <div>
-          <div class="text-sm text-gray-400 mb-1">Status</div>
+        <div class="flex items-center justify-between">
+          <div class="text-gray-400">Status</div>
           <span
             class="inline-flex px-3 py-1 rounded-full text-sm font-semibold"
             :class="getGatewayStatusClass(application.gateway.status)"
@@ -373,6 +388,8 @@ export default {
   props: {
     application: Object,
     is_account: Boolean,
+    documentCategories: Object,
+    categoryDescriptions: Object,
   },
   data() {
     return {
@@ -383,6 +400,7 @@ export default {
       processSteps: [
         { id: 'created', label: 'Application Created', description: 'Initial application setup' },
         { id: 'fees_confirmed', label: 'Fees Confirmed', description: 'Account confirmed fee structure' },
+        { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
         { id: 'application_sent', label: 'Contract Sent', description: 'Contract sent to client' },
         { id: 'contract_completed', label: 'Contract Signed', description: 'Client signed the contract' },
         { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted for review' },
@@ -396,7 +414,7 @@ export default {
   },
   computed: {
     canSendContract() {
-      return this.application.status?.current_step === 'fees_confirmed' && !this.is_account
+      return this.application.status?.current_step === 'documents_uploaded' && !this.is_account
     },
     canApprove() {
       return ['contract_submitted'].includes(this.application.status?.current_step) && !this.is_account
@@ -455,10 +473,10 @@ export default {
     },
     isStepCompleted(stepId) {
       const currentStep = this.application.status?.current_step
-      const stepOrder = ['created', 'fees_confirmed', 'application_sent', 'contract_completed', 'contract_submitted', 'application_approved', 'invoice_sent', 'invoice_paid', 'gateway_integrated', 'account_live']
+      const stepOrder = ['created', 'fees_confirmed', 'documents_uploaded', 'application_sent', 'contract_completed', 'contract_submitted', 'application_approved', 'invoice_sent', 'invoice_paid', 'gateway_integrated', 'account_live']
       const currentIndex = stepOrder.indexOf(currentStep)
       const checkIndex = stepOrder.indexOf(stepId)
-      return checkIndex < currentIndex
+      return checkIndex <= currentIndex
     },
     getStepTimestamp(stepId) {
       return this.application.status?.timestamps?.[stepId] || null
@@ -490,6 +508,12 @@ export default {
         inactive: 'bg-gray-900/30 text-gray-400',
       }
       return classes[status] || 'bg-gray-900/30 text-gray-400'
+    },
+    getDocumentsByCategory(category) {
+      return this.application.documents.filter(doc => doc.document_category === category)
+    },
+    getCategoryDescription(category) {
+      return this.categoryDescriptions?.[category] || ''
     },
   },
 }

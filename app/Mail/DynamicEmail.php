@@ -37,6 +37,8 @@ class DynamicEmail extends Mailable
             'fees_confirmed' => 'Application Fees Confirmed',
             'fees_changed' => 'Application Fees Changed - Confirmation Required',
             'wallet_order_confirmed' => 'Wallet Transaction Confirmed',
+            'document_uploaded' => 'Document Uploaded to Application',
+            'all_documents_uploaded' => 'All Required Documents Uploaded',
         ];
 
         return new Envelope(
@@ -55,6 +57,8 @@ class DynamicEmail extends Mailable
             'fees_confirmed' => 'emails.fees-confirmed',
             'fees_changed' => 'emails.fees-changed',
             'wallet_order_confirmed' => 'emails.wallet-order-confirmed',
+            'document_uploaded' => 'emails.document-uploaded',
+            'all_documents_uploaded' => 'emails.all-documents-uploaded',
         ];
 
         return new Content(
