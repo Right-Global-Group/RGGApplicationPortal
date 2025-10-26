@@ -90,8 +90,8 @@
           </div>
         </div>
 
-        <!-- Email Credentials Section (Admin Only) -->
-        <div v-if="$page.props.auth.user.isAdmin" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
+        <!-- Email Credentials Section (Admin Only) - Hidden after first login -->
+        <div v-if="$page.props.auth.user.isAdmin && !account.first_login_at" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
             <h2 class="text-magenta-400 font-bold text-lg">Account Credentials</h2>
           </div>
@@ -189,35 +189,52 @@
     
 
       <div class="w-1/2">
-        <!-- Applications List -->
+        <!-- Applications List with Next Steps -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
             <h2 class="text-magenta-400 font-bold text-lg">Applications ({{ (applications || []).length }})</h2>
           </div>
           <div v-if="(applications || []).length > 0" class="divide-y divide-primary-800/20">
-            <Link
+            <div
               v-for="application in applications"
               :key="application.id"
-              :href="`/applications/${application.id}/edit`"
-              class="flex items-center justify-between px-6 py-4 hover:bg-primary-900/30 transition-colors duration-150 group cursor-pointer"
+              class="px-6 py-4 hover:bg-primary-900/20 transition-colors duration-150"
             >
-              <div class="flex-1">
-                <div class="font-semibold text-magenta-400 group-hover:text-magenta-300 transition-colors">
-                  {{ application.name }}
+              <Link
+                :href="`/applications/${application.id}/edit`"
+                class="flex items-center justify-between group cursor-pointer mb-2"
+              >
+                <div class="flex-1">
+                  <div class="font-semibold text-magenta-400 group-hover:text-magenta-300 transition-colors">
+                    {{ application.name }}
+                  </div>
+                  <div class="text-sm text-gray-400 mt-1">
+                    Created {{ formatDate(application.created_at) }}
+                  </div>
                 </div>
-                <div class="text-sm text-gray-400 mt-1">
-                  Created {{ formatDate(application.created_at) }}
+                <svg 
+                  class="w-5 h-5 text-gray-400 group-hover:text-magenta-400 transition-colors" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+              
+              <!-- Next Steps Section -->
+              <div v-if="getNextStep(application)" class="mt-3 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
+                <div class="flex items-start gap-2">
+                  <svg class="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                  </svg>
+                  <div class="flex-1">
+                    <div class="text-xs font-semibold text-yellow-300 uppercase tracking-wide">Next Step:</div>
+                    <div class="text-sm text-gray-300 mt-1">{{ getNextStep(application) }}</div>
+                  </div>
                 </div>
               </div>
-              <svg 
-                class="w-5 h-5 text-gray-400 group-hover:text-magenta-400 transition-colors" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+            </div>
           </div>
           <div v-else class="px-6 py-8 text-gray-400 text-center">
             No applications found for this account.
@@ -319,6 +336,25 @@ export default {
       if (confirm('Cancel scheduled credential reminders?')) {
         this.$inertia.post(`/accounts/${this.account.id}/cancel-credentials-reminder`)
       }
+    },
+    getNextStep(application) {
+      const status = application.status?.current_step
+      
+      const nextSteps = {
+        'created': 'Confirm the fee structure for this application',
+        'fees_confirmed': 'Upload required documents',
+        'documents_uploaded': 'Wait for contract to be sent',
+        'application_sent': 'Sign the contract document',
+        'contract_completed': 'Wait for application review',
+        'contract_submitted': 'Wait for approval',
+        'application_approved': 'Wait for invoice',
+        'invoice_sent': 'Pay the setup fee invoice',
+        'invoice_paid': 'Wait for gateway integration',
+        'gateway_integrated': 'Your account is being set up',
+        'account_live': null, // No next step when live
+      }
+      
+      return nextSteps[status] || null
     },
     formatDate(date) {
       if (!date) return '—'

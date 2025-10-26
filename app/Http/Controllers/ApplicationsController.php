@@ -189,13 +189,13 @@ class ApplicationsController extends Controller
                 abort(403, 'You can only edit applications for accounts you created.');
             }
         }
-
-        // Load relationships including parent application
-        $application->load(['account', 'user', 'parentApplication']);
-
+    
+        // Load relationships including parent application and status
+        $application->load(['account', 'user', 'parentApplication', 'status']);
+    
         // Determine if current user can change fees (admin only)
         $canChangeFees = auth()->guard('web')->check() && auth()->guard('web')->user()->isAdmin();
-
+    
         return Inertia::render('Applications/Edit', [
             'application' => [
                 'id' => $application->id,
@@ -219,6 +219,11 @@ class ApplicationsController extends Controller
                 'deleted_at' => $application->deleted_at,
                 'created_at' => $application->created_at,
                 'updated_at' => $application->updated_at,
+                // ADD THIS - Include status information
+                'status' => $application->status ? [
+                    'current_step' => $application->status->current_step,
+                    'progress_percentage' => $application->status->progress_percentage,
+                ] : null,
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
             'canChangeFees' => $canChangeFees,
@@ -234,7 +239,7 @@ class ApplicationsController extends Controller
                 ->toArray(),
         ]);
     }
-
+    
     public function update(Application $application): RedirectResponse
     {
         // Check permissions

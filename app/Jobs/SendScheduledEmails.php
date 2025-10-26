@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\AccountCredentialsEvent;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\ApplicationCreatedEvent;
+use App\Events\FeesConfirmationReminderEvent;
 use App\Models\EmailReminder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -81,6 +82,18 @@ class SendScheduledEmails implements ShouldQueue
                     // Get the notes from the application status
                     $notes = $remindable->status?->additional_info_notes ?? 'Additional information is required.';
                     event(new AdditionalInfoRequestedEvent($remindable, $notes));
+                }
+                break;
+
+            case 'fees_confirmation_reminder':
+                if ($remindable instanceof \App\Models\Application) {
+                    // Only send if fees are still not confirmed
+                    if (!$remindable->fees_confirmed) {
+                        event(new FeesConfirmationReminderEvent($remindable));
+                    } else {
+                        // Deactivate reminder if fees are now confirmed
+                        $reminder->update(['is_active' => false]);
+                    }
                 }
                 break;
 

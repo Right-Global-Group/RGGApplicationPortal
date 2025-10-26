@@ -7,12 +7,14 @@ use App\Events\ApplicationCreatedEvent;
 use App\Events\ApplicationStatusChanged;
 use App\Events\FeesChangedEvent;
 use App\Events\FeesConfirmedEvent;
+use App\Events\FeesConfirmationReminderEvent;
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
 use App\Events\ApplicationApprovedEvent;
 use App\Listeners\SendApplicationApprovedEmail;
 use App\Listeners\SendFeesChangedEmailListener;
 use App\Listeners\SendAdditionalInfoRequestEmail;
+use App\Listeners\SendFeesConfirmationReminderListener;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Listeners\SendFeesConfirmedEmail;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -37,6 +39,9 @@ class EventServiceProvider extends ServiceProvider
         FeesChangedEvent::class => [
             SendFeesChangedEmailListener::class,
         ],
+        FeesConfirmationReminderEvent::class => [  // ADD THIS
+            SendFeesConfirmationReminderListener::class,
+        ],
         DocumentUploadedEvent::class => [
             SendDocumentUploadedEmailListener::class,
         ],
@@ -46,10 +51,9 @@ class EventServiceProvider extends ServiceProvider
         ApplicationApprovedEvent::class => [
             SendApplicationApprovedEmail::class,
         ],
-        SendAdditionalInfoRequestEmail::class => [
-            AdditionalInfoRequestedEvent::class,
+        AdditionalInfoRequestedEvent::class => [  // FIX THIS - was backwards
+            SendAdditionalInfoRequestEmail::class,
         ],
-
     ];
 
     /**

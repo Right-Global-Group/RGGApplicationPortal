@@ -21,18 +21,6 @@
           <text-input v-model="form.password" :error="form.errors.password" class="pb-8 pr-6 w-full lg:w-1/2" type="password" autocomplete="new-password" label="Password" />
           <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" label="Photo" accept="image/*" />
         </div>
-
-        <div class="flex items-center px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
-          <button
-            v-if="!user.deleted_at"
-            class="text-red-500 hover:text-red-400 transition-colors"
-            type="button"
-            @click="destroy"
-          >
-            Delete User
-          </button>
-          <loading-button :loading="form.processing" class="btn-primary ml-auto" type="submit">Update User</loading-button>
-        </div>
       </form>
     </div>
 

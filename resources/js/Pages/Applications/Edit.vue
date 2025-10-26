@@ -128,7 +128,8 @@
           </div>
         </div>
 
-        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+        <!-- Documents Section - Only show if status is documents_uploaded or later -->
+        <div v-if="shouldShowDocuments" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
             <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
             <button 
@@ -237,17 +238,43 @@
       </div>
 
       <!-- Right Column: Application Status -->
-      <div class="w-full lg:w-1/3 bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
-        <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-          <h2 class="text-magenta-400 font-bold text-lg">Application Status</h2>
-        </div>
-        <div class="p-8">
-          <Link
-            :href="`/applications/${application.id}/status`"
-            class="btn-primary w-full text-center"
-          >
-            View Status
-          </Link>
+      <div class="w-full lg:w-1/3">
+        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden sticky top-6">
+          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+            <h2 class="text-magenta-400 font-bold text-lg">Application Status</h2>
+          </div>
+          <div class="p-8 space-y-4">
+            <!-- Current Status Badge -->
+            <div class="text-center">
+              <div class="inline-flex items-center px-4 py-2 bg-primary-900/50 border border-primary-700/50 rounded-full">
+                <div class="w-2 h-2 bg-magenta-400 rounded-full mr-2 animate-pulse"></div>
+                <span class="text-sm font-medium text-gray-300">
+                  {{ formatStatus(application.status?.current_step) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Next Steps Box -->
+            <div v-if="nextStep" class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+              <div class="flex items-start gap-2">
+                <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <div class="flex-1">
+                  <div class="text-xs font-semibold text-yellow-300 uppercase tracking-wide mb-1">Next Step:</div>
+                  <div class="text-sm text-gray-300">{{ nextStep }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- View Full Status Button -->
+            <Link
+              :href="`/applications/${application.id}/status`"
+              class="btn-primary w-full text-center block"
+            >
+              View Full Status & Timeline
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -269,11 +296,10 @@ import TextInput from '@/Shared/TextInput.vue'
 import SelectInput from '@/Shared/SelectInput.vue'
 import LoadingButton from '@/Shared/LoadingButton.vue'
 import ChangeFeesModal from '@/Shared/ChangeFeesModal.vue'
-
 import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
 
 export default {
-  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal, DocumentUploadModal, },
+  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal, DocumentUploadModal },
   layout: Layout,
   remember: 'form',
   props: {
@@ -295,6 +321,40 @@ export default {
         account_id: this.application.account_id,
         name: this.application.name,
       }),
+    }
+  },
+  computed: {
+    shouldShowDocuments() {
+      const status = this.application.status?.current_step
+      const statusOrder = [
+        'created', 'fees_confirmed', 'documents_uploaded', 'application_sent',
+        'contract_completed', 'contract_submitted', 'application_approved',
+        'invoice_sent', 'invoice_paid', 'gateway_integrated', 'account_live'
+      ]
+      
+      const currentIndex = statusOrder.indexOf(status)
+      const documentsIndex = statusOrder.indexOf('documents_uploaded')
+      
+      return currentIndex >= documentsIndex
+    },
+    nextStep() {
+      const status = this.application.status?.current_step
+      
+      const nextSteps = {
+        'created': 'Waiting for account to confirm fee structure',
+        'fees_confirmed': 'Waiting for required documents to be uploaded',
+        'documents_uploaded': 'Ready to send contract to account',
+        'application_sent': 'Waiting for account to sign contract',
+        'contract_completed': 'Contract signed, ready for review',
+        'contract_submitted': 'Under review for approval',
+        'application_approved': 'Ready to create and send invoice',
+        'invoice_sent': 'Waiting for invoice payment',
+        'invoice_paid': 'Ready for gateway integration',
+        'gateway_integrated': 'Final setup in progress',
+        'account_live': 'Application complete - Account is live',
+      }
+      
+      return nextSteps[status] || 'Application in progress'
     }
   },
   methods: {
@@ -322,6 +382,10 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
       })
+    },
+    formatStatus(status) {
+      if (!status) return 'Created'
+      return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     },
   },
 }

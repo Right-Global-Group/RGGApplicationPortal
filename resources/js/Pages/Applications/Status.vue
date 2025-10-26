@@ -221,12 +221,23 @@
           Create Invoice
         </button>
 
+        <!-- Fees Confirmation Reminder Button - Only show if fees not confirmed -->
+        <button
+          v-if="!application.fees_confirmed"
+          @click="showFeesReminderModal = true"
+          class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Remind to Confirm Fees
+        </button>
+
         <button
           @click="requestAdditionalInfo"
           class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
         >
           Request Additional Info
         </button>
+        
         <!-- Cancel Additional Info Reminder (if active) -->
         <button
           v-if="additionalInfoReminder"
@@ -462,27 +473,36 @@
       :has-active-reminder="!!additionalInfoReminder"
       @close="showAdditionalInfoModal = false"
     />
+
+      <!-- Fees Reminder Modal -->
+      <fees-reminder-modal 
+        :show="showFeesReminderModal" 
+        :application="application"
+        :fees-reminder="feesReminder"
+        @close="showFeesReminderModal = false" 
+      />
   </div>
-    <!-- Scroll to Top Button -->
-    <transition
-      enter-active-class="transition-all duration-300 ease-out"
-      leave-active-class="transition-all duration-200 ease-in"
-      enter-from-class="opacity-0 translate-y-4"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-4"
+
+  <!-- Scroll to Top Button -->
+  <transition
+    enter-active-class="transition-all duration-300 ease-out"
+    leave-active-class="transition-all duration-200 ease-in"
+    enter-from-class="opacity-0 translate-y-4"
+    enter-to-class="opacity-100 translate-y-0"
+    leave-from-class="opacity-100 translate-y-0"
+    leave-to-class="opacity-0 translate-y-4"
+  >
+    <button
+      v-if="showScrollTop"
+      @click="scrollToTop"
+      class="fixed bottom-6 right-6 z-50 w-12 h-12 bg-gradient-to-br from-primary-600 to-magenta-600 hover:from-primary-500 hover:to-magenta-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 border border-primary-500/30"
+      aria-label="Scroll to top"
     >
-      <button
-        v-if="showScrollTop"
-        @click="scrollToTop"
-        class="fixed bottom-6 right-6 z-50 w-12 h-12 bg-gradient-to-br from-primary-600 to-magenta-600 hover:from-primary-500 hover:to-magenta-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 border border-primary-500/30"
-        aria-label="Scroll to top"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-        </svg>
-      </button>
-    </transition>
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+      </svg>
+    </button>
+  </transition>
 </template>
 
 <script>
@@ -492,6 +512,8 @@ import TimelineStep from '@/Shared/TimelineStep.vue'
 import InvoiceModal from '@/Shared/InvoiceModal.vue'
 import AdditionalInfoModal from '@/Shared/AdditionalInfoModal.vue'
 import Icon from '@/Shared/Icon.vue'
+import FeesReminderModal from '@/Shared/FeesReminderModal.vue'
+
 
 export default {
   components: {
@@ -500,6 +522,7 @@ export default {
     TimelineStep,
     InvoiceModal,
     AdditionalInfoModal,
+    FeesReminderModal,
     Icon,
   },
   layout: Layout,
@@ -507,6 +530,7 @@ export default {
     application: Object,
     is_account: Boolean,
     additionalInfoReminder: Object,
+    feesReminder: Object,
     documentCategories: Object,
     categoryDescriptions: Object,
   },
@@ -516,6 +540,7 @@ export default {
       showScrollTop: false,
       isLoading: false,
       showInvoiceModal: false,
+      showFeesReminderModal: false,
       showAdditionalInfoModal: false,
       processSteps: [
         { id: 'created', label: 'Application Created', description: 'Initial application setup' },

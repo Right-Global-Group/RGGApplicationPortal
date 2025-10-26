@@ -136,7 +136,87 @@ class ApplicationStatusController extends Controller
                 ->where('email_type', 'additional_info_requested')
                 ->where('is_active', true)
                 ->first(),
+            'feesReminder' => $application->emailReminders()
+                ->where('email_type', 'fees_confirmation_reminder')
+                ->where('is_active', true)
+                ->first(),
         ]);
+    }
+
+    /**
+     * Send fees confirmation reminder NOW (immediate, not scheduled)
+     */
+    public function sendFeesConfirmationReminder(Application $application): RedirectResponse
+    {
+        // Only admins and application creators can send reminders
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot send fee confirmation reminders.');
+        }
+
+        if ($application->fees_confirmed) {
+            return Redirect::back()->with('error', 'Fees have already been confirmed.');
+        }
+
+        // Fire event to send email immediately
+        event(new \App\Events\FeesConfirmationReminderEvent($application));
+
+        return Redirect::back()->with('success', 'Fees confirmation reminder sent to account.');
+    }
+
+    /**
+     * Set scheduled fees confirmation reminder (schedules future emails, does NOT send now)
+     */
+    public function setFeesConfirmationReminder(Application $application): RedirectResponse
+    {
+        // Only admins and application creators can set reminders
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot set email reminders.');
+        }
+
+        if ($application->fees_confirmed) {
+            return Redirect::back()->with('error', 'Fees have already been confirmed.');
+        }
+
+        $validated = Request::validate([
+            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+        ]);
+
+        // Deactivate existing fees confirmation reminders
+        $application->emailReminders()
+            ->where('email_type', 'fees_confirmation_reminder')
+            ->update(['is_active' => false]);
+
+        // Create new reminder (scheduled for future, not sent now)
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'fees_confirmation_reminder',
+            'interval' => $validated['interval'],
+            'next_send_at' => $intervals[$validated['interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'Reminder scheduled to send ' . str_replace('_', ' ', $validated['interval']) . '.');
+    }
+
+    /**
+     * Cancel fees confirmation reminder
+     */
+    public function cancelFeesConfirmationReminder(Application $application): RedirectResponse
+    {
+        $application->emailReminders()
+            ->where('email_type', 'fees_confirmation_reminder')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'Fees confirmation reminder cancelled.');
     }
 
     public function confirmFees(Application $application): RedirectResponse

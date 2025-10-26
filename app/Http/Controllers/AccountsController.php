@@ -151,13 +151,14 @@ class AccountsController extends Controller
         } else {
             abort(403, 'Unauthorized access.');
         }
-
+    
         $account->load(['user', 'emailReminders', 'emailLogs']);
-
+    
         $applications = $account->applications()
+            ->with('status')  // ADD THIS LINE
             ->orderBy('name')
             ->get(['id', 'name', 'created_at']);
-
+    
         return Inertia::render('Accounts/Edit', [
             'account' => [
                 'id' => $account->id,
@@ -173,7 +174,14 @@ class AccountsController extends Controller
                 'created_at' => $account->created_at?->toDateTimeString(),
                 'updated_at' => $account->updated_at?->toDateTimeString(),
             ],
-            'applications' => $applications,
+            'applications' => $applications->map(fn ($app) => [  // UPDATE THIS BLOCK
+                'id' => $app->id,
+                'name' => $app->name,
+                'created_at' => $app->created_at,
+                'status' => $app->status ? [
+                    'current_step' => $app->status->current_step,
+                ] : null,
+            ]),
             'emailReminder' => $account->emailReminders()
                 ->where('email_type', 'account_credentials')
                 ->where('is_active', true)

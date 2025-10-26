@@ -85,6 +85,9 @@ Route::middleware(['auth:web,account'])->group(function () {
         // Application Email Reminders
         Route::post('/{application}/set-email-reminder', [ApplicationsController::class, 'setEmailReminder']);
         Route::post('/{application}/cancel-email-reminder', [ApplicationsController::class, 'cancelEmailReminder']);
+        Route::post('/{application}/send-fees-reminder', [ApplicationStatusController::class, 'sendFeesConfirmationReminder'])->name('applications.send-fees-reminder');
+        Route::post('/{application}/set-fees-reminder', [ApplicationStatusController::class, 'setFeesConfirmationReminder'])->name('applications.set-fees-reminder');
+        Route::post('/{application}/cancel-fees-reminder', [ApplicationStatusController::class, 'cancelFeesConfirmationReminder'])->name('applications.cancel-fees-reminder');
 
         // Document Upload
         Route::post('/{application}/documents', [ApplicationDocumentsController::class, 'store'])
