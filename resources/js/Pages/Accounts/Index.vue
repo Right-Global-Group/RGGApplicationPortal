@@ -98,6 +98,10 @@
                 class="flex items-center px-6 py-4 text-gray-200 hover:text-magenta-400 focus:text-magenta-400 transition-colors" 
                 :href="`/accounts/${account.id}/edit`"
               >
+                <img v-if="account.photo" class="mr-3 w-10 h-10 rounded-full border border-primary-800/30 object-cover" :src="account.photo" />
+                <div v-else class="mr-3 w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-magenta-600 flex items-center justify-center text-white font-semibold">
+                  {{ account.name.charAt(0).toUpperCase() }}
+                </div>
                 {{ account.name }}
                 <icon v-if="account.deleted_at" name="trash" class="shrink-0 ml-2 w-3 h-3 fill-gray-500" />
               </Link>

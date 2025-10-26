@@ -12,17 +12,13 @@
       This user has been deleted.
     </trashed-message>
 
-    <div class="max-w-3xl bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-10">
+    <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-10">
       <form @submit.prevent="update">
         <div class="flex flex-wrap -mb-8 -mr-6 p-8">
           <text-input v-model="form.first_name" :error="form.errors.first_name" class="pb-8 pr-6 w-full lg:w-1/2" label="First name" />
           <text-input v-model="form.last_name" :error="form.errors.last_name" class="pb-8 pr-6 w-full lg:w-1/2" label="Last name" />
           <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" />
           <text-input v-model="form.password" :error="form.errors.password" class="pb-8 pr-6 w-full lg:w-1/2" type="password" autocomplete="new-password" label="Password" />
-          <select-input v-model="form.owner" :error="form.errors.owner" class="pb-8 pr-6 w-full lg:w-1/2" label="Owner">
-            <option :value="true">Yes</option>
-            <option :value="false">No</option>
-          </select-input>
           <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" label="Photo" accept="image/*" />
         </div>
 
@@ -45,58 +41,75 @@
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
         <h2 class="text-magenta-400 font-bold text-lg">Accounts Created ({{ (accounts || []).length }})</h2>
       </div>
-      <table v-if="(accounts || []).length > 0" class="w-full text-left">
-        <thead>
-          <tr class="text-magenta-400 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <th class="px-6 py-3">Name</th>
-            <th class="px-6 py-3">Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="account in accounts" :key="account.id" class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20">
-            <td class="px-6 py-3 text-white">
-              <Link :href="`/accounts/${account.id}/edit`" class="text-magenta-400 hover:text-magenta-300 transition-colors">
-                {{ account.name }}
-              </Link>
-            </td>
-            <td class="px-6 py-3 text-gray-400">{{ formatDate(account.created_at) }}</td>
-          </tr>
-        </tbody>
-      </table>
+
+      <div v-if="(accounts || []).length > 0" class="divide-y divide-primary-800/20">
+        <Link
+          v-for="account in accounts"
+          :key="account.id"
+          :href="`/accounts/${account.id}/edit`"
+          class="flex items-center justify-between px-6 py-4 hover:bg-primary-900/30 transition-colors duration-150 group cursor-pointer"
+        >
+          <div class="flex-1">
+            <div class="font-semibold text-magenta-400 group-hover:text-magenta-300 transition-colors">
+              {{ account.name }}
+            </div>
+            <div class="text-sm text-gray-400 mt-1">
+              Created {{ formatDate(account.created_at) }}
+            </div>
+          </div>
+          <svg
+            class="w-5 h-5 text-gray-400 group-hover:text-magenta-400 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </div>
+
       <div v-else class="px-6 py-8 text-gray-400 text-center">
         No accounts created by this user.
       </div>
     </div>
 
-    <!-- Applications Section -->
-    <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+    <!-- Applications Created by User Section -->
+    <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
         <h2 class="text-magenta-400 font-bold text-lg">Applications Created ({{ (applications || []).length }})</h2>
       </div>
-      <table v-if="(applications || []).length > 0" class="w-full text-left">
-        <thead>
-          <tr class="text-magenta-400 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <th class="px-6 py-3">Name</th>
-            <th class="px-6 py-3">Account</th>
-            <th class="px-6 py-3">Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="app in applications" :key="app.id" class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20">
-            <td class="px-6 py-3 text-white">
-              <Link :href="`/applications/${app.id}/edit`" class="text-magenta-400 hover:text-magenta-300 transition-colors">
-                {{ app.name }}
-              </Link>
-            </td>
-            <td class="px-6 py-3 text-gray-300">{{ app.account_name }}</td>
-            <td class="px-6 py-3 text-gray-400">{{ formatDate(app.created_at) }}</td>
-          </tr>
-        </tbody>
-      </table>
+
+      <div v-if="(applications || []).length > 0" class="divide-y divide-primary-800/20">
+        <Link
+          v-for="app in applications"
+          :key="app.id"
+          :href="`/applications/${app.id}/edit`"
+          class="flex items-center justify-between px-6 py-4 hover:bg-primary-900/30 transition-colors duration-150 group cursor-pointer"
+        >
+          <div class="flex-1">
+            <div class="font-semibold text-magenta-400 group-hover:text-magenta-300 transition-colors">
+              {{ app.name }}
+            </div>
+            <div class="text-sm text-gray-400 mt-1">
+              {{ app.account_name }} — Created {{ formatDate(app.created_at) }}
+            </div>
+          </div>
+          <svg
+            class="w-5 h-5 text-gray-400 group-hover:text-magenta-400 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </div>
+
       <div v-else class="px-6 py-8 text-gray-400 text-center">
         No applications created by this user.
       </div>
     </div>
+
   </div>
 </template>
 
@@ -126,7 +139,6 @@ export default {
         last_name: this.user.last_name,
         email: this.user.email,
         password: '',
-        owner: this.user.owner,
         photo: null,
       }),
     }

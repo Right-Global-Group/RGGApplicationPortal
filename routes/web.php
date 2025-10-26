@@ -27,6 +27,7 @@ Route::middleware(['auth:web,account'])->group(function () {
     
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Accounts Routes
     Route::prefix('accounts')->group(function () {
@@ -37,6 +38,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::put('/{account}', [AccountsController::class, 'update']); // No middleware - controller handles it
         Route::delete('/{account}', [AccountsController::class, 'destroy'])->middleware('role:admin');
         Route::put('/{account}/restore', [AccountsController::class, 'restore'])->middleware('role:admin');
+        Route::get('/{account}/photo', [AccountsController::class, 'showPhoto'])->name('accounts.photo');
         
         // Account Email Actions
         Route::post('/{account}/send-credentials', [AccountsController::class, 'sendCredentialsEmail'])->middleware('role:admin');
@@ -105,6 +107,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::put('/{user}', [UsersController::class, 'update']);
         Route::delete('/{user}', [UsersController::class, 'destroy']);
         Route::put('/{user}/restore', [UsersController::class, 'restore']);
+        Route::get('/{user}/photo', [UsersController::class, 'showPhoto'])->name('users.photo');
     });
 
     // Settings Routes (Admin Only)

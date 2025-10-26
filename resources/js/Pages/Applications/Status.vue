@@ -359,7 +359,7 @@
       id="section-email-history" v-if="application.email_logs?.length > 0" 
       class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6"
     >
-      <h2 class="text-xl font-bold text-white mb-4">Email History</h2>
+      <h2 class="text-xl font-bold text-white mb-4">Application Email History</h2>
       <div class="space-y-3">
         <div
           v-for="log in application.email_logs"
@@ -369,12 +369,12 @@
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
               <span class="font-semibold text-white">{{ log.subject }}</span>
-              <span
+              <!-- <span
                 class="px-2 py-0.5 rounded-full text-xs font-semibold"
                 :class="log.opened ? 'bg-green-900/50 text-green-300' : 'bg-gray-700 text-gray-300'"
               >
                 {{ log.opened ? 'Opened' : 'Sent' }}
-              </span>
+              </span> -->
             </div>
             <div class="text-sm text-gray-400 space-y-1">
               <div>
@@ -463,6 +463,26 @@
       @close="showAdditionalInfoModal = false"
     />
   </div>
+    <!-- Scroll to Top Button -->
+    <transition
+      enter-active-class="transition-all duration-300 ease-out"
+      leave-active-class="transition-all duration-200 ease-in"
+      enter-from-class="opacity-0 translate-y-4"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-4"
+    >
+      <button
+        v-if="showScrollTop"
+        @click="scrollToTop"
+        class="fixed bottom-6 right-6 z-50 w-12 h-12 bg-gradient-to-br from-primary-600 to-magenta-600 hover:from-primary-500 hover:to-magenta-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 border border-primary-500/30"
+        aria-label="Scroll to top"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+        </svg>
+      </button>
+    </transition>
 </template>
 
 <script>
@@ -537,7 +557,7 @@ export default {
         baseSections.push({ id: 'section-gateway', label: 'Gateway' })
       }
 
-      baseSections.push({ id: 'section-email-history', label: 'Email History' })
+      baseSections.push({ id: 'section-email-history', label: 'Emails' })
 
       baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
 
@@ -560,8 +580,16 @@ export default {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     },
+    scrollToTop() {
+      if (this.scrollContainer) {
+        this.scrollContainer.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    },
     handleScroll() {
-      this.showScrollTop = window.scrollY > 300
+      const scrollTop = this.scrollContainer ? this.scrollContainer.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0)
+      this.showScrollTop = scrollTop > 300
     },
     confirmFees() {
       if (confirm('Are you sure you want to confirm these fees? This action cannot be undone.')) {
@@ -684,11 +712,31 @@ export default {
     },
   },
   mounted() {
-    window.addEventListener('scroll', this.handleScroll)
-    this.handleScroll() // Check initial scroll position
+    this.$nextTick(() => {
+      // Target the scroll-region attribute (from your Layout.vue)
+      const mainContent = document.querySelector('[scroll-region]')
+      
+      console.log('Scroll region found:', mainContent)
+      
+      if (mainContent) {
+        mainContent.addEventListener('scroll', this.handleScroll, { passive: true })
+        this.scrollContainer = mainContent
+        console.log('Added scroll listener to scroll-region')
+      } else {
+        console.warn('scroll-region not found, using window')
+        window.addEventListener('scroll', this.handleScroll, { passive: true })
+      }
+      
+      // Check initial state
+      setTimeout(() => this.handleScroll(), 100)
+    })
   },
   beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll)
-  },
+    if (this.scrollContainer) {
+      this.scrollContainer.removeEventListener('scroll', this.handleScroll)
+    } else {
+      window.removeEventListener('scroll', this.handleScroll)
+    }
+  }
 }
 </script>

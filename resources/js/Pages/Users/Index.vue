@@ -99,7 +99,10 @@
                 class="flex items-center px-6 py-4 text-gray-200 hover:text-magenta-400 focus:text-magenta-400 transition-colors"
                 :href="`/users/${user.id}/edit`"
               >
-                <img v-if="user.photo" class="block -my-2 mr-2 w-6 h-6 rounded-full" :src="user.photo" />
+                <img v-if="user.photo" class="mr-3 w-10 h-10 rounded-full border border-primary-800/30 object-cover" :src="user.photo" />
+                <div v-else class="mr-3 w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-magenta-600 flex items-center justify-center text-white font-semibold">
+                  {{ user.first_name.charAt(0).toUpperCase() }}
+                </div>
                 {{ user.first_name }} {{ user.last_name }}
                 <icon v-if="user.deleted_at" name="trash" class="ml-2 w-3 h-3 fill-gray-500" />
               </Link>

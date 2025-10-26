@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -56,7 +57,7 @@ class UsersController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
-                'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 40, 'h' => 40, 'fit' => 'crop']) : null,
+                'photo' => $user->photo_path ? URL::route('users.photo', ['user' => $user->id]) : null,
                 'deleted_at' => $user->deleted_at,
                 'created_at' => $user->created_at?->format('Y-m-d H:i'),
                 'updated_at' => $user->updated_at?->format('Y-m-d H:i'),
@@ -80,15 +81,22 @@ class UsersController extends Controller
             'last_name' => ['required', 'max:50'],
             'email' => ['required', 'max:50', 'email', Rule::unique('users')],
             'password' => ['nullable'],
-            'photo' => ['nullable', 'image'],
+            'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
+
+        $photoPath = null;
+        if (Request::file('photo')) {
+            $file = Request::file('photo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $photoPath = $file->storeAs('users', $filename, 'private');
+        }
 
         User::create([
             'first_name' => Request::get('first_name'),
             'last_name'  => Request::get('last_name'),
             'email'      => Request::get('email'),
             'password'   => Request::get('password'),
-            'photo_path' => Request::file('photo') ? Request::file('photo')->store('users') : null,
+            'photo_path' => $photoPath,
         ]);        
 
         return Redirect::route('users')->with('success', 'User created.');
@@ -110,7 +118,7 @@ class UsersController extends Controller
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
-                'photo' => $user->photo_path ? URL::route('image', ['path' => $user->photo_path, 'w' => 60, 'h' => 60, 'fit' => 'crop']) : null,
+                'photo' => $user->photo_path ? URL::route('users.photo', ['user' => $user->id]) : null,
                 'deleted_at' => $user->deleted_at,
             ],
             'applications' => $applications->map(fn ($a) => [
@@ -138,13 +146,23 @@ class UsersController extends Controller
             'last_name' => ['required', 'max:50'],
             'email' => ['required', 'max:50', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => ['nullable'],
-            'photo' => ['nullable', 'image'],
+            'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
 
         $user->update(Request::only('first_name', 'last_name', 'email'));
 
         if (Request::file('photo')) {
-            $user->update(['photo_path' => Request::file('photo')->store('users')]);
+            // Delete old photo if exists
+            if ($user->photo_path) {
+                Storage::disk('private')->delete($user->photo_path);
+            }
+            
+            // Store new photo
+            $file = Request::file('photo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $photoPath = $file->storeAs('users', $filename, 'private');
+            
+            $user->update(['photo_path' => $photoPath]);
         }
 
         if (Request::get('password')) {
@@ -160,6 +178,11 @@ class UsersController extends Controller
             return Redirect::back()->with('error', 'Deleting the demo user is not allowed.');
         }
 
+        // Delete photo if exists
+        if ($user->photo_path) {
+            Storage::disk('private')->delete($user->photo_path);
+        }
+
         $user->delete();
 
         return Redirect::back()->with('success', 'User deleted.');
@@ -170,5 +193,62 @@ class UsersController extends Controller
         $user->restore();
 
         return Redirect::back()->with('success', 'User restored.');
+    }
+
+    public function showPhoto(User $user)
+    {
+        // Check permissions - allow viewing if:
+        // 1. User is viewing their own photo
+        // 2. User is admin
+        // 3. User manages accounts that this user owns
+        // 4. Account user viewing the photo of a user who manages them
+        
+        if (auth()->guard('web')->check()) {
+            $authUser = auth()->guard('web')->user();
+            
+            // Allow if viewing own photo or is admin
+            if ($authUser->id === $user->id || $authUser->isAdmin()) {
+                // OK
+            } else {
+                // Check if auth user manages any accounts owned by the viewed user
+                $hasAccess = $user->accounts()
+                    ->where('user_id', $authUser->id)
+                    ->exists();
+                
+                if (!$hasAccess) {
+                    abort(403);
+                }
+            }
+        } elseif (auth()->guard('account')->check()) {
+            // Accounts can view photos of users who manage them
+            $accountId = auth()->guard('account')->id();
+            $hasAccess = $user->accounts()
+                ->where('id', $accountId)
+                ->exists();
+            
+            if (!$hasAccess) {
+                abort(403);
+            }
+        } else {
+            abort(403);
+        }
+
+        // Check if user has a photo
+        if (!$user->photo_path) {
+            abort(404);
+        }
+
+        // Check if file exists
+        if (!Storage::disk('private')->exists($user->photo_path)) {
+            abort(404);
+        }
+
+        // Get the file
+        $file = Storage::disk('private')->get($user->photo_path);
+        $mimeType = Storage::disk('private')->mimeType($user->photo_path);
+
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
     }
 }

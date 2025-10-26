@@ -12,7 +12,8 @@
         <div class="flex flex-wrap -mb-8 -mr-6 p-8">
           <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Account Name" />
           <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" type="email" />
-          <div class="pb-8 pr-6 w-full">
+          <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" label="Photo" accept="image/*" />
+          <div class="pb-8 pr-6 w-full lg:w-1/2">
             <label class="block text-gray-300 font-medium mb-2">Created By</label>
             <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
               {{ user.first_name }} {{ user.last_name }}
@@ -31,10 +32,11 @@
 import { Head, Link } from '@inertiajs/vue3'
 import Layout from '@/Shared/Layout.vue'
 import TextInput from '@/Shared/TextInput.vue'
+import FileInput from '@/Shared/FileInput.vue'
 import LoadingButton from '@/Shared/LoadingButton.vue'
 
 export default {
-  components: { Head, Link, LoadingButton, TextInput },
+  components: { Head, Link, LoadingButton, TextInput, FileInput },
   layout: Layout,
   remember: 'form',
   props: {
@@ -45,6 +47,7 @@ export default {
       form: this.$inertia.form({
         name: null,
         email: null,
+        photo: null,
       }),
     }
   },

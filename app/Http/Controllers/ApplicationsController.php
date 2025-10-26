@@ -140,6 +140,12 @@ class ApplicationsController extends Controller
             'region' => ['nullable', 'max:50'],
             'country' => ['nullable', 'max:2'],
             'postal_code' => ['nullable', 'max:25'],
+            'setup_fee' => ['required', 'numeric', 'min:0'],
+            'transaction_percentage' => ['required', 'numeric', 'min:0'],
+            'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
+            'monthly_fee' => ['required', 'numeric', 'min:0'],
+            'monthly_minimum' => ['required', 'numeric', 'min:0'],
+            'service_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         // Verify user has permission to create application for this account

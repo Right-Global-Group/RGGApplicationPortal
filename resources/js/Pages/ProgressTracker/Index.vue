@@ -337,10 +337,12 @@ export default {
     formatStatus(status) {
       const statusMap = {
         created: 'Created',
+        fees_confirmed: 'Fees Confirmed',
+        documents_uploaded: 'Documents Uploaded',
         application_sent: 'Contract Sent',
         contract_completed: 'Contract Signed',
-        contract_submitted: 'Submitted',
-        application_approved: 'Approved',
+        contract_submitted: 'Contract Submitted',
+        application_approved: 'Application Approved',
         approval_email_sent: 'Approval Sent',
         invoice_sent: 'Invoice Sent',
         invoice_paid: 'Payment Received',
@@ -352,10 +354,12 @@ export default {
     getStatusClass(status) {
       const classMap = {
         created: 'bg-gray-700 text-gray-300',
+        fees_confirmed: 'bg-blue-900/50 text-blue-300',
+        documents_uploaded: 'bg-purple-900/50 text-purple-300',
         application_sent: 'bg-yellow-900/50 text-yellow-300',
         contract_completed: 'bg-blue-900/50 text-blue-300',
         contract_submitted: 'bg-blue-900/50 text-blue-300',
-        application_approved: 'bg-purple-900/50 text-purple-300',
+        application_approved: 'bg-green-400/30 text-green-100',
         approval_email_sent: 'bg-purple-900/50 text-purple-300',
         invoice_sent: 'bg-orange-900/50 text-orange-300',
         invoice_paid: 'bg-cyan-900/50 text-cyan-300',

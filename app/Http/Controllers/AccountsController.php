@@ -8,6 +8,8 @@ use App\Models\EmailReminder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -71,6 +73,7 @@ class AccountsController extends Controller
                 'id' => $account->id,
                 'name' => $account->name,
                 'email' => $account->email,
+                'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
                 'status' => $account->status,
                 'is_confirmed' => $account->isConfirmed(),
                 'user_name' => $account->user 
@@ -106,10 +109,18 @@ class AccountsController extends Controller
         $validated = Request::validate([
             'name' => ['required', 'max:50'],
             'email' => ['required', 'email', 'unique:accounts,email'],
+            'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
 
         // Generate random password
         $plainPassword = Account::generatePassword();
+
+        $photoPath = null;
+        if (Request::file('photo')) {
+            $file = Request::file('photo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $photoPath = $file->storeAs('accounts', $filename, 'private');
+        }
 
         $account = Account::create([
             'name' => $validated['name'],
@@ -117,6 +128,7 @@ class AccountsController extends Controller
             'password' => $plainPassword,
             'user_id' => auth()->id(),
             'status' => Account::STATUS_PENDING,
+            'photo_path' => $photoPath,
         ]);
 
         return Redirect::route('accounts.edit', $account)->with('success', 'Account created.');
@@ -151,6 +163,7 @@ class AccountsController extends Controller
                 'id' => $account->id,
                 'name' => $account->name,
                 'email' => $account->email,
+                'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
                 'status' => $account->status,
                 'is_confirmed' => $account->isConfirmed(),
                 'user_id' => $account->user_id,
@@ -180,12 +193,30 @@ class AccountsController extends Controller
 
     public function update(Account $account): RedirectResponse
     {
-        $account->update(
-            Request::validate([
-                'name' => ['required', 'max:50'],
-                'email' => ['required', 'email', 'unique:accounts,email,' . $account->id],
-            ])
-        );
+        $validated = Request::validate([
+            'name' => ['required', 'max:50'],
+            'email' => ['required', 'email', 'unique:accounts,email,' . $account->id],
+            'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
+        ]);
+
+        $account->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+
+        if (Request::file('photo')) {
+            // Delete old photo if exists
+            if ($account->photo_path) {
+                Storage::disk('private')->delete($account->photo_path);
+            }
+            
+            // Store new photo
+            $file = Request::file('photo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $photoPath = $file->storeAs('accounts', $filename, 'private');
+            
+            $account->update(['photo_path' => $photoPath]);
+        }
 
         return Redirect::back()->with('success', 'Account updated.');
     }
@@ -266,6 +297,11 @@ class AccountsController extends Controller
 
     public function destroy(Account $account): RedirectResponse
     {
+        // Delete photo if exists
+        if ($account->photo_path) {
+            Storage::disk('private')->delete($account->photo_path);
+        }
+
         $account->delete();
 
         return Redirect::back()->with('success', 'Account deleted.');
@@ -276,5 +312,43 @@ class AccountsController extends Controller
         $account->restore();
 
         return Redirect::back()->with('success', 'Account restored.');
+    }
+
+    public function showPhoto(Account $account)
+    {
+        // Access control
+        if (auth()->guard('account')->check()) {
+            // Accounts can view their own photo
+            if ($account->id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            
+            // Allow if admin or user created this account
+            if (!$user->isAdmin() && $account->user_id !== $user->id) {
+                abort(403);
+            }
+        } else {
+            abort(403);
+        }
+
+        // Check if account has a photo
+        if (!$account->photo_path) {
+            abort(404);
+        }
+
+        // Check if file exists
+        if (!Storage::disk('private')->exists($account->photo_path)) {
+            abort(404);
+        }
+
+        // Get the file
+        $file = Storage::disk('private')->get($account->photo_path);
+        $mimeType = Storage::disk('private')->mimeType($account->photo_path);
+
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
     }
 }

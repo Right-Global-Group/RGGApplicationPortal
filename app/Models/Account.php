@@ -29,6 +29,7 @@ class Account extends Authenticatable
         'status',
         'credentials_sent_at',
         'first_login_at',
+        'photo_path',
     ];
 
     protected $hidden = [
