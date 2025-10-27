@@ -115,7 +115,13 @@ export default {
           match: 'progress-tracker',
           adminOnly: false 
         },
-        // Settings removed from menu - only in dropdown
+        { 
+          name: 'mail', 
+          label: 'Email Templates', 
+          href: '/email-templates', 
+          match: 'email-templates',
+          adminOnly: true // Only admins can manage email templates
+        },
       ],
     }
   },

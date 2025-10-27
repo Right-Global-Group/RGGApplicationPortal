@@ -8,6 +8,7 @@ use App\Http\Controllers\ApplicationStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProgressTrackerController;
+use App\Http\Controllers\EmailTemplatesController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,22 @@ Route::middleware(['auth:web,account'])->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    Route::get('/email-templates', [EmailTemplatesController::class, 'index'])
+        ->name('email-templates.index');
+
+    Route::get('/email-templates/{template}/edit', [EmailTemplatesController::class, 'edit'])
+        ->name('email-templates.edit');
+
+    Route::put('/email-templates/{template}', [EmailTemplatesController::class, 'update'])
+        ->name('email-templates.update');
+
+    Route::post('/email-templates/{template}/reset', [EmailTemplatesController::class, 'reset'])
+        ->name('email-templates.reset');
+
+    Route::get('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
+        ->name('email-templates.preview');
+        
 
     // Accounts Routes
     Route::prefix('accounts')->group(function () {

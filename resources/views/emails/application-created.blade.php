@@ -66,25 +66,25 @@
     </div>
     
     <div class="content">
-        <p>Hello {{ $account_name }},</p>
+        <p>Hello {{ $account_name ?? 'Account Name' }},</p>
         
         <p>A new application has been created for your account:</p>
         
         <div class="application-box">
             <div class="application-item">
                 <span class="label">Application Name:</span><br>
-                {{ $application_name }}
+                {{ $application_name ?? 'Application Name' }}
             </div>
             <div class="application-item">
                 <span class="label">Created At:</span><br>
-                {{ $created_at }}
+                {{ $created_at ?? 'Created Date' }}
             </div>
         </div>
         
         <p>You can track the progress and view all details of your application by clicking the button below:</p>
         
         <center>
-            <a href="{{ $status_url }}" class="button">View Application Status</a>
+            <a href="{{ $status_url ?? '#' }}" class="button">View Application Status</a>
         </center>
         
         <p>We will keep you updated as your application progresses through each stage. If you have any questions, please contact our support team.</p>

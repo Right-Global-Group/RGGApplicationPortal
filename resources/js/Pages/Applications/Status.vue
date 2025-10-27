@@ -233,8 +233,9 @@
 
         <button
           @click="requestAdditionalInfo"
-          class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+          class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
+          <icon name="mail" class="w-4 h-4 fill-current" />
           Request Additional Info
         </button>
         

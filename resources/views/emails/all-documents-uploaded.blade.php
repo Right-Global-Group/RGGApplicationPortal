@@ -84,29 +84,46 @@
     </div>
     
     <div class="content">
-        <p>Hello {{ $user_name }},</p>
+        <p>Hello {{ $user_name ?? 'User Name' }},</p>
         
-        <p><strong>Great news!</strong> {{ $account_name }} has submitted all required documents for the application <strong>{{ $application_name }}</strong>.</p>
+        <p><strong>Great news!</strong> {{ $account_name ?? 'Account Name' }} has submitted all required documents for the application <strong>{{ $application_name ?? 'Application Name' }}</strong>.</p>
         
         <div class="documents-list">
             <h3 style="margin-top: 0; color: #059669;">Documents Submitted:</h3>
-            @foreach($documents as $doc)
-            <div class="document-item">
-                <span class="checkmark">✓</span>
-                <div>
-                    <strong>{{ $doc['category'] }}</strong>
-                    @if($doc['count'] > 1)
-                    <span style="color: #6b7280; font-size: 14px;">({{ $doc['count'] }} files)</span>
-                    @endif
+            @if(isset($documents) && is_array($documents))
+                @foreach($documents as $doc)
+                <div class="document-item">
+                    <span class="checkmark">✓</span>
+                    <div>
+                        <strong>{{ $doc['category'] ?? 'Document Category' }}</strong>
+                        @if(isset($doc['count']) && $doc['count'] > 1)
+                        <span style="color: #6b7280; font-size: 14px;">({{ $doc['count'] }} files)</span>
+                        @endif
+                    </div>
                 </div>
-            </div>
-            @endforeach
+                @endforeach
+            @else
+                <div class="document-item">
+                    <span class="checkmark">✓</span>
+                    <div>
+                        <strong>Sample Document Category</strong>
+                        <span style="color: #6b7280; font-size: 14px;">(2 files)</span>
+                    </div>
+                </div>
+                <div class="document-item">
+                    <span class="checkmark">✓</span>
+                    <div>
+                        <strong>Another Document Category</strong>
+                        <span style="color: #6b7280; font-size: 14px;">(1 file)</span>
+                    </div>
+                </div>
+            @endif
         </div>
         
         <p>The application can now proceed to the next stage. You can review all documents and continue processing:</p>
         
         <center>
-            <a href="{{ $application_url }}" class="button">Review Application</a>
+            <a href="{{ $application_url ?? '#' }}" class="button">Review Application</a>
         </center>
         
         <p><strong>Next Steps:</strong> Review the submitted documents and proceed with the contract signing process.</p>

@@ -84,7 +84,7 @@
     </div>
     
     <div class="content">
-        <p>Hello {{ $account_name }},</p>
+        <p>Hello {{ $account_name ?? 'Account Name' }},</p>
         
         <p>A new application has been created for your account because the fee structure has been updated.</p>
         
@@ -92,43 +92,43 @@
             <strong>⚠️ Action Required:</strong> You need to review and confirm these new fees before we can proceed with your application.
         </div>
         
-        <p><strong>Application Name:</strong> {{ $application_name }}</p>
+        <p><strong>Application Name:</strong> {{ $application_name ?? 'Application Name' }}</p>
         
         <div class="fee-box">
             <h3 style="margin-top: 0; color: #764ba2;">Updated Fee Structure</h3>
             
             <div class="fee-item">
                 <span class="fee-label">Setup Fee:</span>
-                <span class="fee-value">£{{ number_format($setup_fee, 2) }}</span>
+                <span class="fee-value">£{{ number_format($setup_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-item">
                 <span class="fee-label">Transaction Fee:</span>
-                <span class="fee-value">{{ number_format($transaction_percentage, 2) }}% + £{{ number_format($transaction_fixed_fee, 2) }}</span>
+                <span class="fee-value">{{ number_format($transaction_percentage ?? 0, 2) }}% + £{{ number_format($transaction_fixed_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-item">
                 <span class="fee-label">Monthly Fee:</span>
-                <span class="fee-value">£{{ number_format($monthly_fee, 2) }}</span>
+                <span class="fee-value">£{{ number_format($monthly_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-item">
                 <span class="fee-label">Monthly Minimum:</span>
-                <span class="fee-value">£{{ number_format($monthly_minimum, 2) }}</span>
+                <span class="fee-value">£{{ number_format($monthly_minimum ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-item">
                 <span class="fee-label">Service Fee:</span>
-                <span class="fee-value">£{{ number_format($service_fee, 2) }}</span>
+                <span class="fee-value">£{{ number_format($service_fee ?? 0, 2) }}</span>
             </div>
         </div>
         
         <p style="font-size: 14px; color: #6b7280;">
-            <em>This application replaces application: {{ $parent_application_name }}</em>
+            <em>This application replaces application: {{ $parent_application_name ?? 'Previous Application' }}</em>
         </p>
         
         <div style="text-align: center;">
-            <a href="{{ $status_url }}" class="button">
+            <a href="{{ $status_url ?? '#' }}" class="button">
                 Review & Confirm Fees
             </a>
         </div>

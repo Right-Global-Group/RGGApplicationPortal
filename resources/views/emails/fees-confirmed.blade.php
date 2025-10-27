@@ -89,37 +89,37 @@
         </div>
 
         <div class="success-badge">
-            Confirmed at {{ $confirmed_at }}
+            Confirmed at {{ $confirmed_at ?? 'Confirmation Date' }}
         </div>
 
-        <p>The fees for <strong>{{ $application_name }}</strong> have been confirmed by <strong>{{ $account_name }}</strong>.</p>
+        <p>The fees for <strong>{{ $application_name ?? 'Application Name' }}</strong> have been confirmed by <strong>{{ $account_name ?? 'Account Name' }}</strong>.</p>
 
         <div class="fee-details">
             <h3 style="margin-top: 0; color: #111827;">Confirmed Fee Structure</h3>
             
             <div class="fee-row">
                 <span class="fee-label">Setup Fee (+ VAT)</span>
-                <span class="fee-value">£{{ number_format($setup_fee, 2) }}</span>
+                <span class="fee-value">£{{ number_format($setup_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-row">
                 <span class="fee-label">Transaction Fee</span>
-                <span class="fee-value">{{ $transaction_percentage }}% + £{{ number_format($transaction_fixed_fee, 2) }}</span>
+                <span class="fee-value">{{ $transaction_percentage ?? 0 }}% + £{{ number_format($transaction_fixed_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-row">
                 <span class="fee-label">Monthly Fee</span>
-                <span class="fee-value">£{{ number_format($monthly_fee, 2) }}</span>
+                <span class="fee-value">£{{ number_format($monthly_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-row">
                 <span class="fee-label">Monthly Minimum</span>
-                <span class="fee-value">£{{ number_format($monthly_minimum, 2) }}</span>
+                <span class="fee-value">£{{ number_format($monthly_minimum ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-row">
                 <span class="fee-label">Service Fee</span>
-                <span class="fee-value">£{{ number_format($service_fee, 2) }}</span>
+                <span class="fee-value">£{{ number_format($service_fee ?? 0, 2) }}</span>
             </div>
         </div>
 
