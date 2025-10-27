@@ -1,8 +1,8 @@
 <template>
   <div>
     <Head :title="account.name" />
-    <div class="flex justify-between">
-      <div class="flex items-center gap-6 mb-6">
+    <div class="flex justify-between flex-wrap">
+      <div class="flex items-center gap-6 mb-6 flex-wrap">
         <h1 class="text-3xl font-bold text-white flex items-center">
           <Link class="text-magenta-400 hover:text-magenta-500 transition-colors" href="/accounts">Accounts</Link>
           <span class="text-gray-500 mx-2">/</span>
@@ -41,8 +41,8 @@
       </div>
     </div>
 
-    <div class="flex flex-row gap-6">
-      <div class="w-1/2">
+    <div class="flex flex-col sm:flex sm:flex-row gap-6">
+      <div class="sm:w-1/2 w-full">
 
         <!-- Account Details Section -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
@@ -188,7 +188,7 @@
       </div>
     
 
-      <div class="w-1/2">
+      <div class="sm:w-1/2 w-full">
         <!-- Applications List with Next Steps -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">

@@ -150,7 +150,6 @@
           <div class="flex-1">
             <div class="text-blue-300 font-semibold mb-1">Template Editing Tips</div>
             <ul class="text-sm text-gray-400 space-y-1">
-              <li>• A backup is automatically created before saving</li>
               <li>• Use Blade syntax for dynamic content: <code class="bg-dark-900 px-1 rounded">&#123;&#123; $variable &#125;&#125;</code></li>
               <li>• Preview uses sample data for testing</li>
             </ul>

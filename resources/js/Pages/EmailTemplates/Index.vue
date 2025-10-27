@@ -30,7 +30,7 @@
         <div class="flex-1">
           <div class="text-blue-300 font-semibold mb-1">Email Template Management</div>
           <div class="text-sm text-gray-400">
-            Edit and preview email templates used throughout the application. A backup is automatically created before each update.
+            Edit and preview email templates used throughout the application.
           </div>
         </div>
       </div>
