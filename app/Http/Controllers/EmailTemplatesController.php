@@ -114,13 +114,12 @@ class EmailTemplatesController extends Controller
         ]);
     }
 
-
     /**
-     * Get preview HTML via AJAX
+     * Reset template to original/default version
      */
-    public function previewAjax(string $template)
+    public function reset(string $template)
     {
-        // Only admins can preview email templates
+        // Only admins can reset email templates
         if (!auth()->user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -131,21 +130,91 @@ class EmailTemplatesController extends Controller
             return response()->json(['error' => 'Template not found'], 404);
         }
 
+        // Check if there are backups to restore from
+        $backupPath = $this->templatesPath . '/backups';
+        
+        if (!File::exists($backupPath)) {
+            return response()->json(['error' => 'No backups available for this template.'], 400);
+        }
+
+        // Get all backups for this template, sorted by date (newest first)
+        $backups = collect(File::files($backupPath))
+            ->filter(fn($file) => str_starts_with($file->getFilename(), $template . '_'))
+            ->sortByDesc(fn($file) => $file->getMTime())
+            ->values();
+
+        if ($backups->isEmpty()) {
+            return response()->json(['error' => 'No backups available for this template.'], 400);
+        }
+
+        // Use the most recent backup
+        $latestBackup = $backups->first();
+        
+        // Create a backup of current version before resetting
+        $currentBackupFile = $backupPath . '/' . $template . '_before-reset_' . date('Y-m-d_H-i-s') . '.blade.php';
+        File::copy($filePath, $currentBackupFile);
+
+        // Restore from backup
+        File::copy($latestBackup->getPathname(), $filePath);
+
         // Clear view cache
         $this->clearViewCache();
 
-        // Get sample data for preview
-        $sampleData = $this->getSampleData($template);
+        // Touch the file to update timestamp
+        touch($filePath);
 
+        return response()->json([
+            'success' => true,
+            'message' => 'Template reset to previous backup from ' . date('Y-m-d H:i', $latestBackup->getMTime()),
+            'content' => File::get($filePath),
+        ]);
+    }
+
+    /**
+     * Get preview HTML via AJAX
+     */
+    public function previewAjax(string $template)
+    {
+        if (!auth()->user()->isAdmin()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+    
+        $filePath = $this->templatesPath . '/' . $template . '.blade.php';
+    
+        if (!File::exists($filePath)) {
+            return response()->json(['error' => 'Template not found'], 404);
+        }
+    
+        // Clear view cache
+        $this->clearViewCache();
+    
+        $sampleData = $this->getSampleData($template);
+    
         try {
-            // Force Laravel to recompile by clearing the view finder cache
-            app('view')->getFinder()->flush();
-            
-            $html = view('emails.' . $template, $sampleData)->render();
-            
+            // Check for unsaved content (from textarea)
+            $rawContent = Request::input('content');
+            $isPreviewingUnsaved = !empty($rawContent);
+    
+            if ($isPreviewingUnsaved) {
+                // Create a temporary file to safely render the unsaved content
+                $tempPath = storage_path("framework/views/_preview_{$template}.blade.php");
+                File::put($tempPath, $rawContent);
+    
+                $view = view()->file($tempPath, $sampleData);
+            } else {
+                // Fallback: render from saved file
+                $view = view('emails.' . $template, $sampleData);
+            }
+    
+            $html = $view->render();
+    
+            // Clean up temp file (optional)
+            if ($isPreviewingUnsaved && File::exists($tempPath)) {
+                @unlink($tempPath);
+            }
+    
             return response()->json([
                 'html' => $html,
-                'sample_data' => $sampleData,
                 'timestamp' => now()->timestamp,
             ]);
         } catch (\Exception $e) {
@@ -159,7 +228,7 @@ class EmailTemplatesController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
-    }
+    }    
 
     /**
      * Clear all view caches
@@ -324,6 +393,23 @@ class EmailTemplatesController extends Controller
                     ['category' => 'ID Documentation', 'count' => 2],
                     ['category' => 'Processing Statements', 'count' => 1],
                 ],
+            ],
+            'merchant-contract-ready' => [
+                'signing_url' => URL::to('/docusign/sign/abc123'),
+            ],
+            'gateway-partner-contract-ready' => [
+                'gateway_partner_name' => 'Cardstream',
+                'signing_url' => URL::to('/docusign/sign/xyz789'),
+                'setup_fee' => 500.00,
+                'transaction_percentage' => 2.5,
+                'transaction_fixed_fee' => 0.20,
+                'monthly_fee' => 50.00,
+            ],
+            'wordpress-credentials-request' => [
+                // Uses common data (application_name, account_name, application_url)
+            ],
+            'wordpress-credentials-reminder' => [
+                // Uses common data (application_name, account_name, application_url)
             ],
             default => [],
         };

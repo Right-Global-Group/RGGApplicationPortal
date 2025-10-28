@@ -1,108 +1,155 @@
 <template>
-    <div>
-      <Head :title="`Edit ${template.display_name}`" />
-      
-      <!-- Header with back button -->
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
-          <Link
-            href="/email-templates"
-            class="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
-          >
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-          </Link>
-          <div>
-            <h1 class="text-3xl font-bold text-white">{{ template.display_name }}</h1>
-            <p class="text-sm text-gray-400 mt-1">{{ template.name }}.blade.php</p>
-          </div>
-        </div>
-        
-        <div class="flex gap-3">
-          <button
-            @click="saveTemplate"
-            :disabled="saving || !hasChanges"
-            class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <svg v-if="saving" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-            </svg>
-            {{ saving ? 'Saving...' : (hasChanges ? 'Save Changes' : 'No Changes') }}
-          </button>
-        </div>
-      </div>
-  
-      <!-- Success Message -->
-      <div v-if="successMessage" class="bg-green-900/20 border border-green-700/30 rounded-xl p-4 mb-6">
-        <div class="flex items-start gap-3">
-          <svg class="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+  <div>
+    <Head :title="`Edit ${template.display_name}`" />
+    
+    <!-- Header with back + action buttons -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <Link
+          href="/email-templates"
+          class="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+        >
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
           </svg>
-          <div class="flex-1">
-            <div class="text-green-300 font-semibold">{{ successMessage }}</div>
-          </div>
-          <button @click="successMessage = null" class="text-green-400 hover:text-green-300">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
+        </Link>
+        <div>
+          <h1 class="text-3xl font-bold text-white">{{ template.display_name }}</h1>
+          <p class="text-sm text-gray-400 mt-1">{{ template.name }}.blade.php</p>
         </div>
       </div>
-  
-      <!-- Error Message -->
-      <div v-if="errorMessage" class="bg-red-900/20 border border-red-700/30 rounded-xl p-4 mb-6">
-        <div class="flex items-start gap-3">
-          <svg class="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+
+      <div class="flex gap-3">
+        <!-- Preview button -->
+        <button
+          @click="showPreview = true"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
           </svg>
-          <div class="flex-1">
-            <div class="text-red-300 font-semibold">{{ errorMessage }}</div>
-          </div>
-          <button @click="errorMessage = null" class="text-red-400 hover:text-red-300">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
+          Preview
+        </button>
+
+        <!-- Save button -->
+        <button
+          @click="saveTemplate"
+          :disabled="saving || !hasChanges"
+          class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <svg v-if="saving" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+          </svg>
+          {{ saving ? 'Saving...' : (hasChanges ? 'Save Changes' : 'No Changes') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Flash Messages -->
+    <div v-if="successMessage" class="bg-green-900/20 border border-green-700/30 rounded-xl p-4 mb-6">
+      <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 text-green-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16..."/>
+        </svg>
+        <div class="text-green-300 font-semibold flex-1">{{ successMessage }}</div>
+        <button @click="successMessage = null" class="text-green-400 hover:text-green-300">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <div v-if="errorMessage" class="bg-red-900/20 border border-red-700/30 rounded-xl p-4 mb-6">
+      <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0..."/>
+        </svg>
+        <div class="text-red-300 font-semibold flex-1">{{ errorMessage }}</div>
+        <button @click="errorMessage = null" class="text-red-400 hover:text-red-300">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Full-width Code Editor -->
+    <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-700">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+          </svg>
+          Template Code
+        </h2>
+      </div>
+      <div class="p-6">
+        <textarea
+          :value="content"
+          @input="handleInput"
+          class="w-full h-[600px] bg-dark-900 text-gray-300 font-mono text-sm p-4 rounded-lg border border-primary-700 focus:border-magenta-500 focus:ring-2 focus:ring-magenta-500/20 resize-none"
+          spellcheck="false"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="bg-blue-900/20 border border-blue-700/30 rounded-xl p-4 mt-6">
+      <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8..."/>
+        </svg>
+        <div class="flex-1">
+          <div class="text-blue-300 font-semibold mb-1">Template Editing Tips</div>
+          <ul class="text-sm text-gray-400 space-y-1">
+            <li>• Use Blade syntax for dynamic content: <code class="bg-dark-900 px-1 rounded">&#123;&#123; $variable &#125;&#125;</code></li>
+            <li>• Preview uses sample data for testing</li>
+          </ul>
         </div>
       </div>
-  
-      <!-- Editor Layout -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Code Editor -->
-        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl overflow-hidden">
-          <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-700">
-            <h2 class="text-lg font-bold text-white flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-              </svg>
-              Template Code
-            </h2>
-          </div>
-          <div class="p-6">
-            <textarea
-  :value="content"
-  @input="handleInput"
-  class="w-full h-[600px] bg-dark-900 text-gray-300 font-mono text-sm p-4 rounded-lg border border-primary-700 focus:border-magenta-500 focus:outline-none focus:ring-2 focus:ring-magenta-500/20 resize-none"
-  spellcheck="false"
-></textarea>
-          </div>
-        </div>
-  
-        <!-- Live Preview -->
-        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl overflow-hidden">
+    </div>
+
+    <!-- Preview Modal -->
+    <div v-if="showPreview" class="fixed inset-0 z-50 overflow-y-auto" @click.self="showPreview = false">
+      <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div class="fixed inset-0 bg-black opacity-75" @click="showPreview = false"></div>
+
+        <div class="relative bg-dark-800 rounded-xl shadow-2xl w-full max-w-4xl border border-primary-700">
           <div class="px-6 py-4 bg-gradient-to-r from-blue-900/50 to-primary-900/50 border-b border-primary-700 flex justify-between items-center">
             <h2 class="text-lg font-bold text-white flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-              </svg>
               Live Preview
             </h2>
+            <button @click="showPreview = false" class="text-gray-400 hover:text-white">
+              ✕
+            </button>
+          </div>
+
+          <div class="p-6 bg-white max-h-[70vh] overflow-y-auto">
+            <div v-if="loadingPreview" class="flex items-center justify-center py-20">
+              <div class="text-center">
+                <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8..."/>
+                </svg>
+                <p class="text-gray-600">Loading preview...</p>
+              </div>
+            </div>
+            <div v-else-if="previewError" class="text-red-600 p-4 bg-red-50 rounded">
+              <strong>Error:</strong> {{ previewError }}
+            </div>
+            <iframe
+              v-else
+              :srcdoc="previewHtml"
+              class="w-full h-[600px] border-0"
+              sandbox="allow-same-origin"
+              :key="previewKey"
+            ></iframe>
+          </div>
+
+          <div class="px-6 py-4 bg-dark-900/60 border-t border-primary-700 flex justify-between items-center">
+            <p class="text-sm text-gray-400">Preview uses sample data</p>
             <button
               @click="loadPreview"
               :disabled="loadingPreview"
@@ -111,53 +158,15 @@
               <svg class="w-4 h-4" :class="{ 'animate-spin': loadingPreview }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              {{ loadingPreview ? 'Loading...' : 'Refresh' }}
+              {{ loadingPreview ? 'Refreshing...' : 'Refresh' }}
             </button>
-          </div>
-          <div class="p-6 bg-white h-[600px] overflow-y-auto">
-            <div v-if="loadingPreview" class="flex items-center justify-center h-full">
-              <div class="text-center">
-                <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="text-gray-600">Loading preview...</p>
-              </div>
-            </div>
-            <div v-else-if="previewError" class="text-red-600 p-4 bg-red-50 rounded">
-              <strong>Error:</strong> {{ previewError }}
-            </div>
-            <div v-else-if="!previewHtml" class="flex items-center justify-center h-full text-gray-500">
-              Click "Refresh" to preview the template
-            </div>
-            <iframe
-              v-else
-              :srcdoc="previewHtml"
-              class="w-full h-full border-0"
-              sandbox="allow-same-origin"
-              :key="previewKey"
-            ></iframe>
-          </div>
-        </div>
-      </div>
-  
-      <!-- Info Box -->
-      <div class="bg-blue-900/20 border border-blue-700/30 rounded-xl p-4 mt-6">
-        <div class="flex items-start gap-3">
-          <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-          </svg>
-          <div class="flex-1">
-            <div class="text-blue-300 font-semibold mb-1">Template Editing Tips</div>
-            <ul class="text-sm text-gray-400 space-y-1">
-              <li>• Use Blade syntax for dynamic content: <code class="bg-dark-900 px-1 rounded">&#123;&#123; $variable &#125;&#125;</code></li>
-              <li>• Preview uses sample data for testing</li>
-            </ul>
           </div>
         </div>
       </div>
     </div>
-  </template>
+  </div>
+</template>
+
   
 <script>
 import { Head, Link } from '@inertiajs/vue3'
@@ -186,6 +195,7 @@ export default {
       resetting: false,
       successMessage: null,
       errorMessage: null,
+      showPreview: false,
     }
   },
   computed: {
@@ -269,9 +279,19 @@ export default {
 
       try {
         const timestamp = new Date().getTime()
-        const response = await fetch(`/email-templates/${this.template.name}/preview?t=${timestamp}`)
+        const response = await fetch(`/email-templates/${this.template.name}/preview?t=${timestamp}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          },
+          body: JSON.stringify({
+            content: this.content, // <-- send current unsaved textarea content
+          }),
+        })
+
         const data = await response.json()
-        
+
         if (data.error) {
           this.previewError = data.error
           this.previewHtml = data.html || ''
