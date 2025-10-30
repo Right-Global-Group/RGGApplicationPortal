@@ -12,11 +12,14 @@ class ApplicationStatus extends Model
         'application_id',
         'current_step',
         'step_history',
-        'fees_confirmed_at',
         'documents_uploaded_at',
+        'documents_approved_at',
         'contract_sent_at',
         'contract_completed_at',
         'contract_submitted_at',
+        'gateway_contract_sent_at',
+        'gateway_contract_signed_at',
+        'wordpress_credentials_collected_at',
         'application_approved_at',
         'invoice_sent_at',
         'invoice_paid_at',
@@ -24,17 +27,21 @@ class ApplicationStatus extends Model
         'account_live_at',
         'docusign_envelope_id',
         'docusign_status',
+        'gateway_docusign_envelope_id',
         'requires_additional_info',
         'additional_info_notes',
     ];
 
     protected $casts = [
         'step_history' => 'array',
-        'fees_confirmed_at' => 'datetime',
         'documents_uploaded_at' => 'datetime',
+        'documents_approved_at' => 'datetime',
         'contract_sent_at' => 'datetime',
         'contract_completed_at' => 'datetime',
         'contract_submitted_at' => 'datetime',
+        'gateway_contract_sent_at' => 'datetime',
+        'gateway_contract_signed_at' => 'datetime',
+        'wordpress_credentials_collected_at' => 'datetime',
         'application_approved_at' => 'datetime',
         'invoice_sent_at' => 'datetime',
         'invoice_paid_at' => 'datetime',
@@ -52,15 +59,19 @@ class ApplicationStatus extends Model
     {
         $steps = [
             'created' => 0,
-            'fees_confirmed' => 5,
             'documents_uploaded' => 15,
+            'documents_approved' => 20,
             'application_sent' => 25,
             'contract_completed' => 40,
             'contract_submitted' => 50,
             'application_approved' => 65,
             'approval_email_sent' => 70,
-            'invoice_sent' => 75,
-            'invoice_paid' => 85,
+            'gateway_contract_sent' => 72,
+            'gateway_contract_signed' => 74,
+            'gateway_details_received' => 76,
+            'wordpress_credentials_collected' => 78,
+            'invoice_sent' => 80,
+            'invoice_paid' => 88,
             'gateway_integrated' => 92,
             'account_live' => 100,
         ];
@@ -80,11 +91,17 @@ class ApplicationStatus extends Model
             'notes' => $notes,
         ];
 
-        $this->update([
+        $updateData = [
             'current_step' => $newStep,
             'step_history' => $history,
-            $this->getTimestampField($newStep) => now(),
-        ]);
+        ];
+
+        $timestampField = $this->getTimestampField($newStep);
+        if ($timestampField) {
+            $updateData[$timestampField] = now();
+        }
+
+        $this->update($updateData);
 
         // Log the activity
         ActivityLog::create([
@@ -101,11 +118,14 @@ class ApplicationStatus extends Model
     private function getTimestampField(string $step): ?string
     {
         $mapping = [
-            'fees_confirmed' => 'fees_confirmed_at',
             'documents_uploaded' => 'documents_uploaded_at',
+            'documents_approved' => 'documents_approved_at',
             'application_sent' => 'contract_sent_at',
             'contract_completed' => 'contract_completed_at',
             'contract_submitted' => 'contract_submitted_at',
+            'gateway_contract_sent' => 'gateway_contract_sent_at',
+            'gateway_contract_signed' => 'gateway_contract_signed_at',
+            'wordpress_credentials_collected' => 'wordpress_credentials_collected_at',
             'application_approved' => 'application_approved_at',
             'invoice_sent' => 'invoice_sent_at',
             'invoice_paid' => 'invoice_paid_at',
@@ -116,18 +136,23 @@ class ApplicationStatus extends Model
         return $mapping[$step] ?? null;
     }
 
-    /**
-     * Check if all required documents have been uploaded
-     */
     public function hasAllRequiredDocuments(): bool
     {
+        $application = $this->application;
         $requiredCategories = array_keys(ApplicationDocument::getRequiredCategories());
-        $uploadedCategories = $this->application->documents()
+        
+        $uploadedCategories = $application->documents()
             ->whereIn('document_category', $requiredCategories)
             ->pluck('document_category')
             ->unique()
             ->toArray();
-
-        return count($uploadedCategories) === count($requiredCategories);
+    
+        // Check base documents
+        $hasAllBaseDocuments = count($uploadedCategories) === count($requiredCategories);
+        
+        // Check all additional documents are uploaded
+        $hasAllAdditionalDocuments = $application->hasAllAdditionalDocumentsUploaded();
+        
+        return $hasAllBaseDocuments && $hasAllAdditionalDocuments;
     }
 }

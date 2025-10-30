@@ -31,6 +31,10 @@ class SendAdditionalInfoRequestEmail
                 'user_name' => $application->user 
                     ? ($application->user->first_name . ' ' . $application->user->last_name)
                     : 'Administrator',
+                // Add additional document data
+                'request_additional_document' => $event->requestAdditionalDocument,
+                'additional_document_name' => $event->additionalDocumentName,
+                'additional_document_instructions' => $event->additionalDocumentInstructions,
             ];
 
             Mail::to($account->email)->send(
@@ -50,6 +54,7 @@ class SendAdditionalInfoRequestEmail
             Log::info('Additional info request email sent', [
                 'application_id' => $application->id,
                 'account_email' => $account->email,
+                'includes_document_request' => $event->requestAdditionalDocument,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to send additional info request email', [

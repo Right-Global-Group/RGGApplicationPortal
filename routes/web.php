@@ -30,41 +30,36 @@ Route::middleware(['auth:web,account'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
+    // Email Templates
     Route::get('/email-templates', [EmailTemplatesController::class, 'index'])
         ->name('email-templates.index');
-
     Route::get('/email-templates/{template}/edit', [EmailTemplatesController::class, 'edit'])
         ->name('email-templates.edit');
-
     Route::put('/email-templates/{template}', [EmailTemplatesController::class, 'update'])
         ->name('email-templates.update');
-
     Route::post('/email-templates/{template}/reset', [EmailTemplatesController::class, 'reset'])
         ->name('email-templates.reset');
-
     Route::get('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
         ->name('email-templates.preview');
-        
+    Route::post('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
+        ->name('email-templates.preview');
 
     // Accounts Routes
     Route::prefix('accounts')->group(function () {
-        Route::get('/', [AccountsController::class, 'index'])->name('accounts'); // No middleware - controller handles it
+        Route::get('/', [AccountsController::class, 'index'])->name('accounts');
         Route::get('/create', [AccountsController::class, 'create'])->name('accounts.create')->middleware('role:admin');
         Route::post('/', [AccountsController::class, 'store'])->middleware('role:admin');
-        Route::get('/{account}/edit', [AccountsController::class, 'edit'])->name('accounts.edit'); // No middleware - controller handles it
-        Route::put('/{account}', [AccountsController::class, 'update']); // No middleware - controller handles it
+        Route::get('/{account}/edit', [AccountsController::class, 'edit'])->name('accounts.edit');
+        Route::put('/{account}', [AccountsController::class, 'update']);
         Route::delete('/{account}', [AccountsController::class, 'destroy'])->middleware('role:admin');
         Route::put('/{account}/restore', [AccountsController::class, 'restore'])->middleware('role:admin');
         Route::get('/{account}/photo', [AccountsController::class, 'showPhoto'])->name('accounts.photo');
         
         // Account Email Actions
         Route::post('/{account}/send-credentials', [AccountsController::class, 'sendCredentialsEmail'])->middleware('role:admin');
-        // Set credentials reminder (scheduled, not immediate)
         Route::post('/{account}/set-credentials-reminder', [AccountsController::class, 'setCredentialsReminder'])
             ->name('accounts.set-credentials-reminder')
             ->middleware('role:admin');
-
-        // Cancel credentials reminder
         Route::post('/{account}/cancel-credentials-reminder', [AccountsController::class, 'cancelCredentialsReminder'])
             ->name('accounts.cancel-credentials-reminder')
             ->middleware('role:admin');
@@ -85,19 +80,32 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/confirm-fees', [ApplicationStatusController::class, 'confirmFees'])->name('applications.confirm-fees');
         Route::post('/{application}/change-fees', [ApplicationsController::class, 'changeFees'])->name('applications.change-fees');
         Route::post('/{application}/update-step', [ApplicationStatusController::class, 'updateStep']);
+        
+        // Merchant Contract (DocuSign)
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
+        Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
+        
+        // Gateway Partner Contract (DocuSign)
+        Route::post('/{application}/send-gateway-contract', [ApplicationStatusController::class, 'sendGatewayContract'])->name('applications.send-gateway-contract');
+        Route::get('/{application}/gateway-docusign-callback', [ApplicationStatusController::class, 'gatewayDocusignCallback'])->name('applications.gateway-docusign-callback');
+        
+        // Gateway Details
+        Route::post('/{application}/gateway-details', [ApplicationStatusController::class, 'storeGatewayDetails'])->name('applications.gateway-details');
+        
+        // WordPress Credentials
+        Route::post('/{application}/wordpress-credentials', [ApplicationStatusController::class, 'storeWordPressCredentials'])->name('applications.wordpress-credentials');
+        Route::post('/{application}/send-wordpress-reminder', [ApplicationStatusController::class, 'sendWordPressCredentialsReminder'])->name('applications.send-wordpress-reminder');
+        
+        // Other Status Actions
         Route::post('/{application}/send-approval-email', [ApplicationStatusController::class, 'sendApprovalEmail']);
         Route::post('/{application}/request-additional-info', [ApplicationStatusController::class, 'requestAdditionalInfo']);
         Route::post('/{application}/set-additional-info-reminder', [ApplicationStatusController::class, 'setAdditionalInfoReminder'])
             ->name('applications.set-additional-info-reminder')
             ->middleware('role:admin');
-
-        // Cancel additional info reminder
         Route::post('/{application}/cancel-additional-info-reminder', [ApplicationStatusController::class, 'cancelAdditionalInfoReminder'])
             ->name('applications.cancel-additional-info-reminder')
             ->middleware('role:admin');
         Route::post('/{application}/mark-approved', [ApplicationStatusController::class, 'markAsApproved']);
-        Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
         
         // Application Email Reminders
         Route::post('/{application}/set-email-reminder', [ApplicationsController::class, 'setEmailReminder']);
@@ -113,6 +121,10 @@ Route::middleware(['auth:web,account'])->group(function () {
             ->name('applications.documents.download');
         Route::delete('/{application}/documents/{document}', [ApplicationDocumentsController::class, 'destroy'])
             ->name('applications.documents.destroy');
+        Route::post('/{application}/mark-documents-approved', [ApplicationStatusController::class, 'markDocumentsApproved'])
+            ->name('applications.mark-documents-approved');
+        Route::delete('/{application}/additional-documents/{additionalDocument}/requirement', [ApplicationDocumentsController::class, 'removeAdditionalDocumentRequirement'])
+            ->name('applications.additional-documents.remove-requirement');
     });
 
     // Progress Tracker

@@ -87,6 +87,15 @@
               </ul>
             </div>
           </div>
+          <div class="pb-8 pr-6 w-full">
+            <div class="bg-dark-800/40 border border-primary-800/20 rounded-lg p-4 text-gray-300 text-sm">
+              <p class="font-semibold mb-2 text-blue-400">Notifications:</p>
+              <p>
+                Once the application has been created, the account holder will receive an email
+                with their login details and instructions to access their account.
+              </p>
+            </div>
+          </div>
         </div>
         <div class="flex items-center justify-end px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
           <loading-button :loading="form.processing" class="btn-primary" type="submit">Create Application</loading-button>

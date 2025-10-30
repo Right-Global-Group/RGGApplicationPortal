@@ -12,10 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify the enum to include 'documents_uploaded' step (after fees_confirmed)
+        // Modify the enum to include 'documents_uploaded' step
         DB::statement("ALTER TABLE application_statuses MODIFY COLUMN current_step ENUM(
             'created',
-            'fees_confirmed',
             'documents_uploaded',
             'application_sent',
             'contract_completed',
@@ -37,7 +36,6 @@ return new class extends Migration
         // Remove 'documents_uploaded' from enum
         DB::statement("ALTER TABLE application_statuses MODIFY COLUMN current_step ENUM(
             'created',
-            'fees_confirmed',
             'application_sent',
             'contract_completed',
             'contract_submitted',

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('applications', function (Blueprint $table) {
             // Remove location fields
-            $table->dropColumn(['email', 'phone', 'address', 'city', 'region', 'country', 'postal_code']);
+            $table->dropColumn(['address', 'city', 'region', 'country', 'postal_code']);
             
             // Add fee fields
             $table->decimal('setup_fee', 10, 2)->default(450.00)->after('name');
@@ -19,8 +19,6 @@ return new class extends Migration
             $table->decimal('monthly_fee', 10, 2)->default(18.00)->after('transaction_fixed_fee');
             $table->decimal('monthly_minimum', 10, 2)->default(100.00)->after('monthly_fee');
             $table->decimal('service_fee', 10, 2)->default(10.00)->after('monthly_minimum');
-            $table->boolean('fees_confirmed')->default(false)->after('service_fee');
-            $table->timestamp('fees_confirmed_at')->nullable()->after('fees_confirmed');
         });
     }
 
@@ -35,13 +33,9 @@ return new class extends Migration
                 'monthly_fee',
                 'monthly_minimum',
                 'service_fee',
-                'fees_confirmed',
-                'fees_confirmed_at'
             ]);
             
             // Add back location fields
-            $table->string('email', 50)->nullable();
-            $table->string('phone', 50)->nullable();
             $table->string('address', 150)->nullable();
             $table->string('city', 50)->nullable();
             $table->string('region', 50)->nullable();

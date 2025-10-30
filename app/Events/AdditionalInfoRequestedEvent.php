@@ -12,6 +12,9 @@ class AdditionalInfoRequestedEvent
 
     public function __construct(
         public Application $application,
-        public string $notes
+        public string $notes,
+        public bool $requestAdditionalDocument = false,
+        public ?string $additionalDocumentName = null,
+        public ?string $additionalDocumentInstructions = null
     ) {}
 }

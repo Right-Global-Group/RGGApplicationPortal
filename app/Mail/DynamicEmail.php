@@ -14,24 +14,32 @@ class DynamicEmail extends Mailable
         'account_credentials' => 'Your Account Login Credentials',
         'application_created' => 'New Application Created',
         'fees_changed' => 'Application Fees Updated',
-        'fees_confirmed' => 'Application Fees Confirmed',
         'fees_confirmation_reminder' => 'Action Required: Confirm Your Application Fees',
         'document_uploaded' => 'Document Uploaded to Application',
         'all_documents_uploaded' => 'All Required Documents Uploaded',
         'additional_info_requested' => 'Additional Information Required for Your Application',
         'application_approved' => 'Application Approved',
+        // New gateway & WordPress email types
+        'merchant_contract_ready' => 'Please Sign Your Merchant Application Contract',
+        'gateway_partner_contract_ready' => 'New Merchant Application Contract',
+        'wordpress_credentials_request' => 'WordPress Integration Details Needed',
+        'wordpress_credentials_reminder' => 'Reminder: WordPress Integration Details Needed',
     ];
 
     protected array $views = [
         'account_credentials' => 'emails.account-credentials',
         'application_created' => 'emails.application-created',
         'fees_changed' => 'emails.fees-changed',
-        'fees_confirmed' => 'emails.fees-confirmed',
         'fees_confirmation_reminder' => 'emails.fees-confirmation-reminder',
         'document_uploaded' => 'emails.document-uploaded',
         'all_documents_uploaded' => 'emails.all-documents-uploaded',
         'additional_info_requested' => 'emails.additional-info-requested',
         'application_approved' => 'emails.application-approved',
+        // New gateway & WordPress email views
+        'merchant_contract_ready' => 'emails.merchant-contract-ready',
+        'gateway_partner_contract_ready' => 'emails.gateway-partner-contract-ready',
+        'wordpress_credentials_request' => 'emails.wordpress-credentials-request',
+        'wordpress_credentials_reminder' => 'emails.wordpress-credentials-reminder',
     ];
 
     public function __construct(

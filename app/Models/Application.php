@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Events\FeesConfirmedEvent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,8 +24,6 @@ class Application extends Model
         'monthly_fee',
         'monthly_minimum',
         'service_fee',
-        'fees_confirmed',
-        'fees_confirmed_at',
         'trading_name',
         'company_number',
         'business_type',
@@ -35,6 +32,17 @@ class Application extends Model
         'website_url',
         'pci_compliant',
         'gateway_preference',
+        // New gateway partner fields
+        'gateway_partner',
+        'gateway_mid',
+        'gateway_integration_details',
+        // New WordPress fields
+        'wordpress_url',
+        'wordpress_admin_email',
+        'wordpress_admin_username',
+        'requires_additional_document',
+        'additional_document_name',
+        'additional_document_instructions',
     ];
 
     protected $casts = [
@@ -47,16 +55,16 @@ class Application extends Model
         'monthly_fee' => 'decimal:2',
         'monthly_minimum' => 'decimal:2',
         'service_fee' => 'decimal:2',
-        'fees_confirmed' => 'boolean',
-        'fees_confirmed_at' => 'datetime',
+        'gateway_integration_details' => 'array',
+        'requires_additional_document' => 'boolean',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
     
-    public function account()
+    public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
     }
@@ -139,19 +147,57 @@ class Application extends Model
         });
     }
 
-    public function confirmFees(): void
+    // Gateway Partner Helper Methods
+    public function getGatewayPartnerNameAttribute(): ?string
     {
-        $this->update([
-            'fees_confirmed' => true,
-            'fees_confirmed_at' => now(),
-        ]);
-        
-        // Transition status to fees_confirmed
-        if ($this->status) {
-            $this->status->transitionTo('fees_confirmed', 'Fees confirmed by account');
+        if (!$this->gateway_partner) {
+            return null;
         }
 
-        // Fire event to notify admin/user
-        event(new FeesConfirmedEvent($this));
+        return config("gateway-partners.{$this->gateway_partner}.name");
+    }
+
+    public function getGatewayPartnerEmailAttribute(): ?string
+    {
+        if (!$this->gateway_partner) {
+            return null;
+        }
+
+        return config("gateway-partners.{$this->gateway_partner}.contact_email");
+    }
+
+    public function hasGatewayDetails(): bool
+    {
+        return !empty($this->gateway_mid) 
+            && !empty($this->gateway_integration_details);
+    }
+
+    // WordPress Helper Methods
+    public function hasWordPressCredentials(): bool
+    {
+        return !empty($this->wordpress_url) 
+            && !empty($this->wordpress_admin_email) 
+            && !empty($this->wordpress_admin_username);
+    }
+
+    public function additionalDocuments(): HasMany
+    {
+        return $this->hasMany(ApplicationAdditionalDocument::class);
+    }
+
+    /**
+     * Get all pending additional document requests
+     */
+    public function pendingAdditionalDocuments()
+    {
+        return $this->additionalDocuments()->where('is_uploaded', false);
+    }
+
+    /**
+     * Check if all additional documents have been uploaded
+     */
+    public function hasAllAdditionalDocumentsUploaded(): bool
+    {
+        return $this->additionalDocuments()->where('is_uploaded', false)->count() === 0;
     }
 }

@@ -28,12 +28,14 @@ class SendApplicationCreatedEmail
         }
 
         $statusUrl = route('applications.status', $application);
+        $editUrl = route('applications.edit', $application) . '#documents'; // Add hash to scroll to documents
 
         // Send application created notification
         Mail::to($account->email)->send(new DynamicEmail('application_created', [
             'account_name' => $account->name,
             'application_name' => $application->name,
             'status_url' => $statusUrl,
+            'edit_url' => $editUrl, // Add this
             'created_at' => $application->created_at->format('d/m/Y H:i'),
         ], $application));
 

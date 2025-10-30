@@ -128,20 +128,19 @@ class ApplicationsController extends Controller
         ]);
     }
 
+    /**
+     * Store a newly created application
+     * Automatically sends credentials email if account hasn't logged in yet
+     */
     public function store(): RedirectResponse
     {
         $validated = Request::validate([
-            'account_id' => ['required', Rule::exists('accounts', 'id')],
+            'account_id' => ['required', 'exists:accounts,id'],
             'name' => ['required', 'max:100'],
             'email' => ['nullable', 'max:50', 'email'],
             'phone' => ['nullable', 'max:50'],
-            'address' => ['nullable', 'max:150'],
-            'city' => ['nullable', 'max:50'],
-            'region' => ['nullable', 'max:50'],
-            'country' => ['nullable', 'max:2'],
-            'postal_code' => ['nullable', 'max:25'],
             'setup_fee' => ['required', 'numeric', 'min:0'],
-            'transaction_percentage' => ['required', 'numeric', 'min:0'],
+            'transaction_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
             'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
             'monthly_fee' => ['required', 'numeric', 'min:0'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
@@ -150,7 +149,7 @@ class ApplicationsController extends Controller
 
         // Verify user has permission to create application for this account
         $account = Account::findOrFail($validated['account_id']);
-        
+
         if (auth()->guard('account')->check()) {
             // Accounts can only create for themselves
             if ($account->id !== auth()->guard('account')->id()) {
@@ -168,6 +167,23 @@ class ApplicationsController extends Controller
             $validated,
             ['user_id' => auth()->id()]
         ));
+
+        // Send credentials email if account hasn't logged in yet
+        $credentialsSent = false;
+        if (!$account->first_login_at) {
+            // Generate new password
+            $plainPassword = Account::generatePassword();
+            $account->update(['password' => $plainPassword]);
+
+            // Fire event to send credentials email
+            event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
+            $credentialsSent = true;
+        }
+
+        $successMessage = 'Application created successfully.';
+        if ($credentialsSent) {
+            $successMessage .= ' Credentials email sent to account holder.';
+        }
 
         // Fire event to send email notification to account
         event(new ApplicationCreatedEvent($application));
@@ -214,8 +230,6 @@ class ApplicationsController extends Controller
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
                 'service_fee' => $application->service_fee,
-                'fees_confirmed' => $application->fees_confirmed,
-                'fees_confirmed_at' => $application->fees_confirmed_at?->format('Y-m-d H:i'),
                 'deleted_at' => $application->deleted_at,
                 'created_at' => $application->created_at,
                 'updated_at' => $application->updated_at,
@@ -224,6 +238,18 @@ class ApplicationsController extends Controller
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
                 ] : null,
+                'additional_documents' => $application->additionalDocuments()
+                    ->with('requestedBy')
+                    ->get()
+                    ->map(fn ($doc) => [
+                        'id' => $doc->id,
+                        'document_name' => $doc->document_name,
+                        'instructions' => $doc->instructions,
+                        'is_uploaded' => $doc->is_uploaded,
+                        'requested_by' => $doc->requestedBy?->name,
+                        'requested_at' => $doc->requested_at->format('Y-m-d H:i'),
+                        'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
+                    ]),
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
             'canChangeFees' => $canChangeFees,
@@ -233,9 +259,11 @@ class ApplicationsController extends Controller
                 'original_filename' => $doc->original_filename,
                 'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
             ]),
-            'documentCategories' => ApplicationDocument::getRequiredCategories(),
-            'categoryDescriptions' => collect(ApplicationDocument::getRequiredCategories())
-                ->mapWithKeys(fn ($label, $key) => [$key => ApplicationDocument::getCategoryDescription($key)])
+            'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
+            'categoryDescriptions' => collect(ApplicationDocument::getCategoriesForApplication($application))
+                ->mapWithKeys(fn ($label, $key) => [
+                    $key => ApplicationDocument::getCategoryDescriptionForApplication($key, $application)
+                ])
                 ->toArray(),
         ]);
     }
@@ -301,8 +329,6 @@ class ApplicationsController extends Controller
             'monthly_fee' => $validated['monthly_fee'],
             'monthly_minimum' => $validated['monthly_minimum'],
             'service_fee' => $validated['service_fee'],
-            'fees_confirmed' => false,
-            'fees_confirmed_at' => null,
         ]);
 
         // Fire event to send email notification

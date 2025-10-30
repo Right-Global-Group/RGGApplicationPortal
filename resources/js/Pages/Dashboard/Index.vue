@@ -249,7 +249,6 @@ export default {
       // All 11 statuses
       const statuses = [
         'created',
-        'fees_confirmed',
         'documents_uploaded',
         'application_sent',
         'contract_completed',
@@ -299,8 +298,8 @@ export default {
         },
         colors: [
           '#6366f1', // Created - Indigo
-          '#3b82f6', // Fees Confirmed - Blue
           '#0ea5e9', // Documents Uploaded - Sky
+          '#8b5cf6', // Documents Approved - Violet
           '#06b6d4', // Contract Sent - Cyan
           '#14b8a6', // Contract Completed - Teal
           '#10b981', // Contract Submitted - Emerald
@@ -312,8 +311,8 @@ export default {
         ],
         labels: [
           'Created',
-          'Fees Confirmed',
           'Documents Uploaded',
+          'Documents Approved',
           'Contract Sent',
           'Contract Signed',
           'Contract Submitted',
@@ -506,8 +505,8 @@ export default {
     getStatusClass(status) {
       const classes = {
         created: 'bg-indigo-900/50 text-indigo-300',
-        fees_confirmed: 'bg-blue-900/50 text-blue-300',
         documents_uploaded: 'bg-sky-900/50 text-sky-300',
+        documents_approved: 'bg-violet-900/50 text-violet-300',
         application_sent: 'bg-cyan-900/50 text-cyan-300',
         contract_completed: 'bg-teal-900/50 text-teal-300',
         contract_submitted: 'bg-emerald-900/50 text-emerald-300',

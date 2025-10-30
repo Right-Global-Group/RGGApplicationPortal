@@ -19,25 +19,48 @@
           {{ account.is_confirmed ? 'Confirmed Login' : 'Pending Login' }}
         </span>
       </div>
-      
+
+      <div v-if="showAccountActions" class="mb-6 w-full">
+        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+          <div class="px-6 py-3 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+            <h3 class="text-magenta-400 font-bold text-base">Account Actions</h3>
+          </div>
+          <div class="p-4 flex flex-wrap gap-3">
+            <!-- Upload Docs Button (shows on created or documents_uploaded) -->
+            <Link
+              v-if="canUploadDocs"
+              :href="`/applications/${activeApplication.id}/edit#documents`"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload Documents
+            </Link>
+
+            <!-- Sign Document Button (shows on application_sent) -->
+            <Link
+              v-if="canSignDocument"
+              :href="`/applications/${activeApplication.id}/status#section-actions`"
+              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Sign Document
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <!-- Create Application Button (Admin Only) -->
       <div v-if="$page.props.auth.user.isAdmin" class="mb-8">
         <Link 
-          v-if="account.is_confirmed"
           :href="`/applications/create?account_id=${account.id}`" 
           class="btn-primary inline-flex items-center gap-2"
         >
           <span>Create Application for Account</span>
         </Link>
-        <button
-          v-else
-          disabled
-          class="btn-primary inline-flex items-center gap-2 opacity-50 cursor-not-allowed"
-          title="Account must be confirmed before creating applications"
-        >
-          <icon name="lock" class="w-4 h-4 fill-current" />
-          <span>Create Application (Account Not Confirmed)</span>
-        </button>
       </div>
     </div>
 
@@ -90,82 +113,6 @@
           </div>
         </div>
 
-        <!-- Email Credentials Section (Admin Only) - Hidden after first login -->
-        <div v-if="$page.props.auth.user.isAdmin && !account.first_login_at" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
-          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <h2 class="text-magenta-400 font-bold text-lg">Account Credentials</h2>
-          </div>
-          <div class="p-8 space-y-6">
-            <!-- Send Now Section -->
-            <div>
-              <label class="block text-gray-300 font-medium mb-3">Send Credentials Now</label>
-              <button
-                @click="sendCredentialsEmail"
-                class="btn-primary flex items-center gap-2"
-              >
-                <icon name="mail" class="w-5 h-5 fill-current" />
-                Send Login Credentials Now
-              </button>
-              <p class="text-sm text-gray-400 mt-2">
-                Generates a new password and emails it immediately to the account.
-              </p>
-            </div>
-
-            <!-- Divider -->
-            <div class="border-t border-primary-800/30"></div>
-
-            <!-- Schedule Reminders Section -->
-            <div>
-              <label class="block text-gray-300 font-medium mb-3">Schedule Credential Reminders</label>
-              
-              <!-- Active Reminder Display -->
-              <div v-if="emailReminder" class="mb-4">
-                <div class="flex items-center gap-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-                  <div class="flex-1">
-                    <div class="text-blue-300 font-semibold">Active Reminder</div>
-                    <div class="text-sm text-gray-400 mt-1">
-                      Sending {{ formatInterval(emailReminder.interval) }}
-                    </div>
-                  </div>
-                  <button
-                    @click="cancelReminder"
-                    class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-
-              <!-- Set New Reminder -->
-              <div v-else class="space-y-3">
-                <select
-                  v-model="reminderInterval"
-                  class="w-full px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 focus:outline-none focus:border-magenta-500"
-                >
-                  <option value="">Select reminder interval...</option>
-                  <option value="1_day">Every 1 day</option>
-                  <option value="3_days">Every 3 days</option>
-                  <option value="1_week">Every week</option>
-                  <option value="2_weeks">Every 2 weeks</option>
-                  <option value="1_month">Every month</option>
-                </select>
-                
-                <button
-                  @click="setReminder"
-                  :disabled="!reminderInterval"
-                  class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                >
-                  Set Reminder
-                </button>
-                
-                <p class="text-sm text-gray-400">
-                  Schedules future reminder emails. <strong>Does not send immediately.</strong>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Edit Account Form -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
           <form @submit.prevent="update">
@@ -186,7 +133,6 @@
           </form>
         </div>
       </div>
-    
 
       <div class="sm:w-1/2 w-full">
         <!-- Applications List with Next Steps -->
@@ -221,7 +167,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
-              
+
               <!-- Next Steps Section -->
               <div v-if="getNextStep(application)" class="mt-3 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
                 <div class="flex items-start gap-2">
@@ -240,7 +186,6 @@
             No applications found for this account.
           </div>
         </div>
-
 
         <!-- Email Logs (Admin Only) -->
         <div v-if="$page.props.auth.user.isAdmin" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
@@ -293,7 +238,6 @@ export default {
   props: {
     account: Object,
     applications: Array,
-    emailReminder: Object,
     emailLogs: Array,
   },
   data() {
@@ -303,8 +247,34 @@ export default {
         email: this.account.email,
         photo: null,
       }),
-      reminderInterval: '',
     }
+  },
+  computed: {
+    // Get the most recent active application
+    activeApplication() {
+      if (!this.applications || this.applications.length === 0) return null
+      
+      // Find first application that's not account_live
+      return this.applications.find(app => app.status?.current_step !== 'account_live') || null
+    },
+    
+    showAccountActions() {
+      if (!this.activeApplication) return false
+      const status = this.activeApplication.status?.current_step
+      return ['created', 'documents_uploaded', 'application_sent'].includes(status)
+    },
+    
+    canUploadDocs() {
+      if (!this.activeApplication) return false
+      const status = this.activeApplication.status?.current_step
+      return ['created', 'documents_uploaded'].includes(status)
+    },
+    
+    canSignDocument() {
+      if (!this.activeApplication) return false
+      const status = this.activeApplication.status?.current_step
+      return status === 'application_sent'
+    },
   },
   methods: {
     update() {
@@ -312,37 +282,11 @@ export default {
         onSuccess: () => this.form.reset('photo'),
       })
     },
-    sendCredentialsEmail() {
-      if (confirm('Send login credentials to this account?')) {
-        this.$inertia.post(`/accounts/${this.account.id}/send-credentials`)
-      }
-    },
-    setReminder() {
-      if (!this.reminderInterval) {
-        return
-      }
-      
-      if (confirm(`Schedule credentials to be sent ${this.formatInterval(this.reminderInterval).toLowerCase()}? No email will be sent now.`)) {
-        this.$inertia.post(`/accounts/${this.account.id}/set-credentials-reminder`, {
-          interval: this.reminderInterval,
-        }, {
-          onSuccess: () => {
-            this.reminderInterval = ''
-          }
-        })
-      }
-    },
-    cancelReminder() {
-      if (confirm('Cancel scheduled credential reminders?')) {
-        this.$inertia.post(`/accounts/${this.account.id}/cancel-credentials-reminder`)
-      }
-    },
     getNextStep(application) {
       const status = application.status?.current_step
-      
+
       const nextSteps = {
-        'created': 'Confirm the fee structure for this application',
-        'fees_confirmed': 'Upload required documents',
+        'created': 'Upload the required documents',
         'documents_uploaded': 'Wait for contract to be sent',
         'application_sent': 'Sign the contract document',
         'contract_completed': 'Wait for application review',
@@ -351,9 +295,9 @@ export default {
         'invoice_sent': 'Pay the setup fee invoice',
         'invoice_paid': 'Wait for gateway integration',
         'gateway_integrated': 'Your account is being set up',
-        'account_live': null, // No next step when live
+        'account_live': null,
       }
-      
+
       return nextSteps[status] || null
     },
     formatDate(date) {
@@ -364,16 +308,6 @@ export default {
         month: 'short',
         day: 'numeric',
       })
-    },
-    formatInterval(interval) {
-      const intervals = {
-        '1_day': 'Every 1 day',
-        '3_days': 'Every 3 days',
-        '1_week': 'Every week',
-        '2_weeks': 'Every 2 weeks',
-        '1_month': 'Every month',
-      }
-      return intervals[interval] || interval
     },
   },
 }

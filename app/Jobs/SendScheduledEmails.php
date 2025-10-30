@@ -85,18 +85,6 @@ class SendScheduledEmails implements ShouldQueue
                 }
                 break;
 
-            case 'fees_confirmation_reminder':
-                if ($remindable instanceof \App\Models\Application) {
-                    // Only send if fees are still not confirmed
-                    if (!$remindable->fees_confirmed) {
-                        event(new FeesConfirmationReminderEvent($remindable));
-                    } else {
-                        // Deactivate reminder if fees are now confirmed
-                        $reminder->update(['is_active' => false]);
-                    }
-                }
-                break;
-
             default:
                 Log::warning('Unknown email type for reminder', [
                     'reminder_id' => $reminder->id,

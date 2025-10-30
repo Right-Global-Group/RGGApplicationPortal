@@ -337,7 +337,6 @@ export default {
     formatStatus(status) {
       const statusMap = {
         created: 'Created',
-        fees_confirmed: 'Fees Confirmed',
         documents_uploaded: 'Documents Uploaded',
         application_sent: 'Contract Sent',
         contract_completed: 'Contract Signed',
@@ -354,7 +353,6 @@ export default {
     getStatusClass(status) {
       const classMap = {
         created: 'bg-gray-700 text-gray-300',
-        fees_confirmed: 'bg-blue-900/50 text-blue-300',
         documents_uploaded: 'bg-purple-900/50 text-purple-300',
         application_sent: 'bg-yellow-900/50 text-yellow-300',
         contract_completed: 'bg-blue-900/50 text-blue-300',

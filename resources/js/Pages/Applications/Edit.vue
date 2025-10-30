@@ -9,6 +9,37 @@
       </h1>
     </div>
 
+    <div v-if="showAccountActions" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-6">
+      <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+        <h2 class="text-magenta-400 font-bold text-lg">Account Actions</h2>
+      </div>
+      <div class="p-6 flex flex-wrap gap-3">
+        <!-- Upload Docs Button (shows on created or documents_uploaded) -->
+        <button
+          v-if="canUploadDocs"
+          @click="scrollToDocuments"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          Upload Documents
+        </button>
+
+        <!-- Sign Document Button (shows on application_sent) -->
+        <Link
+          v-if="canSignDocument"
+          :href="`/applications/${application.id}/status#section-actions`"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Sign Document
+        </Link>
+      </div>
+    </div>
+
     <!-- Top Section: Two columns -->
     <div class="flex flex-col lg:flex-row gap-6 mb-8">
       <!-- Left Column: Details + Form -->
@@ -115,21 +146,12 @@
                   £{{ parseFloat(application.service_fee).toFixed(2) }}
                 </div>
               </div>
-              <div>
-                <label class="block text-gray-300 font-medium mb-2">Fees Confirmed</label>
-                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                  <span v-if="application.fees_confirmed" class="text-green-400">
-                    ✓ Confirmed {{ application.fees_confirmed_at ? `at ${application.fees_confirmed_at}` : '' }}
-                  </span>
-                  <span v-else class="text-yellow-400">Pending Confirmation</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- Documents Section - Only show if status is documents_uploaded or later -->
-        <div v-if="shouldShowDocuments" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+        <!-- Documents Section -->
+        <div v-if="shouldShowDocuments" class="documents-section bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
             <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
             <button 
@@ -140,13 +162,17 @@
             </button>
           </div>
           <div class="p-8">
+            <!-- Base Required Documents -->
             <div 
               v-for="(label, category) in documentCategories" 
               :key="category"
               class="mb-6 last:mb-0"
             >
-              <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
-              <p class="text-sm text-gray-400 mb-3">{{ getCategoryDescription(category) }}</p>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-300">{{ label }}</h3>
+              </div>
+              
+              <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptions[category] }}</p>
               
               <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
                 <div 
@@ -172,13 +198,162 @@
                       @click="deleteDocument(doc.id)"
                       class="text-red-400 hover:text-red-300 text-sm"
                     >
-                      Delete
+                      Delete File
                     </button>
                   </div>
                 </div>
               </div>
               <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
                 <p class="text-yellow-300 text-sm">No documents uploaded yet</p>
+              </div>
+            </div>
+
+            <!-- Additional Documents (Both Pending and Uploaded) -->
+            <div v-if="allAdditionalInfoRequests.length > 0" class="mt-6 pt-6 border-t border-primary-800/30">
+              <h3 class="text-lg font-semibold text-gray-300 mb-4">Additional Requested Documents</h3>
+              
+              <!-- Pending Additional Documents -->
+              <div v-if="pendingAdditionalDocuments.length > 0" class="mb-6">
+                <p class="text-sm font-semibold text-yellow-300 mb-3">⏳ Pending Upload:</p>
+                <div 
+                  v-for="additionalDoc in pendingAdditionalDocuments" 
+                  :key="additionalDoc.id"
+                  class="mb-4 last:mb-0"
+                >
+                  <div class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <h4 class="text-md font-semibold text-yellow-200">{{ additionalDoc.document_name }}</h4>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded border border-yellow-700/30">
+                          Pending
+                        </span>
+                        <!-- Delete requirement button (only for users) -->
+                        <button
+                          v-if="canChangeFees"
+                          @click="removeDocumentRequirement(additionalDoc.id)"
+                          class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg transition-colors"
+                        >
+                          Remove Requirement
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Request Message -->
+                    <div v-if="additionalDoc.notes" class="mb-3 p-2 bg-red-900/20 border border-red-700/30 rounded">
+                      <p class="text-xs font-semibold text-red-300 mb-1">Request Message:</p>
+                      <p class="text-sm text-gray-300 whitespace-pre-wrap">{{ additionalDoc.notes }}</p>
+                    </div>
+                    
+                    <!-- Document Instructions -->
+                    <div v-if="additionalDoc.instructions && additionalDoc.document_name !== 'General Additional Information'" class="mb-3">
+                      <p class="text-xs font-semibold text-yellow-300 mb-1">Document Instructions:</p>
+                      <p class="text-sm text-gray-400 whitespace-pre-wrap">{{ additionalDoc.instructions }}</p>
+                    </div>
+                    
+                    <p class="text-xs text-gray-500 mb-3">
+                      Requested by {{ additionalDoc.requested_by }} on {{ additionalDoc.requested_at }}
+                    </p>
+
+                    <!-- Uploaded Files -->
+                    <div v-if="getDocumentsByCategory(`additional_requested_${additionalDoc.id}`).length > 0" class="space-y-2">
+                      <p class="text-xs font-semibold text-yellow-300">Uploaded Files:</p>
+                      <div 
+                        v-for="doc in getDocumentsByCategory(`additional_requested_${additionalDoc.id}`)"
+                        :key="doc.id"
+                        class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+                      >
+                        <div class="flex items-center flex-1">
+                          <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <a 
+                            :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                            class="text-blue-400 hover:text-blue-300 text-sm"
+                          >
+                            Download
+                          </a>
+                          <button 
+                            v-if="canChangeFees"
+                            @click="deleteDocument(doc.id)"
+                            class="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            Delete File
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Uploaded Additional Documents -->
+              <div v-if="uploadedAdditionalDocuments.length > 0">
+                <p class="text-sm font-semibold text-green-300 mb-3">✓ Completed:</p>
+                <div 
+                  v-for="additionalDoc in uploadedAdditionalDocuments" 
+                  :key="additionalDoc.id"
+                  class="mb-4 last:mb-0"
+                >
+                  <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <h4 class="text-md font-semibold text-green-200">{{ additionalDoc.document_name }}</h4>
+                      <span class="text-xs text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-700/30">
+                        ✓ Completed {{ additionalDoc.uploaded_at }}
+                      </span>
+                    </div>
+                    
+                    <!-- Request Message -->
+                    <div v-if="additionalDoc.notes" class="mb-3 p-2 bg-green-900/20 border border-green-700/30 rounded">
+                      <p class="text-xs font-semibold text-green-300 mb-1">Request Message:</p>
+                      <p class="text-sm text-gray-300 whitespace-pre-wrap">{{ additionalDoc.notes }}</p>
+                    </div>
+                    
+                    <!-- Document Instructions -->
+                    <div v-if="additionalDoc.instructions && additionalDoc.document_name !== 'General Additional Information'" class="mb-3">
+                      <p class="text-xs font-semibold text-green-300 mb-1">Document Instructions:</p>
+                      <p class="text-sm text-gray-400 whitespace-pre-wrap">{{ additionalDoc.instructions }}</p>
+                    </div>
+                    
+                    <p class="text-xs text-gray-500 mb-3">
+                      Requested by {{ additionalDoc.requested_by }} on {{ additionalDoc.requested_at }}
+                    </p>
+
+                    <!-- Uploaded Files -->
+                    <div v-if="getDocumentsByCategory(`additional_requested_${additionalDoc.id}`).length > 0" class="space-y-2">
+                      <p class="text-xs font-semibold text-green-300">Uploaded Files:</p>
+                      <div 
+                        v-for="doc in getDocumentsByCategory(`additional_requested_${additionalDoc.id}`)"
+                        :key="doc.id"
+                        class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+                      >
+                        <div class="flex items-center flex-1">
+                          <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <a 
+                            :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                            class="text-blue-400 hover:text-blue-300 text-sm"
+                          >
+                            Download
+                          </a>
+                          <button 
+                            v-if="canChangeFees"
+                            @click="deleteDocument(doc.id)"
+                            class="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            Delete File
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -326,24 +501,32 @@ export default {
   computed: {
     shouldShowDocuments() {
       const status = this.application.status?.current_step
-      const statusOrder = [
-        'created', 'fees_confirmed', 'documents_uploaded', 'application_sent',
-        'contract_completed', 'contract_submitted', 'application_approved',
-        'invoice_sent', 'invoice_paid', 'gateway_integrated', 'account_live'
-      ]
       
-      const currentIndex = statusOrder.indexOf(status)
-      const documentsIndex = statusOrder.indexOf('documents_uploaded')
-      
-      return currentIndex >= documentsIndex
+      return ['created', 'documents_uploaded', 'documents_approved'].includes(status)
     },
+
+    showAccountActions() {
+      const status = this.application.status?.current_step
+      return ['created', 'documents_uploaded', 'application_sent'].includes(status)
+    },
+    
+    canUploadDocs() {
+      const status = this.application.status?.current_step
+      return ['created', 'documents_uploaded'].includes(status)
+    },
+    
+    canSignDocument() {
+      const status = this.application.status?.current_step
+      return status === 'application_sent'
+    },
+    
     nextStep() {
       const status = this.application.status?.current_step
       
       const nextSteps = {
-        'created': 'Waiting for account to confirm fee structure',
-        'fees_confirmed': 'Waiting for required documents to be uploaded',
-        'documents_uploaded': 'Ready to send contract to account',
+        'created': 'Waiting for account to upload documents',
+        'documents_uploaded': 'Waiting for documents to be reviewed and approved',
+        'documents_approved': 'Ready to send contract to account',
         'application_sent': 'Waiting for account to sign contract',
         'contract_completed': 'Contract signed, ready for review',
         'contract_submitted': 'Under review for approval',
@@ -355,7 +538,38 @@ export default {
       }
       
       return nextSteps[status] || 'Application in progress'
-    }
+    },
+
+    pendingAdditionalDocuments() {
+      return this.application.additional_documents?.filter(doc => !doc.is_uploaded) || []
+    },
+
+    documentCategoriesWithAdditional() {
+      const categories = { ...this.documentCategories }
+      
+      if (this.application.requires_additional_document) {
+        categories.additional_requested = this.application.additional_document_name || 'Additional Requested Document'
+      }
+      
+      return categories
+    },
+    
+    categoryDescriptionsWithAdditional() {
+      const descriptions = { ...this.categoryDescriptions }
+      
+      if (this.application.requires_additional_document) {
+        descriptions.additional_requested = this.application.additional_document_instructions || 'Additional document requested by administrator'
+      }
+      
+      return descriptions
+    },
+    allAdditionalInfoRequests() {
+      return this.application.additional_documents || []
+    },
+    
+    uploadedAdditionalDocuments() {
+      return this.application.additional_documents?.filter(doc => doc.is_uploaded) || []
+    },
   },
   methods: {
     update() {
@@ -372,6 +586,14 @@ export default {
         this.$inertia.delete(`/applications/${this.application.id}/documents/${documentId}`)
       }
     },
+    scrollToDocuments() {
+      this.$nextTick(() => {
+        const documentsSection = document.querySelector('.documents-section')
+        if (documentsSection) {
+          documentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      })
+    },
     formatDate(date) {
       if (!date) return '—'
       const d = new Date(date)
@@ -387,6 +609,36 @@ export default {
       if (!status) return 'Created'
       return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     },
+    isAdditionalDocumentCategory(category) {
+      return category.startsWith('additional_requested_')
+    },
+    
+    getCategoryDescriptionWithAdditional(category) {
+      if (this.isAdditionalDocumentCategory(category)) {
+        const docId = category.replace('additional_requested_', '')
+        const doc = this.pendingAdditionalDocuments.find(d => d.id === parseInt(docId))
+        return doc?.instructions || 'Additional document requested by administrator'
+      }
+      return this.categoryDescriptions[category] || ''
+    },
+    
+    removeDocumentRequirement(docId) {
+      const doc = this.pendingAdditionalDocuments.find(d => d.id === parseInt(docId))
+      
+      if (confirm(`Remove the requirement for "${doc?.document_name}"? Any uploaded files will be deleted.`)) {
+        this.$inertia.delete(`/applications/${this.application.id}/additional-documents/${docId}/requirement`)
+      }
+    },
+  },
+  mounted() {
+    // Check for hash in URL to scroll to documents section
+    if (window.location.hash === '#documents') {
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.scrollToDocuments()
+        }, 100)
+      })
+    }
   },
 }
 </script>

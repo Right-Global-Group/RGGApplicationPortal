@@ -1,11 +1,11 @@
 <template>
   <div>
     <Head :title="`Status - ${application.name}`" />
-    
+
     <div class="flex items-center justify-between mb-6">
       <div class="flex-1">
         <h1 class="text-3xl font-bold text-white mb-3">Application Status</h1>
-        
+
         <!-- Quick Navigation -->
         <div class="flex flex-wrap gap-2">
           <button
@@ -18,7 +18,7 @@
           </button>
         </div>
       </div>
-      
+
       <Link 
         href="/progress-tracker" 
         class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2 ml-6"
@@ -72,7 +72,7 @@
             <div class="text-gray-500 text-xs mt-1">Fixed monthly charge</div>
           </div>
         </div>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
             <div class="text-gray-400 text-sm mb-1">Monthly Minimum</div>
@@ -83,38 +83,6 @@
             <div class="text-gray-400 text-sm mb-1">Service Fee</div>
             <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.service_fee).toFixed(2) }}</div>
             <div class="text-gray-500 text-xs mt-1">Additional service charge</div>
-          </div>
-        </div>
-
-        <!-- Fees Confirmation Status and Button -->
-        <div v-if="!application.fees_confirmed && is_account" class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-yellow-400 font-semibold mb-1">Fees Require Confirmation</div>
-              <div class="text-gray-400 text-sm">Please review and confirm the fee structure to proceed with your application.</div>
-            </div>
-            <button @click="confirmFees" :disabled="confirmingFees" class="btn-primary whitespace-nowrap ml-4">
-              {{ confirmingFees ? 'Confirming...' : 'Confirm Fees' }}
-            </button>
-          </div>
-        </div>
-        
-        <div v-else-if="application.fees_confirmed" class="bg-green-900/20 border border-green-700/30 rounded-lg p-4">
-          <div class="flex items-center">
-            <svg class="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-            <div>
-              <div class="text-green-400 font-semibold">Fees Confirmed</div>
-              <div class="text-gray-400 text-sm">Confirmed {{ application.fees_confirmed_at }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="!is_account" class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-          <div class="text-gray-400 text-sm">
-            <span v-if="!application.fees_confirmed" class="text-yellow-400">⏳ Awaiting fee confirmation from account</span>
-            <span v-else class="text-green-400">✓ Fees confirmed</span>
           </div>
         </div>
       </div>
@@ -141,16 +109,127 @@
       </div>
     </div>
 
-    <!-- Alert for Additional Info -->
+    <!-- Alert for Additional Info - Shows ALL requests with their notes -->
     <div 
-      v-if="application.status?.requires_additional_info" 
-      class="bg-red-900/30 border border-red-700/50 rounded-xl p-4 mb-6"
+      v-if="allAdditionalInfoRequests.length > 0" 
+      class="bg-orange-900/10 border border-yellow-700/50 rounded-xl p-4 mb-6"
     >
       <div class="flex items-start gap-3">
-        <icon name="alert-circle" class="w-6 h-6 fill-red-400 flex-shrink-0 mt-0.5" />
+        <icon name="alert-circle" class="w-6 h-6 fill-orange-400 flex-shrink-0 mt-0.5" />
         <div class="flex-1">
-          <h3 class="text-lg font-semibold text-red-300 mb-2">Additional Information Required</h3>
-          <p class="text-gray-300">{{ application.status.additional_info_notes }}</p>
+          <h3 class="text-lg font-semibold text-orange-300/80 mb-3">Additional Information Requests</h3>
+
+          <!-- All additional info requests -->
+          <div class="space-y-3">
+            <!-- Document Requests (before documents_approved) -->
+            <div v-if="documentRequests.length > 0">
+              <p class="text-sm font-semibold text-blue-300 mb-3">📋 Document Requests:</p>
+              
+              <!-- Pending Document Requests -->
+              <div v-if="pendingDocumentRequests.length > 0" class="space-y-2 mb-4">
+                <p class="text-xs text-yellow-400 font-semibold uppercase tracking-wide mb-2">⏳ Pending Upload:</p>
+                <div 
+                  v-for="doc in pendingDocumentRequests" 
+                  :key="doc.id"
+                  class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3"
+                >
+                  <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1">
+                      <p class="font-semibold text-yellow-200">{{ doc.document_name }}</p>
+                    </div>
+                    <span class="ml-3 px-2 py-1 bg-yellow-600 text-yellow-100 text-xs font-semibold rounded">
+                      Pending
+                    </span>
+                  </div>
+                  
+                  <!-- Request Message -->
+                  <div v-if="doc.notes" class="mb-2 p-2 bg-red-900/20 border border-red-700/30 rounded">
+                    <p class="text-xs font-semibold text-red-300 mb-1">Request Message:</p>
+                    <p class="text-sm text-gray-300 whitespace-pre-wrap">{{ doc.notes }}</p>
+                  </div>
+                  
+                  <!-- Document Instructions -->
+                  <div v-if="doc.instructions && doc.document_name !== 'General Additional Information'" class="mb-2">
+                    <p class="text-xs font-semibold text-yellow-300 mb-1">Document Instructions:</p>
+                    <p class="text-sm text-gray-400 whitespace-pre-wrap">{{ doc.instructions }}</p>
+                  </div>
+                  
+                  <p class="text-xs text-gray-500 mt-2">
+                    Requested by {{ doc.requested_by }} on {{ doc.requested_at }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Completed Document Requests -->
+              <div v-if="completedDocumentRequests.length > 0" class="space-y-2">
+                <p class="text-xs text-green-400 font-semibold uppercase tracking-wide mb-2">✓ Completed:</p>
+                <div 
+                  v-for="doc in completedDocumentRequests" 
+                  :key="doc.id"
+                  class="bg-green-900/20 border border-green-700/30 rounded-lg p-3"
+                >
+                  <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1">
+                      <p class="font-semibold text-green-200">{{ doc.document_name }}</p>
+                    </div>
+                    <span class="ml-3 px-2 py-1 bg-green-600 text-green-100 text-xs font-semibold rounded">
+                      Complete
+                    </span>
+                  </div>
+                  
+                  <!-- Request Message -->
+                  <div v-if="doc.notes" class="mb-2 p-2 bg-green-900/20 border border-green-700/30 rounded">
+                    <p class="text-xs font-semibold text-green-300 mb-1">Request Message:</p>
+                    <p class="text-sm text-gray-300 whitespace-pre-wrap">{{ doc.notes }}</p>
+                  </div>
+                  
+                  <!-- Document Instructions -->
+                  <div v-if="doc.instructions && doc.document_name !== 'General Additional Information'" class="mb-2">
+                    <p class="text-xs font-semibold text-green-300 mb-1">Document Instructions:</p>
+                    <p class="text-sm text-gray-400 whitespace-pre-wrap">{{ doc.instructions }}</p>
+                  </div>
+                  
+                  <p class="text-xs text-gray-500 mt-2">
+                    Requested by {{ doc.requested_by }} on {{ doc.requested_at }}
+                  </p>
+                  <p class="text-xs text-green-400 mt-1">
+                    ✓ Completed on {{ doc.uploaded_at }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- General Info Requests (after documents_approved or no document required) -->
+            <div v-if="generalInfoRequests.length > 0" :class="{ 'mt-6 pt-6 border-t border-primary-800/30': documentRequests.length > 0 }">
+              <p class="text-sm font-semibold text-purple-300 mb-3">💬 General Information Requests:</p>
+              <div class="space-y-2">
+                <div 
+                  v-for="doc in generalInfoRequests" 
+                  :key="doc.id"
+                  class="bg-purple-900/20 border border-purple-700/30 rounded-lg p-3"
+                >
+                  <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1">
+                      <p class="font-semibold text-purple-200">Information Request</p>
+                    </div>
+                    <span class="ml-3 px-2 py-1 bg-purple-600 text-purple-100 text-xs font-semibold rounded">
+                      Info Only
+                    </span>
+                  </div>
+                  
+                  <!-- Request Message -->
+                  <div v-if="doc.notes" class="mb-2 p-2 bg-purple-900/20 border border-purple-700/30 rounded">
+                    <p class="text-xs font-semibold text-purple-300 mb-1">Request Message:</p>
+                    <p class="text-sm text-gray-300 whitespace-pre-wrap">{{ doc.notes }}</p>
+                  </div>
+                  
+                  <p class="text-xs text-gray-500 mt-2">
+                    Requested by {{ doc.requested_by }} on {{ doc.requested_at }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -159,6 +238,24 @@
     <div v-if="!is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Quick Actions</h2>
       <div class="flex flex-wrap gap-3">
+        <!-- Send Credentials Button (only if account hasn't logged in yet) -->
+        <button
+          v-if="!accountHasLoggedIn"
+          @click="showCredentialsModal = true"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send Account Credentials
+        </button>
+
+        <button
+          v-if="canApproveDocuments"
+          @click="markDocumentsAsApproved"
+          class="btn-primary"
+        >
+          Mark Documents as Completed
+        </button>
+
         <button
           v-if="canSendContract"
           @click="sendContractLink"
@@ -221,24 +318,15 @@
           Create Invoice
         </button>
 
-        <!-- Fees Confirmation Reminder Button - Only show if fees not confirmed -->
         <button
-          v-if="!application.fees_confirmed"
-          @click="showFeesReminderModal = true"
-          class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="mail" class="w-4 h-4 fill-current" />
-          Remind to Confirm Fees
-        </button>
-
-        <button
+          v-if="!is_account"
           @click="requestAdditionalInfo"
           class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
           Request Additional Info
         </button>
-        
+
         <!-- Cancel Additional Info Reminder (if active) -->
         <button
           v-if="additionalInfoReminder"
@@ -272,13 +360,13 @@
     <div v-if="application.documents?.length > 0" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Documents</h2>
       <div 
-        v-for="(label, category) in documentCategories" 
-        :key="category"
-        class="mb-6 last:mb-0"
-      >
-        <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
-        <p class="text-sm text-gray-400 mb-3">{{ getCategoryDescription(category) }}</p>
-        
+          v-for="(label, category) in documentCategoriesWithAdditional" 
+          :key="category"
+          class="mb-6 last:mb-0"
+        >
+          <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
+          <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
+
         <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
           <div 
             v-for="doc in getDocumentsByCategory(category)"
@@ -381,12 +469,6 @@
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
               <span class="font-semibold text-white">{{ log.subject }}</span>
-              <!-- <span
-                class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                :class="log.opened ? 'bg-green-900/50 text-green-300' : 'bg-gray-700 text-gray-300'"
-              >
-                {{ log.opened ? 'Opened' : 'Sent' }}
-              </span> -->
             </div>
             <div class="text-sm text-gray-400 space-y-1">
               <div>
@@ -472,16 +554,18 @@
       v-if="showAdditionalInfoModal"
       :application-id="application.id"
       :has-active-reminder="!!additionalInfoReminder"
+      :current-step="application.status?.current_step"
+      :documents-approved="isStepCompleted('documents_approved')"
       @close="showAdditionalInfoModal = false"
     />
 
-      <!-- Fees Reminder Modal -->
-      <fees-reminder-modal 
-        :show="showFeesReminderModal" 
-        :application="application"
-        :fees-reminder="feesReminder"
-        @close="showFeesReminderModal = false" 
-      />
+    <credentials-modal
+      v-if="showCredentialsModal"
+      :account-id="accountId"
+      :application-id="application.id"
+      :has-active-reminder="!!credentialsReminder"
+      @close="showCredentialsModal = false"
+    />
   </div>
 
   <!-- Scroll to Top Button -->
@@ -512,9 +596,8 @@ import Layout from '@/Shared/Layout.vue'
 import TimelineStep from '@/Shared/TimelineStep.vue'
 import InvoiceModal from '@/Shared/InvoiceModal.vue'
 import AdditionalInfoModal from '@/Shared/AdditionalInfoModal.vue'
+import CredentialsModal from '@/Shared/CredentialsModal.vue'
 import Icon from '@/Shared/Icon.vue'
-import FeesReminderModal from '@/Shared/FeesReminderModal.vue'
-
 
 export default {
   components: {
@@ -523,7 +606,7 @@ export default {
     TimelineStep,
     InvoiceModal,
     AdditionalInfoModal,
-    FeesReminderModal,
+    CredentialsModal,
     Icon,
   },
   layout: Layout,
@@ -531,7 +614,9 @@ export default {
     application: Object,
     is_account: Boolean,
     additionalInfoReminder: Object,
-    feesReminder: Object,
+    credentialsReminder: Object,
+    accountId: Number,
+    accountHasLoggedIn: Boolean,
     documentCategories: Object,
     categoryDescriptions: Object,
   },
@@ -541,12 +626,12 @@ export default {
       showScrollTop: false,
       isLoading: false,
       showInvoiceModal: false,
-      showFeesReminderModal: false,
       showAdditionalInfoModal: false,
+      showCredentialsModal: false,
       processSteps: [
         { id: 'created', label: 'Application Created', description: 'Initial application setup' },
-        { id: 'fees_confirmed', label: 'Fees Confirmed', description: 'Account confirmed fee structure' },
         { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
+        { id: 'documents_approved', label: 'Documents Approved', description: 'Documents reviewed and approved' },
         { id: 'application_sent', label: 'Contract Sent', description: 'Contract sent to client' },
         { id: 'contract_completed', label: 'Contract Signed', description: 'Client signed the contract' },
         { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted for review' },
@@ -584,19 +669,100 @@ export default {
       }
 
       baseSections.push({ id: 'section-email-history', label: 'Emails' })
-
       baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
 
       return baseSections
     },
-    canSendContract() {
-      return this.application.status?.current_step === 'documents_uploaded' && !this.is_account
+
+    allAdditionalInfoRequests() {
+      return this.application.additional_documents || []
     },
+
+    // Document requests are those made before documents_approved (with actual documents to upload)
+    documentRequests() {
+      return this.allAdditionalInfoRequests.filter(doc => {
+        // If it's marked as "General Additional Information", it's not a real document request
+        return doc.document_name !== 'General Additional Information'
+      })
+    },
+
+    // Pending document requests
+    pendingDocumentRequests() {
+      return this.documentRequests.filter(doc => !doc.is_uploaded)
+    },
+
+    // Completed document requests
+    completedDocumentRequests() {
+      return this.documentRequests.filter(doc => doc.is_uploaded)
+    },
+
+    // General info requests (either sent after documents_approved OR marked as "General Additional Information")
+    generalInfoRequests() {
+      return this.allAdditionalInfoRequests.filter(doc => {
+        return doc.document_name === 'General Additional Information'
+      })
+    },
+
+    // Aliases for compatibility with other sections
+    pendingAdditionalDocuments() {
+      return this.pendingDocumentRequests
+    },
+
+    uploadedAdditionalDocuments() {
+      return this.completedDocumentRequests
+    },
+
+    hasPendingAdditionalDocuments() {
+      return this.pendingDocumentRequests.length > 0
+    },
+
+    canSendContract() {
+      // Can only send contract after documents are approved
+      return this.application.status?.current_step === 'documents_approved' && !this.is_account
+    },
+
     canApprove() {
       return ['contract_submitted'].includes(this.application.status?.current_step) && !this.is_account
     },
+
     canCreateInvoice() {
       return this.application.status?.current_step === 'application_approved' && !this.is_account
+    },
+
+    canApproveDocuments() {
+      // Can approve documents only when on documents_uploaded step (not account users)
+      return this.application.status?.current_step === 'documents_uploaded' && !this.is_account
+    },
+    
+    // Build document categories including all pending additional documents
+    documentCategoriesWithAdditional() {
+      const categories = { ...this.documentCategories }
+      
+      // Add all pending additional documents as separate categories
+      this.pendingAdditionalDocuments.forEach(doc => {
+        categories[`additional_requested_${doc.id}`] = doc.document_name
+      })
+      
+      return categories
+    },
+    
+    // Build category descriptions including all pending additional documents
+    categoryDescriptionsWithAdditional() {
+      const descriptions = { ...this.categoryDescriptions }
+      
+      // Add descriptions for all pending additional documents
+      this.pendingAdditionalDocuments.forEach(doc => {
+        descriptions[`additional_requested_${doc.id}`] = doc.instructions || 'Additional document requested by administrator'
+      })
+      
+      return descriptions
+    },
+
+    // Helper to get the description for a specific category
+    getCategoryDescription() {
+      return (category) => {
+        return this.categoryDescriptionsWithAdditional[category] || ''
+      }
     },
   },
   methods: {
@@ -606,6 +772,7 @@ export default {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     },
+    
     scrollToTop() {
       if (this.scrollContainer) {
         this.scrollContainer.scrollTo({ top: 0, behavior: 'smooth' })
@@ -613,10 +780,12 @@ export default {
         window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     },
+    
     handleScroll() {
       const scrollTop = this.scrollContainer ? this.scrollContainer.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0)
       this.showScrollTop = scrollTop > 300
     },
+    
     confirmFees() {
       if (confirm('Are you sure you want to confirm these fees? This action cannot be undone.')) {
         this.confirmingFees = true
@@ -627,12 +796,12 @@ export default {
         })
       }
     },
+    
     formatEmailType(type) {
       const types = {
         'account_credentials': 'Account Credentials',
         'application_created': 'Application Created',
         'fees_changed': 'Fees Changed',
-        'fees_confirmed': 'Fees Confirmed',
         'document_uploaded': 'Document Uploaded',
         'all_documents_uploaded': 'All Documents Uploaded',
         'additional_info_requested': 'Additional Info Requested',
@@ -640,6 +809,7 @@ export default {
       }
       return types[type] || type
     },
+    
     formatInterval(interval) {
       const intervals = {
         '1_day': 'Every 1 day',
@@ -650,11 +820,13 @@ export default {
       }
       return intervals[interval] || interval
     },
+    
     cancelAdditionalInfoReminder() {
       if (confirm('Cancel scheduled additional info reminders?')) {
         this.$inertia.post(`/applications/${this.application.id}/cancel-additional-info-reminder`)
       }
     },
+    
     async sendContractLink() {
       this.isLoading = true
       try {
@@ -666,7 +838,7 @@ export default {
           },
         })
         const data = await response.json()
-        
+
         if (data.success && data.signing_url) {
           window.open(data.signing_url, '_blank', 'width=800,height=600')
         } else {
@@ -679,33 +851,70 @@ export default {
         this.isLoading = false
       }
     },
+    
     markAsApproved() {
       if (confirm('Mark this application as approved?')) {
         this.$inertia.post(`/applications/${this.application.id}/mark-approved`)
       }
     },
+    
     requestAdditionalInfo() {
       this.showAdditionalInfoModal = true
     },
+    
     markInvoiceAsPaid(invoiceId) {
       if (confirm('Mark this invoice as paid?')) {
         this.$inertia.post(`/invoices/${invoiceId}/mark-paid`)
       }
     },
+    
     isStepCompleted(stepId) {
       const currentStep = this.application.status?.current_step
-      const stepOrder = ['created', 'fees_confirmed', 'documents_uploaded', 'application_sent', 'contract_completed', 'contract_submitted', 'application_approved', 'invoice_sent', 'invoice_paid', 'gateway_integrated', 'account_live']
+      const timestamps = this.application.status?.timestamps
+      
+      // Steps that require explicit completion (manual actions)
+      const manualSteps = ['documents_approved']
+      
+      // For manual steps, only show as complete if they have a timestamp
+      if (manualSteps.includes(stepId)) {
+        return !!timestamps?.[stepId]
+      }
+      
+      // For automatic steps, use the order-based logic
+      const stepOrder = [
+        'created', 
+        'documents_uploaded', 
+        'documents_approved', 
+        'application_sent', 
+        'contract_completed', 
+        'contract_submitted', 
+        'application_approved',
+        'approval_email_sent',
+        'gateway_contract_sent',
+        'gateway_contract_signed',
+        'gateway_details_received',
+        'wordpress_credentials_collected',
+        'invoice_sent', 
+        'invoice_paid', 
+        'gateway_integrated', 
+        'account_live'
+      ]
+      
       const currentIndex = stepOrder.indexOf(currentStep)
       const checkIndex = stepOrder.indexOf(stepId)
+      
       return checkIndex <= currentIndex
     },
+    
     getStepTimestamp(stepId) {
       return this.application.status?.timestamps?.[stepId] || null
     },
+    
     formatStatus(status) {
       if (!status) return 'Created'
       return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     },
+    
     getDocumentStatusClass(status) {
       const classes = {
         sent: 'bg-blue-900/30 text-blue-400',
@@ -714,6 +923,7 @@ export default {
       }
       return classes[status] || 'bg-gray-900/30 text-gray-400'
     },
+    
     getInvoiceStatusClass(status) {
       const classes = {
         sent: 'bg-blue-900/30 text-blue-400',
@@ -722,6 +932,7 @@ export default {
       }
       return classes[status] || 'bg-gray-900/30 text-gray-400'
     },
+    
     getGatewayStatusClass(status) {
       const classes = {
         active: 'bg-green-900/30 text-green-400',
@@ -730,30 +941,45 @@ export default {
       }
       return classes[status] || 'bg-gray-900/30 text-gray-400'
     },
+    
     getDocumentsByCategory(category) {
       return this.application.documents.filter(doc => doc.document_category === category)
     },
+    
     getCategoryDescription(category) {
       return this.categoryDescriptions?.[category] || ''
+    },
+    
+    markDocumentsAsApproved() {
+      if (confirm('Mark all documents as approved?')) {
+        this.$inertia.post(`/applications/${this.application.id}/mark-documents-approved`)
+      }
+    },
+    
+    // Check if a category is an additional document
+    isAdditionalDocumentCategory(category) {
+      return category.startsWith('additional_requested_')
+    },
+
+    // Get additional document details by category
+    getAdditionalDocumentByCategory(category) {
+      if (!this.isAdditionalDocumentCategory(category)) return null
+      
+      const docId = parseInt(category.replace('additional_requested_', ''))
+      return this.application.additional_documents?.find(doc => doc.id === docId)
     },
   },
   mounted() {
     this.$nextTick(() => {
-      // Target the scroll-region attribute (from your Layout.vue)
       const mainContent = document.querySelector('[scroll-region]')
-      
-      console.log('Scroll region found:', mainContent)
-      
+
       if (mainContent) {
         mainContent.addEventListener('scroll', this.handleScroll, { passive: true })
         this.scrollContainer = mainContent
-        console.log('Added scroll listener to scroll-region')
       } else {
-        console.warn('scroll-region not found, using window')
         window.addEventListener('scroll', this.handleScroll, { passive: true })
       }
-      
-      // Check initial state
+
       setTimeout(() => this.handleScroll(), 100)
     })
   },

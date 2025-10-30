@@ -6,17 +6,31 @@ use App\Events\AccountCredentialsEvent;
 use App\Events\ApplicationCreatedEvent;
 use App\Events\ApplicationStatusChanged;
 use App\Events\FeesChangedEvent;
-use App\Events\FeesConfirmedEvent;
 use App\Events\FeesConfirmationReminderEvent;
+use App\Events\AdditionalInfoRequestedEvent;
+use App\Events\ApplicationApprovedEvent;
+use App\Events\DocumentUploadedEvent;
+use App\Events\AllDocumentsUploadedEvent;
+// New gateway & WordPress events
+use App\Events\MerchantContractReadyEvent;
+use App\Events\GatewayPartnerContractReadyEvent;
+use App\Events\WordPressCredentialsRequestEvent;
+use App\Events\WordPressCredentialsReminderEvent;
+
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
-use App\Events\ApplicationApprovedEvent;
-use App\Listeners\SendApplicationApprovedEmail;
 use App\Listeners\SendFeesChangedEmailListener;
-use App\Listeners\SendAdditionalInfoRequestEmail;
 use App\Listeners\SendFeesConfirmationReminderListener;
-use App\Events\AdditionalInfoRequestedEvent;
-use App\Listeners\SendFeesConfirmedEmail;
+use App\Listeners\SendAdditionalInfoRequestEmail;
+use App\Listeners\SendApplicationApprovedEmail;
+use App\Listeners\SendDocumentUploadedEmailListener;
+use App\Listeners\SendAllDocumentsUploadedEmailListener;
+// New gateway & WordPress listeners
+use App\Listeners\SendMerchantContractReadyEmail;
+use App\Listeners\SendGatewayPartnerContractReadyEmail;
+use App\Listeners\SendWordPressCredentialsRequestEmail;
+use App\Listeners\SendWordPressCredentialsReminderEmail;
+
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -33,13 +47,10 @@ class EventServiceProvider extends ServiceProvider
         ApplicationCreatedEvent::class => [
             SendApplicationCreatedEmail::class,
         ],
-        FeesConfirmedEvent::class => [
-            SendFeesConfirmedEmail::class,
-        ],
         FeesChangedEvent::class => [
             SendFeesChangedEmailListener::class,
         ],
-        FeesConfirmationReminderEvent::class => [  // ADD THIS
+        FeesConfirmationReminderEvent::class => [
             SendFeesConfirmationReminderListener::class,
         ],
         DocumentUploadedEvent::class => [
@@ -51,8 +62,21 @@ class EventServiceProvider extends ServiceProvider
         ApplicationApprovedEvent::class => [
             SendApplicationApprovedEmail::class,
         ],
-        AdditionalInfoRequestedEvent::class => [  // FIX THIS - was backwards
+        AdditionalInfoRequestedEvent::class => [
             SendAdditionalInfoRequestEmail::class,
+        ],
+        // New gateway & WordPress event mappings
+        MerchantContractReadyEvent::class => [
+            SendMerchantContractReadyEmail::class,
+        ],
+        GatewayPartnerContractReadyEvent::class => [
+            SendGatewayPartnerContractReadyEmail::class,
+        ],
+        WordPressCredentialsRequestEvent::class => [
+            SendWordPressCredentialsRequestEmail::class,
+        ],
+        WordPressCredentialsReminderEvent::class => [
+            SendWordPressCredentialsReminderEmail::class,
         ],
     ];
 

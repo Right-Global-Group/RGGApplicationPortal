@@ -65,6 +65,11 @@ class DashboardController extends Controller
                 $q->where('current_step', $filters['status']);
             });
         }
+        
+        // Apply global date filters if set
+        if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
+            $applicationsQuery->whereBetween('applications.created_at', [$filters['date_from'], $filters['date_to']]);
+        }
 
         if (!empty($filters['search'])) {
             $applicationsQuery->where(function ($q) use ($filters) {
@@ -83,8 +88,8 @@ class DashboardController extends Controller
         // Applications by status - count apps that have reached each status
         $allStatuses = [
             'created',
-            'fees_confirmed',
             'documents_uploaded',
+            'documents_approved',
             'application_sent',
             'contract_completed',
             'contract_submitted',
@@ -110,8 +115,8 @@ class DashboardController extends Controller
                         // OR has a timestamp for this status (meaning it reached it at some point)
                         $timestampColumn = $status . '_at';
                         if (in_array($timestampColumn, [
-                            'fees_confirmed_at',
                             'documents_uploaded_at',
+                            'documents_approved_at',
                             'contract_sent_at',
                             'contract_completed_at',
                             'application_approved_at',
@@ -151,10 +156,6 @@ class DashboardController extends Controller
         // Average setup fees
         $avgSetupFee = (clone $applicationsQuery)->avg('setup_fee') ?? 0;
         $totalSetupFees = (clone $applicationsQuery)->sum('setup_fee') ?? 0;
-
-        // Fees confirmed vs not confirmed
-        $feesConfirmed = (clone $applicationsQuery)->where('fees_confirmed', true)->count();
-        $feesNotConfirmed = (clone $applicationsQuery)->where('fees_confirmed', false)->count();
 
         // Top 5 accounts by application count
         $topAccounts = (clone $applicationsQuery)
@@ -202,8 +203,8 @@ class DashboardController extends Controller
         // All possible statuses for filter
         $availableStatuses = [
             'created' => 'Application Created',
-            'fees_confirmed' => 'Fees Confirmed',
             'documents_uploaded' => 'Documents Uploaded',
+            'documents_approved' => 'Documents Approved',
             'application_sent' => 'Contract Sent',
             'contract_completed' => 'Contract Signed',
             'contract_submitted' => 'Contract Submitted',
@@ -226,8 +227,6 @@ class DashboardController extends Controller
                 'totalUsers' => $totalUsers,
                 'avgSetupFee' => round($avgSetupFee, 2),
                 'totalSetupFees' => round($totalSetupFees, 2),
-                'feesConfirmed' => $feesConfirmed,
-                'feesNotConfirmed' => $feesNotConfirmed,
             ],
             'charts' => [
                 'statusCounts' => $statusCounts,

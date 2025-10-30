@@ -49,7 +49,11 @@
             padding: 12px 30px;
             text-decoration: none;
             border-radius: 5px;
-            margin: 20px 0;
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        .button-secondary {
+            background: #48bb78;
         }
         .footer {
             margin-top: 30px;
@@ -57,6 +61,13 @@
             border-top: 1px solid #ddd;
             font-size: 12px;
             color: #666;
+        }
+        .next-steps {
+            background: #e6f7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -81,9 +92,13 @@
             </div>
         </div>
         
-        <p>You can track the progress and view all details of your application by clicking the button below:</p>
+        <div class="next-steps">
+            <strong>📋 Next Step: Upload Documents</strong>
+            <p style="margin: 10px 0 0 0;">Please upload the required documents to proceed with your application.</p>
+        </div>
         
         <center>
+            <a href="{{ $edit_url ?? '#' }}" class="button button-secondary">Upload Documents</a>
             <a href="{{ $status_url ?? '#' }}" class="button">View Application Status</a>
         </center>
         

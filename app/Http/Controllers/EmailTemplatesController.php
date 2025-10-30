@@ -356,14 +356,6 @@ class EmailTemplatesController extends Controller
                 'monthly_minimum' => 100.00,
                 'service_fee' => 25.00,
             ],
-            'fees-confirmed' => [
-                'setup_fee' => 500.00,
-                'transaction_percentage' => 2.5,
-                'transaction_fixed_fee' => 0.20,
-                'monthly_fee' => 50.00,
-                'monthly_minimum' => 100.00,
-                'service_fee' => 25.00,
-            ],
             'fees-confirmation-reminder' => [
                 'setup_fee' => 500.00,
                 'transaction_percentage' => 2.5,

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Additional Information Required</title>
+    <title>Additional Infor</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a; color: #e2e8f0;">
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; padding: 40px 20px;">
@@ -40,34 +40,6 @@
                                 <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #e2e8f0; white-space: pre-wrap;">{{ $requested_info }}</p>
                             </div>
 
-                            <!-- Additional Document Request (only show if requested) -->
-                            @if($request_additional_document ?? false)
-                            <div style="background-color: #1e293b; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                                <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                                    <div style="font-size: 24px; margin-right: 10px;">📄</div>
-                                    <p style="margin: 0; font-size: 14px; font-weight: 600; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Additional Document Required
-                                    </p>
-                                </div>
-                                
-                                <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #e2e8f0;">
-                                    Document Name:
-                                </p>
-                                <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6; color: #cbd5e1;">
-                                    {{ $additional_document_name }}
-                                </p>
-
-                                @if($additional_document_instructions ?? false)
-                                <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #e2e8f0;">
-                                    Instructions:
-                                </p>
-                                <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #cbd5e1; white-space: pre-wrap;">
-                                    {{ $additional_document_instructions }}
-                                </p>
-                                @endif
-                            </div>
-                            @endif
-
                             <p style="margin: 25px 0 20px 0; font-size: 16px; line-height: 1.6; color: #cbd5e1;">
                                 Please provide this information at your earliest convenience to avoid delays in processing your application.
                             </p>
@@ -77,11 +49,7 @@
                                 <tr>
                                     <td align="center">
                                         <a href="{{ $application_url }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #f0abfc 0%, #e879f9 100%); color: #1e293b; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(240, 171, 252, 0.3); transition: all 0.3s;">
-                                            @if($request_additional_document ?? false)
-                                                View Application & Upload Document
-                                            @else
-                                                View Application & Respond
-                                            @endif
+                                            View Application & Respond
                                         </a>
                                     </td>
                                 </tr>
@@ -94,9 +62,6 @@
                                 </p>
                                 <ul style="margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.8;">
                                     <li>Review the information request carefully</li>
-                                    @if($request_additional_document ?? false)
-                                    <li>Upload the requested document: <strong style="color: #fbbf24;">{{ $additional_document_name }}</strong></li>
-                                    @endif
                                     <li>Provide the requested details via your application portal</li>
                                     <li>Our team will review and continue processing</li>
                                     <li>You'll be notified once we proceed to the next step</li>
@@ -109,14 +74,9 @@
                         </td>
                     </tr>
 
-                    <!-- Footer -->
-                    <tr>
-                        <td style="background-color: #0f172a; padding: 30px 40px; text-align: center; border-top: 1px solid #1e293b;">
-                            <p style="margin: 0; font-size: 14px; color: #64748b;">
-                                This is an automated notification from the G2Pay Portal.
-                            </p>
-                        </td>
-                    </tr>
+                    <div class="footer">
+                        <p>This is an automated notification from the G2Pay Portal.</p>
+                    </div>
                 </table>
             </td>
         </tr>
