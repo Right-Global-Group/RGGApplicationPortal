@@ -11,11 +11,13 @@ use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\ApplicationApprovedEvent;
 use App\Events\DocumentUploadedEvent;
 use App\Events\AllDocumentsUploadedEvent;
-// New gateway & WordPress events
+use App\Events\DocuSignStatusChangeEvent;
+// Gateway & WordPress events
 use App\Events\MerchantContractReadyEvent;
 use App\Events\GatewayPartnerContractReadyEvent;
 use App\Events\WordPressCredentialsRequestEvent;
 use App\Events\WordPressCredentialsReminderEvent;
+use App\Events\CardStreamSubmissionEvent;
 
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
@@ -25,11 +27,13 @@ use App\Listeners\SendAdditionalInfoRequestEmail;
 use App\Listeners\SendApplicationApprovedEmail;
 use App\Listeners\SendDocumentUploadedEmailListener;
 use App\Listeners\SendAllDocumentsUploadedEmailListener;
-// New gateway & WordPress listeners
+use App\Listeners\SendDocuSignStatusChangeEmail;
+// Gateway & WordPress listeners
 use App\Listeners\SendMerchantContractReadyEmail;
 use App\Listeners\SendGatewayPartnerContractReadyEmail;
 use App\Listeners\SendWordPressCredentialsRequestEmail;
 use App\Listeners\SendWordPressCredentialsReminderEmail;
+use App\Listeners\SendCardStreamSubmissionEmail;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -65,7 +69,10 @@ class EventServiceProvider extends ServiceProvider
         AdditionalInfoRequestedEvent::class => [
             SendAdditionalInfoRequestEmail::class,
         ],
-        // New gateway & WordPress event mappings
+        DocuSignStatusChangeEvent::class => [
+            SendDocuSignStatusChangeEmail::class,
+        ],
+        // Gateway & WordPress event mappings
         MerchantContractReadyEvent::class => [
             SendMerchantContractReadyEmail::class,
         ],
@@ -77,6 +84,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         WordPressCredentialsReminderEvent::class => [
             SendWordPressCredentialsReminderEmail::class,
+        ],
+        CardStreamSubmissionEvent::class => [
+            SendCardStreamSubmissionEmail::class,
         ],
     ];
 
