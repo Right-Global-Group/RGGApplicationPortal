@@ -237,6 +237,20 @@ class ApplicationsController extends Controller
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
+                    'timestamps' => [
+                        'created' => $application->status->created_at?->format('Y-m-d H:i'),
+                        'documents_uploaded' => $application->status->documents_uploaded_at?->format('Y-m-d H:i'),
+                        'documents_approved' => $application->status->documents_approved_at?->format('Y-m-d H:i'),
+                        'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
+                        'contract_signed' => $application->status->contract_signed_at?->format('Y-m-d H:i'),
+                        'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
+                        'contract_submitted' => $application->status->contract_submitted_at?->format('Y-m-d H:i'),
+                        'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
+                        'invoice_sent' => $application->status->invoice_sent_at?->format('Y-m-d H:i'),
+                        'invoice_paid' => $application->status->invoice_paid_at?->format('Y-m-d H:i'),
+                        'gateway_integrated' => $application->status->gateway_integrated_at?->format('Y-m-d H:i'),
+                        'account_live' => $application->status->account_live_at?->format('Y-m-d H:i'),
+                    ],
                 ] : null,
                 'additional_documents' => $application->additionalDocuments()
                     ->with('requestedBy')

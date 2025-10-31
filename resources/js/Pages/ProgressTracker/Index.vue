@@ -338,6 +338,7 @@ export default {
       const statusMap = {
         created: 'Created',
         documents_uploaded: 'Documents Uploaded',
+        documents_approved: 'Documents Approved',
         application_sent: 'Contract Sent',
         contract_completed: 'Contract Signed',
         contract_submitted: 'Contract Submitted',
@@ -354,6 +355,7 @@ export default {
       const classMap = {
         created: 'bg-gray-700 text-gray-300',
         documents_uploaded: 'bg-purple-900/50 text-purple-300',
+        documents_approved: 'bg-purple-600/50 text-purple-300',
         application_sent: 'bg-yellow-900/50 text-yellow-300',
         contract_completed: 'bg-blue-900/50 text-blue-300',
         contract_submitted: 'bg-blue-900/50 text-blue-300',

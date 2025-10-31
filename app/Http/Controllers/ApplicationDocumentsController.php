@@ -83,8 +83,13 @@ class ApplicationDocumentsController extends Controller
     
         // Check if all required documents are now uploaded
         if ($application->status->hasAllRequiredDocuments()) {
-            $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
-            event(new AllDocumentsUploadedEvent($application));
+            $currentStep = $application->status->current_step;
+            
+            // Only auto-transition if in 'created' or 'contract_sent' status
+            if (in_array($currentStep, ['created', 'contract_sent'])) {
+                $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
+                event(new AllDocumentsUploadedEvent($application));
+            }
         }
     
         return Redirect::back()->with('success', 'Document uploaded successfully.');
@@ -172,9 +177,14 @@ class ApplicationDocumentsController extends Controller
         $additionalDocument->delete();
 
         // Check if all documents are now complete
-        if ($application->status->hasAllRequiredDocuments() && $application->status->current_step === 'created') {
-            $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
-            event(new AllDocumentsUploadedEvent($application));
+        if ($application->status->hasAllRequiredDocuments()) {
+            $currentStep = $application->status->current_step;
+            
+            // Only auto-transition if in 'created' or 'contract_sent' status
+            if (in_array($currentStep, ['created', 'contract_sent'])) {
+                $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
+                event(new AllDocumentsUploadedEvent($application));
+            }
         }
 
         return Redirect::back()->with('success', 'Document requirement removed successfully.');

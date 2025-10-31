@@ -8,7 +8,9 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\MerchantContractReady;
+use App\Mail\GatewayPartnerContractReady;
 
 class DocuSignService
 {
@@ -30,32 +32,289 @@ class DocuSignService
     }
 
     /**
-     * Send contract and return the signing URL to open in new tab
+     * Send merchant contract and return the signing URL
      */
-    public function sendContract(Application $application): array
+    public function sendMerchantContract(Application $application): array
     {
-        $account = $application->account; // relationship to Account model
-
-        $recipientEmail = $account->email;
-        $recipientName  = $account->name ?? $application->trading_name;
-    
-        if (empty($recipientEmail)) {
-            throw new \Exception('Account email is missing for this application.');
+        // ✅ CHECK: Does this application already have an active envelope?
+        $existingEnvelopeId = $application->status->docusign_envelope_id;
+        
+        if ($existingEnvelopeId) {
+            // Envelope already exists - just generate a new signing URL for current user
+            Log::info('Using existing envelope', ['envelope_id' => $existingEnvelopeId]);
+            
+            // Determine who is currently logged in
+            $isAccount = auth()->guard('account')->check();
+            
+            if ($isAccount) {
+                $account = $application->account;
+                $recipientEmail = $account->email;
+                $recipientName = $account->name ?? $application->trading_name ?? $account->email;
+            } else {
+                $user = auth()->guard('web')->user();
+                $recipientEmail = $user->email;
+                $recipientName = $user->name ?? $user->email;
+            }
+            
+            try {
+                $accessToken = $this->getAccessToken();
+                
+                // Generate new signing URL for existing envelope
+                $viewUrl = $this->getRecipientView(
+                    $accessToken,
+                    $existingEnvelopeId,
+                    $recipientEmail,
+                    $recipientName,
+                    ($isAccount ? 'merchant-' : 'user-') . $application->id,
+                    route('applications.docusign-callback', ['application' => $application->id])
+                );
+                
+                return [
+                    'envelope_id' => $existingEnvelopeId,
+                    'signing_url' => $viewUrl,
+                    'embedded_signing' => true,
+                ];
+            } catch (\Exception $e) {
+                Log::error('Failed to get signing URL for existing envelope', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                // If getting view fails, fall through to create new envelope
+                Log::info('Creating new envelope because existing one failed');
+            }
         }
+        
+        // ✅ CREATE NEW ENVELOPE with BOTH recipients
+        $account = $application->account;
+        
+        if (!$account || !$account->email) {
+            throw new \Exception('Account or account email is missing.');
+        }
+        
+        // Determine who is currently logged in (they'll use embedded signing)
+        $isAccount = auth()->guard('account')->check();
+
+        if ($isAccount) {
+            // Account is clicking - they sign via popup
+            $embeddedEmail = $account->email;
+            $embeddedName = $account->name ?? $application->trading_name ?? $account->email;
+            $embeddedClientId = 'merchant-' . $application->id;
+            $embeddedRole = 'Account Merchant'; // Must match DocuSign template exactly
+            
+            // Portal user gets email
+            $user = \App\Models\User::find($application->user_id);
+            if (!$user || !$user->email) {
+                throw new \Exception('Application user or user email is missing.');
+            }
+            $emailSignerEmail = $user->email;
+            $emailSignerName = $user->name ?? $user->email;
+            $emailSignerRole = 'Product Manager'; // Must match DocuSign template exactly
+            
+        } else {
+            // Portal user is clicking - they sign via popup
+            $user = auth()->guard('web')->user();
+            if (!$user || !$user->email) {
+                throw new \Exception('Portal user or user email is missing.');
+            }
+            $embeddedEmail = $user->email;
+            $embeddedName = $user->name ?? $user->email;
+            $embeddedClientId = 'user-' . $application->id;
+            $embeddedRole = 'Product Manager'; // Must match DocuSign template exactly
+            
+            // Account gets email
+            $emailSignerEmail = $account->email;
+            $emailSignerName = $account->name ?? $application->trading_name ?? $account->email;
+            $emailSignerRole = 'Account Merchant'; // Must match DocuSign template exactly
+        }
+        
+        try {
+            $accessToken = $this->getAccessToken();
+            $templateId = '0989e714-d2a3-4a34-a8cb-ae7cf921a865';
+        
+            // Create envelope with ALL THREE recipients
+            $envelopeDefinition = [
+                'emailSubject' => "Merchant Application Contract - {$application->name}",
+                'templateId' => $templateId,
+                'templateRoles' => [
+                    [
+                        'email' => $embeddedEmail,
+                        'name' => $embeddedName,
+                        'roleName' => $embeddedRole, // Either 'Account Merchant' or 'Product Manager'
+                        'routingOrder' => '1',
+                        'clientUserId' => $embeddedClientId, // Enables embedded signing
+                    ],
+                    [
+                        'email' => $emailSignerEmail,
+                        'name' => $emailSignerName,
+                        'roleName' => $emailSignerRole, // Either 'Product Manager' or 'Account Merchant'
+                        'routingOrder' => '1', // Same routing order - can sign in parallel
+                    ],
+                    [
+                        'email' => 'contracts@g2pay.co.uk',
+                        'name' => 'G2Pay Director',
+                        'roleName' => 'Director', // Must match DocuSign template exactly
+                        'routingOrder' => '2', // Signs after the first two complete
+                    ],
+                ],
+                'status' => 'sent',
+            ];
+        
+            Log::info('Creating new DocuSign envelope with both recipients', [
+                'application_id' => $application->id,
+                'embedded_signer' => [
+                    'email' => $embeddedEmail,
+                    'role' => $embeddedRole,
+                ],
+                'email_signer' => [
+                    'email' => $emailSignerEmail,
+                    'role' => $emailSignerRole,
+                ],
+            ]);
+    
+            $response = Http::withToken($accessToken)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes", $envelopeDefinition);
+    
+            if ($response->failed()) {
+                Log::error('DocuSign Create Merchant Envelope Error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'request' => $envelopeDefinition,
+                    'application_id' => $application->id,
+                ]);
+                throw new \Exception('Failed to create envelope: ' . $response->body());
+            }
+    
+            $envelopeId = $response->json('envelopeId');
+    
+            // Get embedded signing URL for current user
+            $viewUrl = $this->getRecipientView(
+                $accessToken,
+                $envelopeId,
+                $embeddedEmail,
+                $embeddedName,
+                $embeddedClientId,
+                route('applications.docusign-callback', ['application' => $application->id])
+            );
+    
+            // Store document record
+            ApplicationDocument::create([
+                'application_id' => $application->id,
+                'document_type' => 'contract',
+                'external_id' => $envelopeId,
+                'external_system' => 'docusign',
+                'status' => 'sent',
+                'sent_at' => now(),
+            ]);
+    
+            // Update status
+            $application->status->update([
+                'docusign_envelope_id' => $envelopeId,
+            ]);
+    
+            // Fire event to send notification email
+            event(new \App\Events\MerchantContractReadyEvent(
+                $application, 
+                route('applications.status', ['application' => $application->id])
+            ));
+    
+            return [
+                'envelope_id' => $envelopeId,
+                'signing_url' => $viewUrl,
+                'embedded_signing' => true,
+            ];
+        } catch (\Exception $e) {
+            Log::error('DocuSign Send Merchant Contract Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'application_id' => $application->id,
+            ]);
+            throw $e;
+        }
+    }
+    
+    /**
+     * Get all recipients for an envelope with their current status
+     */
+    public function getEnvelopeRecipients(string $envelopeId): array
+    {
+        try {
+            Log::info('Getting envelope recipients', ['envelope_id' => $envelopeId]);
+            
+            $accessToken = $this->getAccessToken();
+
+            $response = Http::withToken($accessToken)
+                ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$envelopeId}/recipients");
+
+            if ($response->failed()) {
+                Log::error('DocuSign Get Recipients Error', [
+                    'envelope_id' => $envelopeId,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                throw new \Exception('Failed to get envelope recipients: ' . $response->body());
+            }
+
+            $data = $response->json();
+            Log::info('DocuSign recipients response', ['data' => $data]);
+            
+            $recipients = [];
+
+            // Extract signers
+            foreach ($data['signers'] ?? [] as $signer) {
+                $recipients[] = [
+                    'name' => $signer['name'],
+                    'email' => $signer['email'],
+                    'status' => strtolower($signer['status']), // sent, delivered, signed, completed
+                    'signed_at' => $signer['signedDateTime'] ?? null,
+                    'delivered_at' => $signer['deliveredDateTime'] ?? null,
+                ];
+            }
+
+            Log::info('Extracted recipients', [
+                'envelope_id' => $envelopeId,
+                'count' => count($recipients),
+                'recipients' => $recipients,
+            ]);
+
+            return $recipients;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to get envelope recipients', [
+                'envelope_id' => $envelopeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Return empty array so webhook doesn't crash
+            return [];
+        }
+    }
+
+    /**
+     * Send gateway partner contract
+     */
+    public function sendGatewayPartnerContract(Application $application): array
+    {
+        if (!$application->gateway_partner) {
+            throw new \Exception('Gateway partner not selected for this application.');
+        }
+
+        $partnerConfig = config("gateway-partners.{$application->gateway_partner}");
+        $recipientEmail = $partnerConfig['contact_email'];
+        $recipientName = $partnerConfig['name'] . ' Contracts Team';
     
         try {
             $accessToken = $this->getAccessToken();
+            $pdfBase64 = $this->generateGatewayPartnerContractPDF($application);
 
-            // Generate PDF contract
-            $pdfBase64 = $this->generateContractPDF($application);
-
-            // Create envelope with embedded signing
             $envelopeDefinition = [
-                'emailSubject' => "Merchant Application Contract - {$application->name}",
+                'emailSubject' => "New Merchant Application - {$application->name} - {$partnerConfig['name']}",
                 'documents' => [
                     [
                         'documentBase64' => $pdfBase64,
-                        'name' => 'Merchant Application Contract',
+                        'name' => "{$partnerConfig['name']} Gateway Contract",
                         'fileExtension' => 'pdf',
                         'documentId' => '1',
                     ],
@@ -67,38 +326,8 @@ class DocuSignService
                             'name' => $recipientName,
                             'recipientId' => '1',
                             'routingOrder' => '1',
-                            'clientUserId' => (string) $application->id, // For embedded signing
-                            'tabs' => [
-                                'signHereTabs' => [
-                                    [
-                                        'documentId' => '1',
-                                        'pageNumber' => '1',
-                                        'xPosition' => '100',
-                                        'yPosition' => '650',
-                                    ],
-                                ],
-                                'dateSignedTabs' => [
-                                    [
-                                        'documentId' => '1',
-                                        'pageNumber' => '1',
-                                        'xPosition' => '300',
-                                        'yPosition' => '650',
-                                    ],
-                                ],
-                                'textTabs' => [
-                                    [
-                                        'documentId' => '1',
-                                        'pageNumber' => '1',
-                                        'xPosition' => '100',
-                                        'yPosition' => '600',
-                                        'width' => 200,
-                                        'height' => 20,
-                                        'required' => true,
-                                        'tabLabel' => 'Full Name',
-                                        'value' => $application->name,
-                                    ],
-                                ],
-                            ],
+                            'clientUserId' => 'gateway-' . $application->id,
+                            'tabs' => $this->getGatewayContractTabs($application),
                         ],
                     ],
                 ],
@@ -110,7 +339,7 @@ class DocuSignService
                 ->post("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes", $envelopeDefinition);
 
             if ($response->failed()) {
-                Log::error('DocuSign Create Envelope Error', [
+                Log::error('DocuSign Create Gateway Envelope Error', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                     'application_id' => $application->id,
@@ -119,26 +348,39 @@ class DocuSignService
             }
 
             $envelopeId = $response->json('envelopeId');
-
-            // Get the recipient view URL (embedded signing URL)
-            $viewUrl = $this->getRecipientView($accessToken, $envelopeId, $application);
+            $viewUrl = $this->getRecipientView(
+                $accessToken,
+                $envelopeId,
+                $recipientEmail,
+                $recipientName,
+                'gateway-' . $application->id,
+                route('applications.gateway-docusign-callback', ['application' => $application->id])
+            );
 
             // Store document record
             ApplicationDocument::create([
                 'application_id' => $application->id,
-                'document_type' => 'contract',
+                'document_type' => 'gateway_contract',
                 'external_id' => $envelopeId,
                 'external_system' => 'docusign',
                 'status' => 'sent',
                 'sent_at' => now(),
             ]);
 
+            // Update status
+            $application->status->update([
+                'gateway_docusign_envelope_id' => $envelopeId,
+            ]);
+
+            // Fire event to send email (instead of sending directly)
+            event(new \App\Events\GatewayPartnerContractReadyEvent($application, $viewUrl));
+
             return [
                 'envelope_id' => $envelopeId,
                 'signing_url' => $viewUrl,
             ];
         } catch (\Exception $e) {
-            Log::error('DocuSign Send Contract Error', [
+            Log::error('DocuSign Send Gateway Contract Error', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -149,16 +391,20 @@ class DocuSignService
     /**
      * Get the embedded signing URL
      */
-    private function getRecipientView(string $accessToken, string $envelopeId, Application $application): string
-    {
-        $returnUrl = route('docusign.callback', ['application' => $application->id]);
-
+    private function getRecipientView(
+        string $accessToken, 
+        string $envelopeId, 
+        string $email,
+        string $userName,
+        string $clientUserId,
+        string $returnUrl
+    ): string {
         $viewRequest = [
             'returnUrl' => $returnUrl,
             'authenticationMethod' => 'none',
-            'email' => $application->email,
-            'userName' => $application->name,
-            'clientUserId' => (string) $application->id,
+            'email' => $email,
+            'userName' => $userName,
+            'clientUserId' => $clientUserId,
         ];
 
         $response = Http::withToken($accessToken)
@@ -193,20 +439,22 @@ class DocuSignService
         return $response->json();
     }
 
-    public function handleWebhook(array $payload): void
+    public function handleMerchantWebhook(array $payload): void
     {
         $envelopeId = $payload['data']['envelopeSummary']['envelopeId'] ?? $payload['envelopeId'] ?? null;
         $status = $payload['data']['envelopeSummary']['status'] ?? $payload['status'] ?? null;
 
         if (!$envelopeId || !$status) {
-            Log::warning('DocuSign webhook missing data', ['payload' => $payload]);
+            Log::warning('DocuSign merchant webhook missing data', ['payload' => $payload]);
             return;
         }
 
-        $document = ApplicationDocument::where('external_id', $envelopeId)->first();
+        $document = ApplicationDocument::where('external_id', $envelopeId)
+            ->where('document_type', 'contract')
+            ->first();
 
         if (!$document) {
-            Log::warning('DocuSign webhook: document not found', ['envelope_id' => $envelopeId]);
+            Log::warning('DocuSign merchant webhook: document not found', ['envelope_id' => $envelopeId]);
             return;
         }
 
@@ -226,13 +474,43 @@ class DocuSignService
         }
     }
 
-    /**
-     * Get DocuSign access token using JWT
-     */
+    public function handleGatewayWebhook(array $payload): void
+    {
+        $envelopeId = $payload['data']['envelopeSummary']['envelopeId'] ?? $payload['envelopeId'] ?? null;
+        $status = $payload['data']['envelopeSummary']['status'] ?? $payload['status'] ?? null;
+
+        if (!$envelopeId || !$status) {
+            Log::warning('DocuSign gateway webhook missing data', ['payload' => $payload]);
+            return;
+        }
+
+        $document = ApplicationDocument::where('external_id', $envelopeId)
+            ->where('document_type', 'gateway_contract')
+            ->first();
+
+        if (!$document) {
+            Log::warning('DocuSign gateway webhook: document not found', ['envelope_id' => $envelopeId]);
+            return;
+        }
+
+        $statusMapping = [
+            'completed' => 'completed',
+            'declined' => 'declined',
+            'voided' => 'declined',
+        ];
+
+        $newStatus = $statusMapping[$status] ?? 'sent';
+        $document->update(['status' => $newStatus]);
+
+        if ($status === 'completed') {
+            $document->update(['completed_at' => now()]);
+            $document->application->status->transitionTo('gateway_contract_signed', 'Gateway contract signed via DocuSign');
+        }
+    }
+
     private function getAccessToken(): string
     {
         try {
-            // Check if private key file exists
             if (!file_exists($this->privateKey)) {
                 throw new \Exception('DocuSign private key file not found at: ' . $this->privateKey);
             }
@@ -262,9 +540,6 @@ class DocuSignService
         }
     }
 
-    /**
-     * Generate JWT token for authentication
-     */
     private function generateJWT(string $privateKey): string
     {
         $now = time();
@@ -281,16 +556,77 @@ class DocuSignService
         return JWT::encode($payload, $privateKey, 'RS256');
     }
 
-    /**
-     * Generate a dummy PDF contract
-     */
-    private function generateContractPDF(Application $application): string
+    private function generateMerchantContractPDF(Application $application): string
     {
         $html = view('pdf.contract', ['application' => $application])->render();
-        
         $pdf = Pdf::loadHTML($html);
         $pdfContent = $pdf->output();
-        
         return base64_encode($pdfContent);
+    }
+
+    private function generateGatewayPartnerContractPDF(Application $application): string
+    {
+        $template = config("gateway-partners.{$application->gateway_partner}.contract_template");
+        $html = view($template, ['application' => $application])->render();
+        $pdf = Pdf::loadHTML($html);
+        $pdfContent = $pdf->output();
+        return base64_encode($pdfContent);
+    }
+
+    private function getMerchantContractTabs(Application $application): array
+    {
+        return [
+            'signHereTabs' => [
+                [
+                    'documentId' => '1',
+                    'pageNumber' => '1',
+                    'xPosition' => '100',
+                    'yPosition' => '650',
+                ],
+            ],
+            'dateSignedTabs' => [
+                [
+                    'documentId' => '1',
+                    'pageNumber' => '1',
+                    'xPosition' => '300',
+                    'yPosition' => '650',
+                ],
+            ],
+            'textTabs' => [
+                [
+                    'documentId' => '1',
+                    'pageNumber' => '1',
+                    'xPosition' => '100',
+                    'yPosition' => '600',
+                    'width' => 200,
+                    'height' => 20,
+                    'required' => true,
+                    'tabLabel' => 'Full Name',
+                    'value' => $application->name,
+                ],
+            ],
+        ];
+    }
+
+    private function getGatewayContractTabs(Application $application): array
+    {
+        return [
+            'signHereTabs' => [
+                [
+                    'documentId' => '1',
+                    'pageNumber' => '1',
+                    'xPosition' => '100',
+                    'yPosition' => '650',
+                ],
+            ],
+            'dateSignedTabs' => [
+                [
+                    'documentId' => '1',
+                    'pageNumber' => '1',
+                    'xPosition' => '300',
+                    'yPosition' => '650',
+                ],
+            ],
+        ];
     }
 }

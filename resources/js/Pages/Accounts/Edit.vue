@@ -26,7 +26,7 @@
             <h3 class="text-magenta-400 font-bold text-base">Account Actions</h3>
           </div>
           <div class="p-4 flex flex-wrap gap-3">
-            <!-- Upload Docs Button (shows on created or documents_uploaded) -->
+            <!-- Upload Docs Button (shows until documents_approved) -->
             <Link
               v-if="canUploadDocs"
               :href="`/applications/${activeApplication.id}/edit#documents`"
@@ -38,16 +38,16 @@
               Upload Documents
             </Link>
 
-            <!-- Sign Document Button (shows on application_sent) -->
+            <!-- Sign Contract Button (shows when contract_sent and not yet signed) -->
             <Link
-              v-if="canSignDocument"
+              v-if="canSignContract"
               :href="`/applications/${activeApplication.id}/status#section-actions`"
               class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              Sign Document
+              Sign Contract
             </Link>
           </div>
         </div>
@@ -260,20 +260,23 @@ export default {
     
     showAccountActions() {
       if (!this.activeApplication) return false
-      const status = this.activeApplication.status?.current_step
-      return ['created', 'documents_uploaded', 'application_sent'].includes(status)
+      return this.canUploadDocs || this.canSignContract
     },
     
     canUploadDocs() {
       if (!this.activeApplication) return false
-      const status = this.activeApplication.status?.current_step
-      return ['created', 'documents_uploaded'].includes(status)
+      const timestamps = this.activeApplication.status?.timestamps
+      
+      // Show upload button until documents are approved
+      return !timestamps?.documents_approved
     },
     
-    canSignDocument() {
+    canSignContract() {
       if (!this.activeApplication) return false
-      const status = this.activeApplication.status?.current_step
-      return status === 'application_sent'
+      const timestamps = this.activeApplication.status?.timestamps
+      
+      // Show sign button if contract sent but not yet signed
+      return !!timestamps?.contract_sent && !timestamps?.contract_signed
     },
   },
   methods: {
@@ -283,22 +286,69 @@ export default {
       })
     },
     getNextStep(application) {
-      const status = application.status?.current_step
-
-      const nextSteps = {
-        'created': 'Upload the required documents',
-        'documents_uploaded': 'Wait for contract to be sent',
-        'application_sent': 'Sign the contract document',
-        'contract_completed': 'Wait for application review',
-        'contract_submitted': 'Wait for approval',
-        'application_approved': 'Wait for invoice',
-        'invoice_sent': 'Pay the setup fee invoice',
-        'invoice_paid': 'Wait for gateway integration',
-        'gateway_integrated': 'Your account is being set up',
-        'account_live': null,
+      const timestamps = application.status?.timestamps
+      
+      // Build array of pending actions
+      const pendingActions = []
+      
+      // Check if documents need to be uploaded/approved
+      if (!timestamps?.documents_approved) {
+        if (!timestamps?.documents_uploaded) {
+          pendingActions.push('Upload documents')
+        } else {
+          pendingActions.push('Waiting for document approval')
+        }
+      }
+      
+      // Check if contract needs to be sent/signed
+      if (!timestamps?.contract_signed) {
+        if (!timestamps?.contract_sent) {
+          // Documents approved but contract not sent yet
+          if (timestamps?.documents_approved) {
+            pendingActions.push('Waiting for contract to be sent')
+          }
+        } else {
+          // Contract sent but not signed
+          pendingActions.push('Sign contract')
+        }
+      }
+      
+      // If we have pending actions, show them
+      if (pendingActions.length > 0) {
+        return pendingActions.join(' & ')
+      }
+      
+      // All initial steps complete, check submission & beyond
+      if (timestamps?.contract_signed && !timestamps?.contract_submitted) {
+        return 'Wait for contract submission'
+      }
+      
+      if (timestamps?.contract_submitted && !timestamps?.application_approved) {
+        return 'Wait for application approval'
+      }
+      
+      if (timestamps?.application_approved && !timestamps?.invoice_sent) {
+        return 'Wait for invoice'
+      }
+      
+      if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
+        return 'Pay the setup fee invoice'
+      }
+      
+      if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {
+        return 'Wait for gateway integration'
+      }
+      
+      if (timestamps?.gateway_integrated && !timestamps?.account_live) {
+        return 'Your account is being set up'
+      }
+      
+      if (timestamps?.account_live) {
+        return null // Account is live
       }
 
-      return nextSteps[status] || null
+      // Fallback - shouldn't reach here if logic is correct
+      return 'Processing...'
     },
     formatDate(date) {
       if (!date) return '—'

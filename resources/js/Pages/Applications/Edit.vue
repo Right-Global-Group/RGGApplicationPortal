@@ -14,28 +14,22 @@
         <h2 class="text-magenta-400 font-bold text-lg">Account Actions</h2>
       </div>
       <div class="p-6 flex flex-wrap gap-3">
-        <!-- Upload Docs Button (shows on created or documents_uploaded) -->
+        <!-- Upload Documents (shows until documents_approved) -->
         <button
           v-if="canUploadDocs"
           @click="scrollToDocuments"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
           Upload Documents
         </button>
 
-        <!-- Sign Document Button (shows on application_sent) -->
+        <!-- Sign Contract (shows when contract_sent and not yet signed) -->
         <Link
-          v-if="canSignDocument"
+          v-if="canSignContract"
           :href="`/applications/${application.id}/status#section-actions`"
-          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          Sign Document
+          Sign Contract
         </Link>
       </div>
     </div>
@@ -500,44 +494,92 @@ export default {
   },
   computed: {
     shouldShowDocuments() {
-      const status = this.application.status?.current_step
-      
-      return ['created', 'documents_uploaded', 'documents_approved'].includes(status)
+      // Show documents until contract is fully signed
+      return !this.application.status?.timestamps?.contract_signed
     },
 
     showAccountActions() {
-      const status = this.application.status?.current_step
-      return ['created', 'documents_uploaded', 'application_sent'].includes(status)
+      return this.canUploadDocs || this.canSignContract
     },
     
     canUploadDocs() {
-      const status = this.application.status?.current_step
-      return ['created', 'documents_uploaded'].includes(status)
+      const timestamps = this.application.status?.timestamps
+      
+      // Show upload button until documents are approved
+      return !timestamps?.documents_approved
     },
     
-    canSignDocument() {
-      const status = this.application.status?.current_step
-      return status === 'application_sent'
+    canSignContract() {
+      const timestamps = this.application.status?.timestamps
+      
+      // Show sign button if contract sent but not yet signed
+      return !!timestamps?.contract_sent && !timestamps?.contract_signed
     },
     
     nextStep() {
-      const status = this.application.status?.current_step
+      const timestamps = this.application.status?.timestamps
       
-      const nextSteps = {
-        'created': 'Waiting for account to upload documents',
-        'documents_uploaded': 'Waiting for documents to be reviewed and approved',
-        'documents_approved': 'Ready to send contract to account',
-        'application_sent': 'Waiting for account to sign contract',
-        'contract_completed': 'Contract signed, ready for review',
-        'contract_submitted': 'Under review for approval',
-        'application_approved': 'Ready to create and send invoice',
-        'invoice_sent': 'Waiting for invoice payment',
-        'invoice_paid': 'Ready for gateway integration',
-        'gateway_integrated': 'Final setup in progress',
-        'account_live': 'Application complete - Account is live',
+      // Build array of pending actions
+      const pendingActions = []
+      
+      // Check if documents need approval
+      if (!timestamps?.documents_approved) {
+        if (!timestamps?.documents_uploaded) {
+          pendingActions.push('Upload documents')
+        } else {
+          pendingActions.push('Waiting for document approval')
+        }
       }
       
-      return nextSteps[status] || 'Application in progress'
+      // Check if contract needs to be sent/signed
+      if (!timestamps?.contract_signed) {
+        if (!timestamps?.contract_sent) {
+          // Documents approved but contract not sent yet
+          if (timestamps?.documents_approved) {
+            pendingActions.push('Waiting for contract to be sent')
+          }
+        } else {
+          // Contract sent but not signed
+          pendingActions.push('Waiting for all parties to sign contract')
+        }
+      }
+      
+      // If we have pending actions, show them
+      if (pendingActions.length > 0) {
+        return pendingActions.join(' & ')
+      }
+      
+      // All initial steps complete, check submission & beyond
+      if (timestamps?.contract_signed && !timestamps?.contract_submitted) {
+        return 'Contract signed by a recipient'
+      }
+      
+      if (timestamps?.contract_submitted && !timestamps?.application_approved) {
+        return 'Under review by CardStream'
+      }
+      
+      if (timestamps?.application_approved && !timestamps?.invoice_sent) {
+        return 'Approved - Ready to create invoice'
+      }
+      
+      if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
+        return 'Waiting for invoice payment'
+      }
+      
+      if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {
+        return 'Payment received - Ready for gateway integration'
+      }
+      
+      if (timestamps?.gateway_integrated && !timestamps?.account_live) {
+        return 'Gateway integrated - Final setup'
+      }
+      
+      if (timestamps?.account_live) {
+        return 'Account is Live ✓'
+      }
+      
+      // Fallback - shouldn't reach here if logic is correct
+      return 'Processing...'
     },
 
     pendingAdditionalDocuments() {

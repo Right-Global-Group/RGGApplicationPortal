@@ -7,6 +7,7 @@ use App\Http\Controllers\ApplicationDocumentsController;
 use App\Http\Controllers\ApplicationStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocuSignWebhookController;
 use App\Http\Controllers\ProgressTrackerController;
 use App\Http\Controllers\EmailTemplatesController;
 use App\Http\Controllers\SettingsController;
@@ -22,6 +23,12 @@ Route::delete('/account/logout', [AccountAuthController::class, 'logout'])->name
 Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
 Route::delete('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+// DocuSign Webhooks (Public - No Auth Required)
+Route::post('/webhooks/docusign/merchant', [DocuSignWebhookController::class, 'handleMerchantWebhook'])
+    ->name('webhooks.docusign.merchant');
+Route::post('/webhooks/docusign/cardstream', [DocuSignWebhookController::class, 'handleCardStreamWebhook'])
+    ->name('webhooks.docusign.cardstream');
 
 // Protected Routes (Both User and Account Guards)
 Route::middleware(['auth:web,account'])->group(function () {
@@ -84,6 +91,18 @@ Route::middleware(['auth:web,account'])->group(function () {
         // Merchant Contract (DocuSign)
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
         Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
+        
+        // NEW: Contract reminder routes
+        Route::post('/{application}/send-contract-reminder', [ApplicationStatusController::class, 'sendContractReminder'])
+            ->name('applications.send-contract-reminder');
+        Route::post('/{application}/set-contract-reminder', [ApplicationStatusController::class, 'setContractReminder'])
+            ->name('applications.set-contract-reminder');
+        Route::post('/{application}/cancel-contract-reminder', [ApplicationStatusController::class, 'cancelContractReminder'])
+            ->name('applications.cancel-contract-reminder');
+        
+        // NEW: Submit to CardStream
+        Route::post('/{application}/submit-to-cardstream', [ApplicationStatusController::class, 'submitToCardStream'])
+            ->name('applications.submit-to-cardstream');
         
         // Gateway Partner Contract (DocuSign)
         Route::post('/{application}/send-gateway-contract', [ApplicationStatusController::class, 'sendGatewayContract'])->name('applications.send-gateway-contract');

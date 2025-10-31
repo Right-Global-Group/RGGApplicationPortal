@@ -240,19 +240,38 @@
       <div class="flex flex-wrap gap-3">
         <!-- Send Credentials Button (only if account hasn't logged in yet) -->
         <button
-          v-if="!accountHasLoggedIn"
           @click="showCredentialsModal = true"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
           Send Account Credentials
         </button>
 
         <button
+          v-if="!is_account"
+          @click="requestAdditionalInfo"
+          class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Request Additional Info
+        </button>
+
+        <!-- Cancel Additional Info Reminder (if active) -->
+        <button
+          v-if="additionalInfoReminder"
+          @click="cancelAdditionalInfoReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel Info Request Reminder
+        </button>
+
+        <button
           v-if="canApproveDocuments"
           @click="markDocumentsAsApproved"
-          class="btn-primary"
+          class="btn-tertiary flex items-center gap-2"
         >
+          <Check class="w-4 h-4 text-white" />
           Mark Documents as Completed
         </button>
 
@@ -299,13 +318,33 @@
             />
           </svg>
           <span v-if="isLoading">Opening DocuSign...</span>
-          <span v-else>Send Contract Link (DocuSign)</span>
+          <span v-else>Open Contract Link (DocuSign)</span>
+        </button>
+
+        <!-- Contract Reminder Button (shows when contract_sent) -->
+        <button
+          v-if="canSendContractReminder"
+          @click="showContractReminderModal = true"
+          class="px-6 py-2 bg-blue-300/50 hover:bg-yellow-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send Contract Reminder
+        </button>
+
+        <!-- Cancel Contract Reminder (if active) -->
+        <button
+          v-if="contractReminder"
+          @click="cancelContractReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel Contract Reminder
         </button>
 
         <button
           v-if="canApprove"
           @click="markAsApproved"
-          class="btn-primary"
+          class="btn-tertiary"
         >
           Approve Application
         </button>
@@ -318,23 +357,16 @@
           Create Invoice
         </button>
 
+        <!-- Submit to CardStream Button (shows when contract_signed) -->
         <button
-          v-if="!is_account"
-          @click="requestAdditionalInfo"
-          class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          v-if="canSubmitToCardStream"
+          @click="showSubmitCardStreamModal = true"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
-          <icon name="mail" class="w-4 h-4 fill-current" />
-          Request Additional Info
-        </button>
-
-        <!-- Cancel Additional Info Reminder (if active) -->
-        <button
-          v-if="additionalInfoReminder"
-          @click="cancelAdditionalInfoReminder"
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="x" class="w-4 h-4 fill-current" />
-          Cancel Info Request Reminder
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Submit to CardStream
         </button>
       </div>
     </div>
@@ -353,6 +385,100 @@
           :timestamp="getStepTimestamp(step.id)"
           :show-connector="index < processSteps.length - 1"
         />
+      </div>
+    </div>
+
+    <div v-if="is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+      <h2 class="text-xl font-bold text-white mb-4">Your Actions</h2>
+      <div class="flex flex-wrap gap-3">
+        
+        <!-- Sign Contract Button - generates fresh signing URL -->
+        <button
+          v-if="canAccountSignContract"
+          @click="openContractForAccount"
+          :disabled="isLoadingContract"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg 
+            v-if="isLoadingContract" 
+            class="animate-spin w-4 h-4" 
+            fill="none" 
+            viewBox="0 0 24 24"
+          >
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span v-if="isLoadingContract">Opening Contract...</span>
+          <span v-else>Sign Contract</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="hasDocuSignRecipientStatus" id="section-contracts" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+      <h2 class="text-xl font-bold text-white mb-4">Contract Signing Status</h2>
+      <div class="space-y-3">
+        <div
+          v-for="(recipient, index) in docusignRecipientStatus"
+          :key="index"
+          class="flex items-center justify-between p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg"
+        >
+          <div class="flex items-center gap-3">
+            <!-- Status Icon -->
+            <svg 
+              v-if="['completed', 'signed'].includes(recipient.status)" 
+              class="w-6 h-6 text-green-400" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <svg 
+              v-else-if="recipient.status === 'delivered'" 
+              class="w-6 h-6 text-blue-400" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+            </svg>
+            <svg 
+              v-else 
+              class="w-6 h-6 text-yellow-400" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+            </svg>
+            
+            <!-- Recipient Info -->
+            <div>
+              <div class="text-white font-medium">{{ recipient.name }}</div>
+              <div class="text-sm text-gray-400">{{ recipient.email }}</div>
+              <div v-if="recipient.signed_at" class="text-xs text-green-400 mt-1">
+                Signed: {{ recipient.signed_at }}
+              </div>
+              <div v-else-if="recipient.delivered_at" class="text-xs text-blue-400 mt-1">
+                Viewed: {{ recipient.delivered_at }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Status Badge -->
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold"
+            :class="{
+              'bg-green-900/50 text-green-300': ['completed', 'signed'].includes(recipient.status),
+              'bg-blue-900/50 text-blue-300': recipient.status === 'delivered',
+              'bg-yellow-900/50 text-yellow-300': recipient.status === 'sent',
+              'bg-gray-700 text-gray-300': !['completed', 'signed', 'delivered', 'sent'].includes(recipient.status),
+            }"
+          >
+            {{ formatStatus(recipient.status) }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -566,6 +692,24 @@
       :has-active-reminder="!!credentialsReminder"
       @close="showCredentialsModal = false"
     />
+
+    <!-- Contract Reminder Modal -->
+    <contract-reminder-modal
+      v-if="showContractReminderModal"
+      :application-id="application.id"
+      :has-active-reminder="!!contractReminder"
+      @close="showContractReminderModal = false"
+    />
+
+    <!-- Submit to CardStream Modal -->
+    <submit-to-card-stream-modal
+      v-if="showSubmitCardStreamModal"
+      :application-id="application.id"
+      :application-name="application.name"
+      :account-name="application.account?.name || 'Unknown'"
+      :recipient-status="docusignRecipientStatus"
+      @close="showSubmitCardStreamModal = false"
+    />
   </div>
 
   <!-- Scroll to Top Button -->
@@ -598,15 +742,22 @@ import InvoiceModal from '@/Shared/InvoiceModal.vue'
 import AdditionalInfoModal from '@/Shared/AdditionalInfoModal.vue'
 import CredentialsModal from '@/Shared/CredentialsModal.vue'
 import Icon from '@/Shared/Icon.vue'
+import { Check } from 'lucide-vue-next'
+
+import ContractReminderModal from '@/Shared/ContractReminderModal.vue'
+import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
 
 export default {
   components: {
     Head,
     Link,
+    Check,
     TimelineStep,
     InvoiceModal,
     AdditionalInfoModal,
     CredentialsModal,
+    ContractReminderModal,
+    SubmitToCardStreamModal,
     Icon,
   },
   layout: Layout,
@@ -619,6 +770,14 @@ export default {
     accountHasLoggedIn: Boolean,
     documentCategories: Object,
     categoryDescriptions: Object,
+    docusignRecipientStatus: {
+      type: Array,
+      default: () => [],
+    },
+    contractReminder: {
+      type: Object,
+      default: null,
+    },
   },
   data() {
     return {
@@ -626,15 +785,18 @@ export default {
       showScrollTop: false,
       isLoading: false,
       showInvoiceModal: false,
+      isLoadingContract: false,
       showAdditionalInfoModal: false,
+      showContractReminderModal: false,
+      showSubmitCardStreamModal: false,
       showCredentialsModal: false,
       processSteps: [
         { id: 'created', label: 'Application Created', description: 'Initial application setup' },
+        { id: 'contract_sent', label: 'Contract Sent', description: 'Contract sent to merchant for signature' },
         { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
         { id: 'documents_approved', label: 'Documents Approved', description: 'Documents reviewed and approved' },
-        { id: 'application_sent', label: 'Contract Sent', description: 'Contract sent to client' },
-        { id: 'contract_completed', label: 'Contract Signed', description: 'Client signed the contract' },
-        { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted for review' },
+        { id: 'contract_signed', label: 'Contract Signed', description: 'All parties have signed the contract' },
+        { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted to gateway' },
         { id: 'application_approved', label: 'Application Approved', description: 'Application approved by admin' },
         { id: 'invoice_sent', label: 'Invoice Sent', description: 'Setup fee invoice sent' },
         { id: 'invoice_paid', label: 'Payment Received', description: 'Setup fee paid' },
@@ -656,6 +818,8 @@ export default {
         baseSections.push({ id: 'section-actions', label: 'Actions' })
       }
 
+      baseSections.push({ id: 'section-contracts', label: 'Contracts' })
+
       if (this.application.documents?.length > 0) {
         baseSections.push({ id: 'section-documents', label: 'Documents' })
       }
@@ -672,6 +836,46 @@ export default {
       baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
 
       return baseSections
+    },
+
+    canSendContractReminder() {
+      if (this.is_account) return false;
+      
+      const timestamps = this.application.status?.timestamps;
+      
+      // Show reminder button if:
+      // 1. Contract has been sent (has timestamp)
+      // 2. Contract NOT yet submitted
+      return (
+        !!timestamps?.contract_sent && 
+        !timestamps?.application_approved
+      );
+    },
+
+    canSendContract() {
+      // Can only send contract if it hasn't been sent yet
+      const timestamps = this.application.status?.timestamps;
+      return !this.is_account && !timestamps?.application_approved
+    },
+
+    canAccountSignContract() {
+      if (!this.is_account) return false;
+      
+      const timestamps = this.application.status?.timestamps;
+      
+      // Show button if contract sent but not yet signed
+      return (
+        !!timestamps?.contract_sent && 
+        !timestamps?.application_approved
+      );
+    },
+    
+    canSubmitToCardStream() {
+      return this.application.status?.current_step === 'contract_signed' && !this.is_account
+    },
+    
+    hasDocuSignRecipientStatus() {
+      return this.docusignRecipientStatus && this.docusignRecipientStatus.length > 0
     },
 
     allAdditionalInfoRequests() {
@@ -716,11 +920,6 @@ export default {
       return this.pendingDocumentRequests.length > 0
     },
 
-    canSendContract() {
-      // Can only send contract after documents are approved
-      return this.application.status?.current_step === 'documents_approved' && !this.is_account
-    },
-
     canApprove() {
       return ['contract_submitted'].includes(this.application.status?.current_step) && !this.is_account
     },
@@ -730,8 +929,15 @@ export default {
     },
 
     canApproveDocuments() {
-      // Can approve documents only when on documents_uploaded step (not account users)
-      return this.application.status?.current_step === 'documents_uploaded' && !this.is_account
+      // Can approve documents when:
+      // 1. Documents ARE uploaded (has timestamp)
+      // 2. Documents are NOT yet approved (no timestamp)
+      // 3. User is not an account
+      
+      const hasDocumentsUploaded = !!this.application.status?.timestamps?.documents_uploaded;
+      const documentsNotYetApproved = !this.application.status?.timestamps?.documents_approved;
+      
+      return hasDocumentsUploaded && documentsNotYetApproved && !this.is_account;
     },
     
     // Build document categories including all pending additional documents
@@ -780,6 +986,32 @@ export default {
         window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     },
+
+    async openContractForAccount() {
+      this.isLoadingContract = true;
+      try {
+        const response = await fetch(`/applications/${this.application.id}/send-contract`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          },
+        });
+        const data = await response.json();
+
+        if (data.success && data.signing_url) {
+          // Open in popup for embedded signing
+          window.open(data.signing_url, '_blank', 'width=800,height=600');
+        } else {
+          alert(data.message || 'Failed to open contract');
+        }
+      } catch (error) {
+        console.error('Error opening contract:', error);
+        alert('Failed to open contract');
+      } finally {
+        this.isLoadingContract = false;
+      }
+    },
     
     handleScroll() {
       const scrollTop = this.scrollContainer ? this.scrollContainer.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0)
@@ -794,6 +1026,28 @@ export default {
             this.confirmingFees = false
           }
         })
+      }
+    },
+
+    scrollToAccountActions() {
+      setTimeout(() => {
+        // Find the account actions section
+        const actionsSection = document.querySelector('#section-actions')
+        if (actionsSection) {
+          actionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 500)
+    },
+    
+    scrollToHashOnLoad() {
+      const hash = window.location.hash
+      if (hash) {
+        setTimeout(() => {
+          const element = document.querySelector(hash)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 500)
       }
     },
     
@@ -851,6 +1105,16 @@ export default {
         this.isLoading = false
       }
     },
+    cancelContractReminder() {
+      if (confirm('Cancel scheduled contract reminders?')) {
+        this.$inertia.post(`/applications/${this.application.id}/cancel-contract-reminder`)
+      }
+    },
+    
+    formatStatus(status) {
+      if (!status) return 'Pending'
+      return status.charAt(0).toUpperCase() + status.slice(1)
+    },
     
     markAsApproved() {
       if (confirm('Mark this application as approved?')) {
@@ -872,38 +1136,118 @@ export default {
       const currentStep = this.application.status?.current_step
       const timestamps = this.application.status?.timestamps
       
-      // Steps that require explicit completion (manual actions)
-      const manualSteps = ['documents_approved']
+      // ALWAYS check timestamps FIRST - if a step has a timestamp, it's completed
+      if (timestamps?.[stepId]) {
+        return true
+      }
       
-      // For manual steps, only show as complete if they have a timestamp
-      if (manualSteps.includes(stepId)) {
+      // Special case: 'created' is always complete if we're past it
+      if (stepId === 'created' && currentStep !== 'created') {
+        return true
+      }
+      
+      // Special case for documents_uploaded
+      // Mark as complete if contract is signed (documents must have been approved)
+      if (stepId === 'documents_uploaded') {
+        if (timestamps?.documents_uploaded) {
+          return true
+        }
+        // If contract signed, documents must have been uploaded and approved
+        if (timestamps?.contract_signed || timestamps?.documents_approved) {
+          return true
+        }
+      }
+      
+      // Special case for documents_approved
+      // Mark as complete if contract is signed
+      if (stepId === 'documents_approved') {
+        if (timestamps?.documents_approved) {
+          return true
+        }
+        // If contract signed, documents must have been approved
+        if (timestamps?.contract_signed) {
+          return true
+        }
+      }
+      
+      // Special case for contract_signed
+      // Mark as complete if contract is submitted or any step after it
+      if (stepId === 'contract_signed') {
+        if (timestamps?.contract_signed) {
+          return true
+        }
+        // If contract submitted or any later step, contract must have been signed
+        if (timestamps?.contract_submitted || 
+            timestamps?.application_approved || 
+            timestamps?.invoice_sent ||
+            timestamps?.invoice_paid ||
+            timestamps?.gateway_integrated ||
+            timestamps?.account_live) {
+          return true
+        }
+      }
+
+      // Special case for contract_submitted
+      // Mark as complete if application is approved or any step after it
+      if (stepId === 'contract_submitted') {
+        if (timestamps?.contract_submitted) {
+          return true
+        }
+        // If application approved or any later step, contract must have been submitted
+        if (timestamps?.application_approved || 
+            timestamps?.invoice_sent ||
+            timestamps?.invoice_paid ||
+            timestamps?.gateway_integrated ||
+            timestamps?.account_live) {
+          return true
+        }
+      }
+      
+      // Steps that happen in parallel and need explicit timestamps
+      const timestampRequiredSteps = [
+        'contract_sent',
+        'contract_submitted',
+        'application_approved',
+        'invoice_sent',
+        'invoice_paid',
+        'gateway_integrated',
+        'account_live',
+      ]
+      
+      // For timestamp-required steps, ONLY show complete if they have a timestamp
+      if (timestampRequiredSteps.includes(stepId)) {
         return !!timestamps?.[stepId]
       }
       
-      // For automatic steps, use the order-based logic
+      // For other steps, use order-based logic
       const stepOrder = [
-        'created', 
-        'documents_uploaded', 
-        'documents_approved', 
-        'application_sent', 
-        'contract_completed', 
-        'contract_submitted', 
+        'created',
+        'contract_sent',
+        'documents_uploaded',
+        'documents_approved',
+        'contract_signed',
+        'contract_submitted',
         'application_approved',
         'approval_email_sent',
         'gateway_contract_sent',
         'gateway_contract_signed',
         'gateway_details_received',
         'wordpress_credentials_collected',
-        'invoice_sent', 
-        'invoice_paid', 
-        'gateway_integrated', 
+        'invoice_sent',
+        'invoice_paid',
+        'gateway_integrated',
         'account_live'
       ]
       
       const currentIndex = stepOrder.indexOf(currentStep)
       const checkIndex = stepOrder.indexOf(stepId)
       
-      return checkIndex <= currentIndex
+      // Only use order-based completion for steps NOT in timestampRequiredSteps
+      if (currentIndex !== -1 && checkIndex !== -1) {
+        return checkIndex <= currentIndex
+      }
+      
+      return false
     },
     
     getStepTimestamp(stepId) {
@@ -981,6 +1325,13 @@ export default {
       }
 
       setTimeout(() => this.handleScroll(), 100)
+
+      if (this.is_account) {
+        this.scrollToAccountActions()
+      } else {
+        // Otherwise handle hash scroll
+        this.scrollToHashOnLoad()
+      }
     })
   },
   beforeUnmount() {

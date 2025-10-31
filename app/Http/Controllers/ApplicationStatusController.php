@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\AdditionalInfoRequestedEvent;
+use App\Events\CardStreamSubmissionEvent;
 use App\Models\Application;
 use App\Models\ApplicationAdditionalDocument;
 use App\Models\ApplicationDocument;
@@ -96,6 +97,10 @@ class ApplicationStatusController extends Controller
                     'status' => $doc->status,
                     'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
                 ]),
+                'contractReminder' => $application->emailReminders()
+                    ->where('email_type', 'contract_reminder')
+                    ->where('is_active', true)
+                    ->first(),
                 'additional_documents' => $application->additionalDocuments()
                     ->with('requestedBy')
                     ->get()
@@ -157,6 +162,7 @@ class ApplicationStatusController extends Controller
                         'created_at' => $log->created_at->format('Y-m-d H:i'),
                     ]),
             ],
+            'docusignRecipientStatus' => $application->status->docusign_recipient_status ?? [],
             'is_account' => $isAccount,
             'is_admin' => $isAdmin,
             'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
@@ -312,7 +318,8 @@ class ApplicationStatusController extends Controller
                 'docusign_status' => 'sent',
             ]);
 
-            $application->status->transitionTo('application_sent', 'Contract sent via DocuSign');
+            // ✅ FIXED - Transition to 'contract_sent' (NEW flow)
+            $application->status->transitionTo('contract_sent', 'Contract sent via DocuSign');
 
             return response()->json([
                 'success' => true,
@@ -478,9 +485,9 @@ class ApplicationStatusController extends Controller
                     'completed_at' => now(),
                 ]);
                 
-                // Update application status
-                $application->status->transitionTo('contract_completed', 'Contract signed via DocuSign');
-                $application->status->transitionTo('contract_submitted', 'Contract automatically submitted');
+                // Use 'contract_signed' instead of 'contract_completed'
+                $application->status->transitionTo('contract_signed', 'Contract signed via DocuSign');
+                
             }
             
             // Return a view that closes the window and notifies the opener
@@ -533,5 +540,175 @@ class ApplicationStatusController extends Controller
             'success' => false,
             'message' => 'Gateway contract signing session ended.',
         ]);
+    }
+
+    public function sendContractReminder(Application $application): RedirectResponse
+    {
+        // Check permissions
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot send contract reminders.');
+        }
+    
+        $user = auth()->guard('web')->user();
+        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+            abort(403);
+        }
+    
+        // ✅ NEW: If documents are uploaded but not approved, mark them as approved
+        if ($application->status->current_step === 'documents_uploaded') {
+            $application->status->transitionTo(
+                'documents_approved', 
+                'Documents marked as approved when sending contract reminder'
+            );
+        }
+    
+        // ✅ NEW: Ensure contract_sent step is marked complete
+        if (!$application->status->contract_sent_at) {
+            $application->status->update([
+                'contract_sent_at' => now()
+            ]);
+        }
+        
+        // Transition to contract_sent if not already there
+        if ($application->status->current_step !== 'contract_sent') {
+            $application->status->transitionTo(
+                'contract_sent',
+                'Contract reminder sent - marked as sent'
+            );
+        }
+    
+        // Get the signing URL from DocuSign status
+        $signingUrl = $application->status->docusign_signing_url ?? url("/applications/{$application->id}/status");
+    
+        try {
+            $emailData = [
+                'account_name' => $application->account->name,
+                'application_name' => $application->name,
+                'signing_url' => $signingUrl,
+                'application_url' => url("/applications/{$application->id}/status"),
+            ];
+    
+            Mail::to($application->account->email)->send(
+                new \App\Mail\DynamicEmail('contract_reminder', $emailData)
+            );
+    
+            // Log the email
+            \App\Models\EmailLog::create([
+                'emailable_type' => get_class($application),
+                'emailable_id' => $application->id,
+                'email_type' => 'contract_reminder',
+                'recipient_email' => $application->account->email,
+                'subject' => 'Reminder: Contract Awaiting Signature',
+                'sent_at' => now(),
+            ]);
+    
+            return Redirect::back()->with('success', 'Contract reminder sent successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Failed to send contract reminder', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return Redirect::back()->with('error', 'Failed to send contract reminder.');
+        }
+    }
+
+    /**
+     * Set recurring contract reminder
+     */
+    public function setContractReminder(Application $application): RedirectResponse
+    {
+        // Check permissions
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot set email reminders.');
+        }
+
+        $user = auth()->guard('web')->user();
+        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+            abort(403);
+        }
+
+        $validated = Request::validate([
+            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks'],
+        ]);
+
+        // Deactivate existing contract reminders
+        $application->emailReminders()
+            ->where('email_type', 'contract_reminder')
+            ->update(['is_active' => false]);
+
+        // Create new reminder
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'contract_reminder',
+            'interval' => $validated['interval'],
+            'next_send_at' => $intervals[$validated['interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'Contract reminder scheduled successfully.');
+    }
+
+    /**
+     * Cancel contract reminder
+     */
+    public function cancelContractReminder(Application $application): RedirectResponse
+    {
+        // Check permissions
+        if (auth()->guard('account')->check()) {
+            abort(403);
+        }
+
+        $application->emailReminders()
+            ->where('email_type', 'contract_reminder')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'Contract reminder cancelled.');
+    }
+
+    /**
+     * Submit application to CardStream
+     */
+    public function submitToCardStream(Application $application): RedirectResponse
+    {
+        // Check permissions - only admins/users can submit
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot submit applications to CardStream.');
+        }
+
+        // Verify contract is signed
+        if ($application->status->current_step !== 'contract_signed') {
+            return Redirect::back()->with('error', 'Contract must be signed before submitting to CardStream.');
+        }
+
+        // Get the DocuSign envelope ID to generate the contract URL
+        $envelopeId = $application->status->docusign_envelope_id;
+        
+        if (!$envelopeId) {
+            return Redirect::back()->with('error', 'No signed contract found for this application.');
+        }
+
+        // Build DocuSign document view URL
+        // This URL allows CardStream to view the signed contract
+        $contractUrl = "https://app.docusign.com/documents/details/{$envelopeId}";
+
+        // Update application status
+        $application->status->transitionTo(
+            'contract_submitted',
+            'Application submitted to CardStream by ' . auth()->user()->name
+        );
+
+        // Fire event to send email to CardStream
+        event(new CardStreamSubmissionEvent($application, $contractUrl));
+
+        return Redirect::back()->with('success', 'Application submitted to CardStream successfully. Email sent with contract details.');
     }
 }

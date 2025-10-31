@@ -35,6 +35,7 @@ return [
         ],
     ],
 
+
     'docusign' => [
         'base_url' => env('DOCUSIGN_BASE_URL', 'https://demo.docusign.net/restapi'),
         'account_id' => env('DOCUSIGN_ACCOUNT_ID'),
@@ -46,8 +47,8 @@ return [
     ],
 
     'cardstream' => [
+        'contact_email' => env('CARDSTREAM_CONTACT_EMAIL', 'contracts@cardstream.com'),
         'api_url' => env('CARDSTREAM_API_URL'),
-        'merchant_id' => env('CARDSTREAM_MERCHANT_ID'),
         'api_key' => env('CARDSTREAM_API_KEY'),
     ],
 

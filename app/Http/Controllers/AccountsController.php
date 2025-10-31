@@ -180,6 +180,20 @@ class AccountsController extends Controller
                 'created_at' => $app->created_at,
                 'status' => $app->status ? [
                     'current_step' => $app->status->current_step,
+                    'timestamps' => [
+                        'created' => $app->status->created_at?->format('Y-m-d H:i'),
+                        'documents_uploaded' => $app->status->documents_uploaded_at?->format('Y-m-d H:i'),
+                        'documents_approved' => $app->status->documents_approved_at?->format('Y-m-d H:i'),
+                        'contract_sent' => $app->status->contract_sent_at?->format('Y-m-d H:i'),
+                        'contract_signed' => $app->status->contract_signed_at?->format('Y-m-d H:i'),
+                        'contract_completed' => $app->status->contract_completed_at?->format('Y-m-d H:i'),
+                        'contract_submitted' => $app->status->contract_submitted_at?->format('Y-m-d H:i'),
+                        'application_approved' => $app->status->application_approved_at?->format('Y-m-d H:i'),
+                        'invoice_sent' => $app->status->invoice_sent_at?->format('Y-m-d H:i'),
+                        'invoice_paid' => $app->status->invoice_paid_at?->format('Y-m-d H:i'),
+                        'gateway_integrated' => $app->status->gateway_integrated_at?->format('Y-m-d H:i'),
+                        'account_live' => $app->status->account_live_at?->format('Y-m-d H:i'),
+                    ],
                 ] : null,
             ]),
             'emailReminder' => $account->emailReminders()

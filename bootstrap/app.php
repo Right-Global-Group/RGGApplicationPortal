@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         
         $middleware->validateCsrfTokens(except: [
-            'webhooks/docusign',
+            'webhooks/docusign/*',
         ]);
         
         // Register route middleware aliases
