@@ -104,6 +104,16 @@
             font-weight: bold;
             color: #667eea;
         }
+        .attachment-box {
+            background: #e0e7ff;
+            border: 1px solid #818cf8;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .attachment-box strong {
+            color: #3730a3;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +191,21 @@
                 <li>Application approved by internal team</li>
             </ul>
         </div>
+
+        @if($document_count > 0)
+        <div class="attachment-box">
+            <strong>📎 Attached Documents ({{ $document_count }}):</strong>
+            <p style="margin: 10px 0 0 0; font-size: 14px;">
+                All supporting documents have been attached to this email, including:
+            </p>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px;">
+                <li>Identity verification documents</li>
+                <li>Business verification documents</li>
+                <li>Bank account verification</li>
+                <li>Any additional requested documentation</li>
+            </ul>
+        </div>
+        @endif
         
         <div style="text-align: center;">
             <a href="{{ $contract_url }}" class="button">

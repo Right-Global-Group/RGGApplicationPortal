@@ -27,8 +27,7 @@ class DatabaseSeeder extends Seeder
         ]);
         $mainUser->assignRole('admin');
 
-        // Create additional users (they can be regular users or you can make them admin too)
-        User::factory(5)->create();
+        User::factory(1)->create();
 
         // Create account with a random user
         $account = Account::create([
@@ -39,10 +38,6 @@ class DatabaseSeeder extends Seeder
             'status' => Account::STATUS_PENDING,
         ]);
         $account->assignRole('account');
-
-        // Create applications with the account
-        $applications = Application::factory(20)
-            ->create(['account_id' => $account->id]);
 
         // Create contacts
         Contact::factory(10)

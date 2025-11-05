@@ -427,6 +427,79 @@ class DocuSignService
         return $response->json();
     }
 
+
+    /**
+     * Get download URL for a specific document in an envelope
+     * 
+     * @param string $envelopeId The envelope ID
+     * @param string $documentId The document ID (use '2' for second document in template)
+     * @return string The document download URL
+     */
+    public function getEnvelopeDocumentUrl(string $envelopeId, string $documentId = '2'): string
+    {
+        try {
+            $accessToken = $this->getAccessToken();
+            
+            // Build the document download URL
+            // This URL allows downloading the specific document from the envelope
+            $documentUrl = "{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$envelopeId}/documents/{$documentId}";
+            
+            Log::info('Generated DocuSign document URL', [
+                'envelope_id' => $envelopeId,
+                'document_id' => $documentId,
+                'url' => $documentUrl,
+            ]);
+            
+            return $documentUrl;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to get document URL', [
+                'envelope_id' => $envelopeId,
+                'document_id' => $documentId,
+                'error' => $e->getMessage(),
+            ]);
+            
+            throw $e;
+        }
+    }
+
+    /**
+     * Download a specific document from an envelope as base64
+     * 
+     * @param string $envelopeId The envelope ID
+     * @param string $documentId The document ID
+     * @return string Base64 encoded document content
+     */
+    public function downloadEnvelopeDocument(string $envelopeId, string $documentId = '2'): string
+    {
+        try {
+            $accessToken = $this->getAccessToken();
+            
+            $response = Http::withToken($accessToken)
+                ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$envelopeId}/documents/{$documentId}");
+            
+            if ($response->failed()) {
+                Log::error('Failed to download document', [
+                    'envelope_id' => $envelopeId,
+                    'document_id' => $documentId,
+                    'status' => $response->status(),
+                ]);
+                throw new \Exception('Failed to download document from DocuSign');
+            }
+            
+            return base64_encode($response->body());
+            
+        } catch (\Exception $e) {
+            Log::error('Error downloading document', [
+                'envelope_id' => $envelopeId,
+                'document_id' => $documentId,
+                'error' => $e->getMessage(),
+            ]);
+            
+            throw $e;
+        }
+    }
+
     public function handleMerchantWebhook(array $payload): void
     {
         $envelopeId = $payload['data']['envelopeSummary']['envelopeId'] ?? $payload['envelopeId'] ?? null;

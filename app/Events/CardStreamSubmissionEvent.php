@@ -12,16 +12,26 @@ class CardStreamSubmissionEvent
 
     public Application $application;
     public string $contractUrl;
+    public array $documents;
 
-    public function __construct(Application $application, string $contractUrl)
+    /**
+     * Create a new event instance.
+     *
+     * @param Application $application
+     * @param string $contractUrl DocuSign contract URL
+     * @param array $documents Array of document data with paths for attachments
+     */
+    public function __construct(Application $application, string $contractUrl, array $documents = [])
     {
         $this->application = $application;
         $this->contractUrl = $contractUrl;
+        $this->documents = $documents;
 
         \Log::info('CardStreamSubmissionEvent instantiated', [
             'application_id' => $application->id,
             'application_name' => $application->name,
             'contract_url' => $contractUrl,
+            'document_count' => count($documents),
         ]);
     }
 }

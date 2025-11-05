@@ -14,23 +14,25 @@ class SendCardStreamSubmissionEmail
     {
         $application = $event->application;
         $contractUrl = $event->contractUrl;
+        $documents = $event->documents;
 
         Log::info('SendCardStreamSubmissionEmail triggered', [
             'application_id' => $application->id,
             'application_name' => $application->name,
             'contract_url' => $contractUrl,
+            'document_count' => count($documents),
         ]);
 
         // CardStream email address
-        $cardstreamEmail = 'contracts@cardstream.com'; // Update this to the correct email
+        $cardstreamEmail = 'contracts@cardstream.com';
 
         // Get the submitting user's details
         $submittedBy = auth()->guard('web')->check() 
             ? auth()->guard('web')->user()->name ?? auth()->guard('web')->user()->email
             : 'System';
 
-        // Send submission email to CardStream
-        Mail::to($cardstreamEmail)->send(new DynamicEmail('cardstream_submission', [
+        // Prepare email data
+        $emailData = [
             'application_name' => $application->name,
             'account_name' => $application->account->name ?? 'N/A',
             'trading_name' => $application->trading_name ?? 'N/A',
@@ -43,7 +45,13 @@ class SendCardStreamSubmissionEmail
             'monthly_fee' => $application->monthly_fee,
             'monthly_minimum' => $application->monthly_minimum,
             'service_fee' => $application->service_fee,
-        ]));
+            'document_count' => count($documents),
+        ];
+
+        // Send email with attachments
+        Mail::to($cardstreamEmail)->send(
+            new DynamicEmail('cardstream_submission', $emailData, $documents)
+        );
 
         // Log the email
         EmailLog::create([
@@ -58,6 +66,7 @@ class SendCardStreamSubmissionEmail
         Log::info('CardStream submission email sent successfully', [
             'application_id' => $application->id,
             'recipient' => $cardstreamEmail,
+            'attachments' => count($documents),
         ]);
     }
 }

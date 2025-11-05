@@ -174,8 +174,9 @@ class ApplicationStatusController extends Controller
                 ->where('email_type', 'wordpress_credentials_reminder')
                 ->where('is_active', true)
                 ->first(),
-            // NEW: Account credentials data
+            // Account credentials data
             'accountId' => $application->account_id,
+            'accountName' => $application->account_name ?? $application->account->name ?? 'Unknown',
             'accountHasLoggedIn' => $application->account->first_login_at !== null,
             'credentialsReminder' => $application->account->emailReminders()
                 ->where('email_type', 'account_credentials')
@@ -751,16 +752,93 @@ class ApplicationStatusController extends Controller
             return Redirect::back()->with('error', 'Contract must be signed by all recipients before submitting to CardStream.');
         }
 
-        // Get the DocuSign envelope ID to generate the contract URL
+        // Get the DocuSign envelope ID
         $envelopeId = $application->status->docusign_envelope_id;
         
         if (!$envelopeId) {
             return Redirect::back()->with('error', 'No signed contract found for this application.');
         }
 
-        // Build DocuSign document view URL
-        // This URL allows CardStream to view the signed contract
-        $contractUrl = "https://app.docusign.com/documents/details/{$envelopeId}";
+        // Collect all uploaded documents with their files
+        $documents = [];
+        
+        // Download and attach the FIRST DocuSign document (the contract)
+        try {
+            $docusignPdf = $this->docuSignService->downloadEnvelopeDocument($envelopeId, '1'); // Changed from '2' to '1'
+            $tempPath = storage_path('app/temp/docusign_contract_' . $application->id . '.pdf');
+            
+            // Ensure temp directory exists
+            if (!file_exists(dirname($tempPath))) {
+                mkdir(dirname($tempPath), 0755, true);
+            }
+            
+            // Save the base64 decoded PDF to temp file
+            file_put_contents($tempPath, base64_decode($docusignPdf));
+            
+            $documents[] = [
+                'category' => 'Signed Contract',
+                'filename' => "Signed_Contract_{$application->name}.pdf",
+                'path' => $tempPath,
+                'mime' => 'application/pdf',
+                'is_temp' => true, // Flag to delete after sending
+            ];
+            
+            \Log::info('DocuSign contract downloaded for CardStream submission', [
+                'application_id' => $application->id,
+                'envelope_id' => $envelopeId,
+                'document_id' => '1',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to download DocuSign contract', [
+                'envelope_id' => $envelopeId,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return Redirect::back()->with('error', 'Failed to download signed contract from DocuSign. Please try again.');
+        }
+        
+        // Get standard documents
+        foreach ($application->documents as $doc) {
+            try {
+                // Skip if file_path is null or empty
+                if (empty($doc->file_path)) {
+                    \Log::warning('Document has no file path', [
+                        'document_id' => $doc->id,
+                        'document_category' => $doc->document_category,
+                    ]);
+                    continue;
+                }
+                
+                if (\Storage::disk('private')->exists($doc->file_path)) {
+                    $documents[] = [
+                        'category' => $this->formatDocumentCategory($doc->document_category),
+                        'filename' => $doc->original_filename,
+                        'path' => storage_path('app/private/' . $doc->file_path),
+                        'mime' => \Storage::disk('private')->mimeType($doc->file_path),
+                        'is_temp' => false,
+                    ];
+                } else {
+                    \Log::warning('Document file does not exist', [
+                        'document_id' => $doc->id,
+                        'file_path' => $doc->file_path,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to access document file', [
+                    'document_id' => $doc->id,
+                    'file_path' => $doc->file_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        \Log::info('Documents collected for CardStream submission', [
+            'application_id' => $application->id,
+            'document_count' => count($documents),
+        ]);
+
+        // Get the DocuSign view URL for reference in email (NOT as attachment)
+        $documentUrl = "https://app.docusign.com/documents/details/{$envelopeId}";
 
         // Update application status
         $application->status->transitionTo(
@@ -768,10 +846,31 @@ class ApplicationStatusController extends Controller
             'Application submitted to CardStream by ' . auth()->user()->name
         );
 
-        // Fire event to send email to CardStream
-        event(new CardStreamSubmissionEvent($application, $contractUrl));
+        // Fire event to send email with documents
+        event(new CardStreamSubmissionEvent($application, $documentUrl, $documents));
 
-        return Redirect::back()->with('success', 'Application submitted to CardStream successfully. Email sent with contract details.');
+        // Clean up temporary DocuSign file after a delay (the event is dispatched synchronously)
+        foreach ($documents as $doc) {
+            if (isset($doc['is_temp']) && $doc['is_temp'] && file_exists($doc['path'])) {
+                @unlink($doc['path']);
+            }
+        }
+
+        return Redirect::back()->with('success', 'Application submitted to CardStream successfully. Email sent with signed contract and all supporting documents.');
+    }
+
+    /**
+     * Format document category for display
+     */
+    private function formatDocumentCategory(string $category): string
+    {
+        // Handle additional documents
+        if (str_starts_with($category, 'additional_requested_')) {
+            return 'Additional Document';
+        }
+        
+        // Format standard categories
+        return ucwords(str_replace('_', ' ', $category));
     }
 
     /**

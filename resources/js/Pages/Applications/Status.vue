@@ -805,7 +805,7 @@
       v-if="showSubmitCardStreamModal"
       :application-id="application.id"
       :application-name="application.name"
-      :account-name="application.account?.name || 'Unknown'"
+      :account-name="accountName"
       :recipient-status="docusignRecipientStatus"
       @close="showSubmitCardStreamModal = false"
     />
@@ -905,6 +905,7 @@ export default {
     additionalInfoReminder: Object,
     credentialsReminder: Object,
     accountId: Number,
+    accountName: String,
     accountHasLoggedIn: Boolean,
     documentCategories: Object,
     categoryDescriptions: Object,

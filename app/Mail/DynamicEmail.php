@@ -27,7 +27,7 @@ class DynamicEmail extends Mailable
         'gateway_partner_contract_ready' => 'New Merchant Application Contract',
         'wordpress_credentials_request' => 'WordPress Integration Details Needed',
         'wordpress_credentials_reminder' => 'Reminder: WordPress Integration Details Needed',
-        'cardstream_submission' => 'Email Sent to CardStream with Contract',
+        'cardstream_submission' => 'New Application Submission - Ready for Processing',
         'invoice_reminder' => 'Reminder: Create Invoice in Xero',
         'cardstream_credentials' => 'Your CardStream Account is Ready',
         'cardstream_credentials_reminder' => 'Reminder: Set Up Your CardStream Account',
@@ -62,7 +62,8 @@ class DynamicEmail extends Mailable
 
     public function __construct(
         public string $emailType,
-        public array $data = []
+        public array $data = [],
+        public array $documentAttachments = []
     ) {}
 
     public function build()
@@ -81,8 +82,25 @@ class DynamicEmail extends Mailable
             throw new \Exception("Email template not found for type: {$this->emailType}");
         }
 
-        return $this->subject($subject)
+        $email = $this->subject($subject)
             ->view($view)
             ->with($this->data);
+
+        // Attach documents if provided
+        foreach ($this->documentAttachments as $attachment) {
+            if (isset($attachment['path']) && file_exists($attachment['path'])) {
+                $email->attach($attachment['path'], [
+                    'as' => $attachment['filename'] ?? basename($attachment['path']),
+                    'mime' => $attachment['mime'] ?? 'application/octet-stream',
+                ]);
+            } else {
+                \Log::warning('Attachment file not found', [
+                    'path' => $attachment['path'] ?? 'null',
+                    'email_type' => $this->emailType,
+                ]);
+            }
+        }
+
+        return $email;
     }
 }
