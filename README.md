@@ -35,7 +35,7 @@ G2Pay Portal streamlines the merchant application process from initial signup th
 - **Backend**: Laravel 10, PHP 8.2
 - **Frontend**: Vue 3, Inertia.js, Tailwind CSS
 - **Database**: MySQL
-- **Integrations**: DocuSign API, Xero API, Email (SMTP/Mailgun)
+- **Integrations**: DocuSign API, TODO: Xero API, CardStream API
 
 
 
