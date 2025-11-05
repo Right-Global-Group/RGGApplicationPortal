@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ApplicationDocumentsController extends Controller
 {
@@ -65,6 +66,12 @@ class ApplicationDocumentsController extends Controller
             'status' => 'uploaded',
         ]);
     
+        Log::info('Document uploaded', [
+            'application_id' => $application->id,
+            'category' => $validated['document_category'],
+            'filename' => $file->getClientOriginalName(),
+        ]);
+    
         // Check if this is an additional document and mark it as uploaded
         if (str_starts_with($validated['document_category'], 'additional_requested_')) {
             $docId = str_replace('additional_requested_', '', $validated['document_category']);
@@ -75,21 +82,60 @@ class ApplicationDocumentsController extends Controller
                     'is_uploaded' => true,
                     'uploaded_at' => now(),
                 ]);
+                
+                Log::info('Additional document marked as uploaded', [
+                    'additional_doc_id' => $additionalDoc->id,
+                    'document_name' => $additionalDoc->document_name,
+                ]);
             }
         }
     
         // Fire document uploaded event
         event(new DocumentUploadedEvent($document));
     
+        // Refresh the application to get updated relationships
+        $application->load('documents', 'additionalDocuments');
+        
         // Check if all required documents are now uploaded
+        Log::info('Checking if all documents uploaded', [
+            'application_id' => $application->id,
+            'current_step' => $application->status->current_step,
+        ]);
+        
         if ($application->status->hasAllRequiredDocuments()) {
-            $currentStep = $application->status->current_step;
+            Log::info('All documents uploaded - checking if should transition', [
+                'current_step' => $application->status->current_step,
+                'documents_uploaded_at' => $application->status->documents_uploaded_at,
+            ]);
             
-            // Only auto-transition if in 'created' or 'contract_sent' status
-            if (in_array($currentStep, ['created', 'contract_sent'])) {
+            // Set the documents_uploaded timestamp if not already set
+            // This is important even if we've moved past this step
+            if (!$application->status->documents_uploaded_at) {
+                $application->status->update([
+                    'documents_uploaded_at' => now()
+                ]);
+                
+                Log::info('Set documents_uploaded_at timestamp');
+            }
+            
+            // Only transition current_step if we're still in early stages
+            if (in_array($application->status->current_step, ['created', 'contract_sent'])) {
+                Log::info('Transitioning to documents_uploaded');
+                
                 $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
                 event(new AllDocumentsUploadedEvent($application));
+            } else {
+                Log::info('All documents uploaded but already past that step', [
+                    'current_step' => $application->status->current_step
+                ]);
             }
+        } else {
+            Log::info('Not all documents uploaded yet', [
+                'has_all' => false,
+                'required_categories' => ApplicationDocument::getRequiredCategories(),
+                'uploaded_count' => $application->documents()->count(),
+                'pending_additional' => $application->additionalDocuments()->where('is_uploaded', false)->count(),
+            ]);
         }
     
         return Redirect::back()->with('success', 'Document uploaded successfully.');
@@ -176,7 +222,9 @@ class ApplicationDocumentsController extends Controller
         // Delete the requirement
         $additionalDocument->delete();
 
-        // Check if all documents are now complete
+        // Refresh and check if all documents are now complete
+        $application->load('documents', 'additionalDocuments');
+        
         if ($application->status->hasAllRequiredDocuments()) {
             $currentStep = $application->status->current_step;
             

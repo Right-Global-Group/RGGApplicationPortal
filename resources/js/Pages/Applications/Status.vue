@@ -244,8 +244,9 @@
           class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
-          Send Account Credentials
+          Send G2Pay Credentials
         </button>
+
 
         <button
           v-if="!is_account"
@@ -325,10 +326,10 @@
         <button
           v-if="canSendContractReminder"
           @click="showContractReminderModal = true"
-          class="px-6 py-2 bg-blue-300/50 hover:bg-yellow-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          class="px-6 py-2 bg-blue-300/50 hover:bg-blue-400/50 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
-          Send Contract Reminder
+          Send Contract Link
         </button>
 
         <!-- Cancel Contract Reminder (if active) -->
@@ -349,14 +350,6 @@
           Approve Application
         </button>
 
-        <button
-          v-if="canCreateInvoice"
-          @click="showInvoiceModal = true"
-          class="btn-primary"
-        >
-          Create Invoice
-        </button>
-
         <!-- Submit to CardStream Button (shows when contract_signed) -->
         <button
           v-if="canSubmitToCardStream"
@@ -368,8 +361,95 @@
           </svg>
           Submit to CardStream
         </button>
+
+        <!-- Invoice Reminder Button -->
+        <button
+          v-if="canSendInvoiceReminder"
+          @click="sendInvoiceReminder"
+          class="px-6 py-2 bg-purple-800 hover:bg-purple-900 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send Invoice Reminder (Xero)
+        </button>
+
+        <!-- Mark Invoice as Paid Button -->
+        <button
+          v-if="canMarkInvoiceAsPaid"
+          @click="markInvoiceAsPaid"
+          class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Mark Invoice as Paid
+        </button>
+
+        <!-- Send CardStream Credentials Button -->
+        <button
+          v-if="canSendCardStreamCredentials"
+          @click="sendCardStreamCredentials"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send CardStream Credentials
+        </button>
+
+        <!-- Cancel CardStream Reminder -->
+        <button
+          v-if="cardstreamReminder"
+          @click="cancelCardStreamReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel CardStream Reminder
+        </button>
+
+        <!-- Mark Gateway Integrated Button -->
+        <button
+          v-if="canMarkGatewayIntegrated"
+          @click="markGatewayIntegrated"
+          class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Mark Gateway Integrated
+        </button>
+
+        <!-- Request WordPress Credentials Button -->
+        <button
+          v-if="canRequestWordPress"
+          @click="requestWordPressCredentials"
+          class="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Request WordPress Credentials
+        </button>
+
+        <!-- Cancel WordPress Reminder -->
+        <button
+          v-if="wordpressReminder"
+          @click="cancelWordPressReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel WordPress Reminder
+        </button>
+
+        <!-- Make Account Live Button -->
+        <button
+          v-if="canMakeAccountLive"
+          @click="makeAccountLive"
+          class="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all flex items-center gap-2 font-semibold shadow-lg"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          🎉 Make Account Live
+        </button>
       </div>
     </div>
+
 
     <!-- Progress Timeline -->
     <div id="section-timeline" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
@@ -710,6 +790,31 @@
       :recipient-status="docusignRecipientStatus"
       @close="showSubmitCardStreamModal = false"
     />
+
+    <card-stream-credentials-modal
+      v-if="showCardStreamCredentialsModal"
+      :show="showCardStreamCredentialsModal"
+      :application-id="application.id"
+      :has-active-reminder="!!cardstreamReminder"
+      @close="showCardStreamCredentialsModal = false"
+    />
+
+    <word-press-credentials-modal
+      v-if="showWordPressRequestModal"
+      :show="showWordPressRequestModal"
+      :application-id="application.id"
+      :is-request-mode="true"
+      :has-active-reminder="!!wordpressReminder"
+      @close="showWordPressRequestModal = false"
+    />
+
+    <word-press-credentials-modal
+      v-if="showWordPressEnterModal"
+      :show="showWordPressEnterModal"
+      :application-id="application.id"
+      :is-request-mode="false"
+      @close="showWordPressEnterModal = false"
+    />
   </div>
 
   <!-- Scroll to Top Button -->
@@ -746,6 +851,8 @@ import { Check } from 'lucide-vue-next'
 
 import ContractReminderModal from '@/Shared/ContractReminderModal.vue'
 import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
+import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
+import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
 
 export default {
   components: {
@@ -758,6 +865,8 @@ export default {
     CredentialsModal,
     ContractReminderModal,
     SubmitToCardStreamModal,
+    CardStreamCredentialsModal,
+    WordPressCredentialsModal,
     Icon,
   },
   layout: Layout,
@@ -778,6 +887,14 @@ export default {
       type: Object,
       default: null,
     },
+    cardstreamReminder: {
+      type: Object,
+      default: null,
+    },
+    wordpressReminder: {
+      type: Object,
+      default: null,
+    },
   },
   data() {
     return {
@@ -789,20 +906,10 @@ export default {
       showAdditionalInfoModal: false,
       showContractReminderModal: false,
       showSubmitCardStreamModal: false,
+      showCardStreamCredentialsModal: false,
+      showWordPressRequestModal: false,
+      showWordPressEnterModal: false,
       showCredentialsModal: false,
-      processSteps: [
-        { id: 'created', label: 'Application Created', description: 'Initial application setup' },
-        { id: 'contract_sent', label: 'Contract Sent', description: 'Contract sent to merchant for signature' },
-        { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
-        { id: 'documents_approved', label: 'Documents Approved', description: 'Documents reviewed and approved' },
-        { id: 'contract_signed', label: 'Contract Signed', description: 'All parties have signed the contract' },
-        { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted to gateway' },
-        { id: 'application_approved', label: 'Application Approved', description: 'Application approved by admin' },
-        { id: 'invoice_sent', label: 'Invoice Sent', description: 'Setup fee invoice sent' },
-        { id: 'invoice_paid', label: 'Payment Received', description: 'Setup fee paid' },
-        { id: 'gateway_integrated', label: 'Gateway Integration', description: 'Payment gateway integrated' },
-        { id: 'account_live', label: 'Account Live', description: 'Merchant account is live' },
-      ],
     }
   },
   computed: {
@@ -838,18 +945,74 @@ export default {
       return baseSections
     },
 
+    processSteps() {      
+      const allSteps = [
+        { id: 'created', label: 'Application Created', description: 'Initial application setup' },
+        { id: 'contract_sent', label: 'Contract Sent', description: 'Contract sent to merchant for signature' },
+        { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
+        { id: 'documents_approved', label: 'Documents Approved', description: 'Documents reviewed and approved' },
+        { id: 'contract_signed', label: 'Contract Signed', description: 'All parties have signed the contract' },
+        { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted to gateway' },
+        { id: 'application_approved', label: 'Application Approved', description: 'Application approved by admin' },
+        { id: 'invoice_sent', label: 'Invoice Sent', description: 'Setup fee invoice sent' },
+        { id: 'invoice_paid', label: 'Payment Received', description: 'Setup fee paid' },
+        { id: 'gateway_integrated', label: 'Gateway Integration', description: 'Payment gateway integrated' },
+        { id: 'account_live', label: 'Account Live', description: 'Merchant account is live' },
+      ]
+
+      const timestamps = this.application.status?.timestamps || {}
+      
+      const completed = []
+      const pending = []
+      
+      allSteps.forEach((step, defaultOrder) => {
+        let timestamp = null
+        
+        if (step.id === 'created') {
+          timestamp = timestamps.created || this.application.created_at
+        } else if (step.id === 'contract_signed') {
+          timestamp = timestamps.contract_signed || timestamps.contract_completed
+        } else {
+          timestamp = timestamps[step.id]
+        }
+        
+        if (timestamp) {
+          completed.push({
+            ...step,
+            timestamp: timestamp,
+            sortTime: new Date(timestamp).getTime(),
+            defaultOrder: defaultOrder
+          })
+        } else {
+          pending.push(step)
+        }
+      })
+            
+      // SORT WITH DETAILED LOGGING
+      completed.sort((a, b) => {
+        if (a.id === 'created') {
+          return -1
+        }
+        if (b.id === 'created') {
+          return 1
+        }
+        
+        const timeDiff = a.sortTime - b.sortTime
+        if (timeDiff !== 0) {
+          return timeDiff
+        }
+        
+        const orderDiff = a.defaultOrder - b.defaultOrder
+        return orderDiff
+      })
+            
+      return [...completed, ...pending]
+    },
+
     canSendContractReminder() {
-      if (this.is_account) return false;
-      
+      // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
-      
-      // Show reminder button if:
-      // 1. Contract has been sent (has timestamp)
-      // 2. Contract NOT yet submitted
-      return (
-        !!timestamps?.contract_sent && 
-        !timestamps?.application_approved
-      );
+      return !this.is_account && !timestamps?.application_approved
     },
 
     canSendContract() {
@@ -863,7 +1026,6 @@ export default {
       
       const timestamps = this.application.status?.timestamps;
       
-      // Show button if contract sent but not yet signed
       return (
         !!timestamps?.contract_sent && 
         !timestamps?.application_approved
@@ -871,7 +1033,15 @@ export default {
     },
     
     canSubmitToCardStream() {
-      return this.application.status?.current_step === 'contract_signed' && !this.is_account
+      if (this.is_account) return false;
+      
+      const timestamps = this.application.status?.timestamps;
+      
+      return (
+        !!timestamps?.contract_sent &&
+        !!timestamps?.contract_signed && 
+        !timestamps?.contract_submitted
+      );
     },
     
     hasDocuSignRecipientStatus() {
@@ -929,15 +1099,14 @@ export default {
     },
 
     canApproveDocuments() {
-      // Can approve documents when:
-      // 1. Documents ARE uploaded (has timestamp)
-      // 2. Documents are NOT yet approved (no timestamp)
-      // 3. User is not an account
+      if (this.is_account) return false;
       
-      const hasDocumentsUploaded = !!this.application.status?.timestamps?.documents_uploaded;
-      const documentsNotYetApproved = !this.application.status?.timestamps?.documents_approved;
+      const timestamps = this.application.status?.timestamps;
       
-      return hasDocumentsUploaded && documentsNotYetApproved && !this.is_account;
+      return (
+        !!timestamps?.documents_uploaded && 
+        !timestamps?.documents_approved
+      );
     },
     
     // Build document categories including all pending additional documents
@@ -969,6 +1138,72 @@ export default {
       return (category) => {
         return this.categoryDescriptionsWithAdditional[category] || ''
       }
+    },
+    canSendInvoiceReminder() {
+      if (this.is_account) return false
+      const timestamps = this.application.status?.timestamps
+      // Show if application approved OR invoice sent, BUT NOT if invoice paid
+      return (
+        (!!timestamps?.application_approved || !!timestamps?.invoice_sent) && 
+        !timestamps?.invoice_paid
+      )
+    },
+
+    canMarkInvoiceAsPaid() {
+      if (this.is_account) return false
+      const timestamps = this.application.status?.timestamps
+      // Show if invoice sent but not yet paid
+      return !!timestamps?.invoice_sent && !timestamps?.invoice_paid
+    },
+
+    canSendCardStreamCredentials() {
+      if (this.is_account) return false
+      const timestamps = this.application.status?.timestamps
+      // Show if invoice paid but CardStream credentials not yet entered
+      return !!timestamps?.invoice_paid && !this.application.cardstream_credentials_entered_at
+    },
+
+    cardstreamReminder() {
+      return this.application.scheduled_emails?.find(
+        email => email.email_type === 'cardstream_credentials' && email.is_active
+      )
+    },
+
+    canMarkGatewayIntegrated() {
+      if (this.is_account) return false
+      const timestamps = this.application.status?.timestamps
+      // Show if invoice paid but gateway not yet integrated
+      return !!timestamps?.invoice_paid && !timestamps?.gateway_integrated
+    },
+
+    canRequestWordPress() {
+      // Both users and accounts can access this, but button only shown to users
+      if (this.is_account) return false
+      const timestamps = this.application.status?.timestamps
+      // Show only if invoice is paid AND account is not yet live
+      return !!timestamps?.invoice_paid && !timestamps?.account_live
+    },
+
+    canEnterWordPress() {
+      // Both users and accounts can enter WordPress credentials
+      return !this.application.wordpress_credentials_entered_at
+    },
+
+    wordpressReminder() {
+      return this.application.scheduled_emails?.find(
+        email => email.email_type === 'wordpress_credentials_request' && email.is_active
+      )
+    },
+
+    hasWordPressCredentials() {
+      return !!this.application.wordpress_credentials_entered_at
+    },
+
+    canMakeAccountLive() {
+      if (this.is_account) return false
+      const timestamps = this.application.status?.timestamps
+      // Show if gateway integrated AND WordPress credentials entered
+      return !!timestamps?.gateway_integrated && !timestamps?.account_live
     },
   },
   methods: {
@@ -1024,6 +1259,19 @@ export default {
         this.$inertia.post(`/applications/${this.application.id}/confirm-fees`, {}, {
           onFinish: () => {
             this.confirmingFees = false
+          }
+        })
+      }
+    },
+
+    sendInvoiceReminder() {
+      if (confirm('Send invoice reminder email to the merchant?')) {
+        this.$inertia.post(`/applications/${this.application.id}/send-invoice-reminder`, {}, {
+          onSuccess: () => {
+            // Success message handled by backend
+          },
+          onError: () => {
+            alert('Failed to send invoice reminder')
           }
         })
       }
@@ -1128,126 +1376,39 @@ export default {
     
     markInvoiceAsPaid(invoiceId) {
       if (confirm('Mark this invoice as paid?')) {
-        this.$inertia.post(`/invoices/${invoiceId}/mark-paid`)
+        this.$inertia.post(`/applications/${this.application.id}/mark-invoice-paid`)
       }
     },
     
     isStepCompleted(stepId) {
-      const currentStep = this.application.status?.current_step
       const timestamps = this.application.status?.timestamps
       
-      // ALWAYS check timestamps FIRST - if a step has a timestamp, it's completed
-      if (timestamps?.[stepId]) {
+      // Special case: 'created' is always complete
+      if (stepId === 'created') {
         return true
       }
       
-      // Special case: 'created' is always complete if we're past it
-      if (stepId === 'created' && currentStep !== 'created') {
-        return true
-      }
-      
-      // Special case for documents_uploaded
-      // Mark as complete if contract is signed (documents must have been approved)
-      if (stepId === 'documents_uploaded') {
-        if (timestamps?.documents_uploaded) {
-          return true
-        }
-        // If contract signed, documents must have been uploaded and approved
-        if (timestamps?.contract_signed || timestamps?.documents_approved) {
-          return true
-        }
-      }
-      
-      // Special case for documents_approved
-      // Mark as complete if contract is signed
-      if (stepId === 'documents_approved') {
-        if (timestamps?.documents_approved) {
-          return true
-        }
-        // If contract signed, documents must have been approved
-        if (timestamps?.contract_signed) {
-          return true
-        }
-      }
-      
-      // Special case for contract_signed
-      // Mark as complete if contract is submitted or any step after it
+      // For contract_signed: Check both old and new field names
       if (stepId === 'contract_signed') {
-        if (timestamps?.contract_signed) {
-          return true
-        }
-        // If contract submitted or any later step, contract must have been signed
-        if (timestamps?.contract_submitted || 
-            timestamps?.application_approved || 
-            timestamps?.invoice_sent ||
-            timestamps?.invoice_paid ||
-            timestamps?.gateway_integrated ||
-            timestamps?.account_live) {
-          return true
-        }
-      }
-
-      // Special case for contract_submitted
-      // Mark as complete if application is approved or any step after it
-      if (stepId === 'contract_submitted') {
-        if (timestamps?.contract_submitted) {
-          return true
-        }
-        // If application approved or any later step, contract must have been submitted
-        if (timestamps?.application_approved || 
-            timestamps?.invoice_sent ||
-            timestamps?.invoice_paid ||
-            timestamps?.gateway_integrated ||
-            timestamps?.account_live) {
-          return true
-        }
+        return !!(timestamps?.contract_signed || timestamps?.contract_completed)
       }
       
-      // Steps that happen in parallel and need explicit timestamps
-      const timestampRequiredSteps = [
-        'contract_sent',
-        'contract_submitted',
-        'application_approved',
-        'invoice_sent',
-        'invoice_paid',
-        'gateway_integrated',
-        'account_live',
-      ]
-      
-      // For timestamp-required steps, ONLY show complete if they have a timestamp
-      if (timestampRequiredSteps.includes(stepId)) {
-        return !!timestamps?.[stepId]
+      // For all other steps: Check timestamp
+      return !!timestamps?.[stepId]
+    },
+    
+    getStepTimestamp(stepId) {
+      if (stepId === 'created') {
+        return this.application.created_at
       }
       
-      // For other steps, use order-based logic
-      const stepOrder = [
-        'created',
-        'contract_sent',
-        'documents_uploaded',
-        'documents_approved',
-        'contract_signed',
-        'contract_submitted',
-        'application_approved',
-        'approval_email_sent',
-        'gateway_contract_sent',
-        'gateway_contract_signed',
-        'gateway_details_received',
-        'wordpress_credentials_collected',
-        'invoice_sent',
-        'invoice_paid',
-        'gateway_integrated',
-        'account_live'
-      ]
+      const timestamps = this.application.status?.timestamps
       
-      const currentIndex = stepOrder.indexOf(currentStep)
-      const checkIndex = stepOrder.indexOf(stepId)
-      
-      // Only use order-based completion for steps NOT in timestampRequiredSteps
-      if (currentIndex !== -1 && checkIndex !== -1) {
-        return checkIndex <= currentIndex
+      if (stepId === 'contract_signed') {
+        return timestamps?.contract_signed || timestamps?.contract_completed || null
       }
       
-      return false
+      return timestamps?.[stepId] || null
     },
     
     getStepTimestamp(stepId) {
@@ -1311,6 +1472,65 @@ export default {
       
       const docId = parseInt(category.replace('additional_requested_', ''))
       return this.application.additional_documents?.find(doc => doc.id === docId)
+    },
+
+    /**
+     * Request WordPress Credentials
+     */
+    requestWordPressCredentials() {
+      this.showWordPressRequestModal = true
+    },
+
+    /**
+     * Cancel WordPress Reminder
+     */
+    cancelWordPressReminder() {
+      if (confirm('Cancel scheduled WordPress credentials reminders?')) {
+        this.$inertia.post(`/applications/${this.application.id}/cancel-wordpress-reminder`)
+      }
+    },
+
+    /**
+     * Send CardStream Credentials
+     */
+    sendCardStreamCredentials() {
+      this.showCardStreamCredentialsModal = true
+    },
+
+    /**
+     * Cancel CardStream Reminder
+     */
+    cancelCardStreamReminder() {
+      if (confirm('Cancel scheduled CardStream credentials reminders?')) {
+        this.$inertia.post(`/applications/${this.application.id}/cancel-cardstream-reminder`)
+      }
+    },
+
+    /**
+     * Mark Gateway as Integrated
+     */
+    markGatewayIntegrated() {
+      if (confirm('Mark the payment gateway as integrated?')) {
+        this.$inertia.post(`/applications/${this.application.id}/mark-gateway-integrated`)
+      }
+    },
+
+    /**
+     * Make Account Live
+     */
+    makeAccountLive() {
+      if (confirm('🎉 Make this merchant account live? This will complete the onboarding process.')) {
+        this.$inertia.post(`/applications/${this.application.id}/make-account-live`)
+      }
+    },
+
+    /**
+     * Mark Invoice as Paid
+     */
+    markInvoiceAsPaid() {
+      if (confirm('Mark the invoice as paid?')) {
+        this.$inertia.post(`/applications/${this.application.id}/mark-invoice-paid`)
+      }
     },
   },
   mounted() {

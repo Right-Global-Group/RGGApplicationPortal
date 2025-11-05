@@ -12,12 +12,15 @@ use App\Events\ApplicationApprovedEvent;
 use App\Events\DocumentUploadedEvent;
 use App\Events\AllDocumentsUploadedEvent;
 use App\Events\DocuSignStatusChangeEvent;
-// Gateway & WordPress events
 use App\Events\MerchantContractReadyEvent;
 use App\Events\GatewayPartnerContractReadyEvent;
 use App\Events\WordPressCredentialsRequestEvent;
 use App\Events\WordPressCredentialsReminderEvent;
 use App\Events\CardStreamSubmissionEvent;
+use App\Events\InvoiceReminderEvent;
+use App\Events\CardStreamCredentialsEvent;
+use App\Events\CardStreamCredentialsReminderEvent; // ADD THIS
+use App\Events\AccountLiveEvent;
 
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
@@ -28,22 +31,20 @@ use App\Listeners\SendApplicationApprovedEmail;
 use App\Listeners\SendDocumentUploadedEmailListener;
 use App\Listeners\SendAllDocumentsUploadedEmailListener;
 use App\Listeners\SendDocuSignStatusChangeEmail;
-// Gateway & WordPress listeners
 use App\Listeners\SendMerchantContractReadyEmail;
 use App\Listeners\SendGatewayPartnerContractReadyEmail;
 use App\Listeners\SendWordPressCredentialsRequestEmail;
 use App\Listeners\SendWordPressCredentialsReminderEmail;
 use App\Listeners\SendCardStreamSubmissionEmail;
+use App\Listeners\SendInvoiceReminderEmail;
+use App\Listeners\SendCardStreamCredentialsEmail;
+use App\Listeners\SendCardStreamCredentialsReminderEmail; // ADD THIS
+use App\Listeners\SendAccountLiveEmail;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
 {
-    /**
-     * The event to listener mappings for the application.
-     *
-     * @var array<class-string, array<int, class-string>>
-     */
     protected $listen = [
         AccountCredentialsEvent::class => [
             SendAccountCredentialsEmail::class,
@@ -72,7 +73,6 @@ class EventServiceProvider extends ServiceProvider
         DocuSignStatusChangeEvent::class => [
             SendDocuSignStatusChangeEmail::class,
         ],
-        // Gateway & WordPress event mappings
         MerchantContractReadyEvent::class => [
             SendMerchantContractReadyEmail::class,
         ],
@@ -88,19 +88,26 @@ class EventServiceProvider extends ServiceProvider
         CardStreamSubmissionEvent::class => [
             SendCardStreamSubmissionEmail::class,
         ],
+        InvoiceReminderEvent::class => [
+            SendInvoiceReminderEmail::class,
+        ],
+        CardStreamCredentialsEvent::class => [
+            SendCardStreamCredentialsEmail::class,
+        ],
+        // ADD THIS
+        CardStreamCredentialsReminderEvent::class => [
+            SendCardStreamCredentialsReminderEmail::class,
+        ],
+        AccountLiveEvent::class => [
+            SendAccountLiveEmail::class,
+        ],
     ];
 
-    /**
-     * Register any events for your application.
-     */
     public function boot(): void
     {
         //
     }
 
-    /**
-     * Determine if events and listeners should be automatically discovered.
-     */
     public function shouldDiscoverEvents(): bool
     {
         return false;

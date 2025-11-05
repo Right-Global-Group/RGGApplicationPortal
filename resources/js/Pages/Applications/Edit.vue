@@ -9,35 +9,36 @@
       </h1>
     </div>
 
-    <div v-if="showAccountActions" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-6">
-      <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-        <h2 class="text-magenta-400 font-bold text-lg">Account Actions</h2>
-      </div>
-      <div class="p-6 flex flex-wrap gap-3">
-        <!-- Upload Documents (shows until documents_approved) -->
-        <button
-          v-if="canUploadDocs"
-          @click="scrollToDocuments"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-        >
-          Upload Documents
-        </button>
-
-        <!-- Sign Contract (shows when contract_sent and not yet signed) -->
-        <Link
-          v-if="canSignContract"
-          :href="`/applications/${application.id}/status#section-actions`"
-          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-        >
-          Sign Contract
-        </Link>
-      </div>
-    </div>
-
     <!-- Top Section: Two columns -->
     <div class="flex flex-col lg:flex-row gap-6 mb-8">
       <!-- Left Column: Details + Form -->
       <div class="flex-1 flex flex-col gap-6">
+
+        <div v-if="showAccountActions" class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+            <h2 class="text-magenta-400 font-bold text-lg">Account Actions</h2>
+          </div>
+          <div class="p-6 flex flex-wrap gap-3">
+            <!-- Upload Documents (shows until documents_approved) -->
+            <button
+              v-if="canUploadDocs"
+              @click="scrollToDocuments"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            >
+              Upload Documents
+            </button>
+
+            <!-- Sign Contract (shows when contract_sent and not yet signed) -->
+            <Link
+              v-if="canSignContract"
+              :href="`/applications/${application.id}/status#section-actions`"
+              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+            >
+              Sign Contract
+            </Link>
+          </div>
+        </div>
+
         <!-- Application Details -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
@@ -408,41 +409,168 @@
 
       <!-- Right Column: Application Status -->
       <div class="w-full lg:w-1/3">
-        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden sticky top-6">
-          <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <h2 class="text-magenta-400 font-bold text-lg">Application Status</h2>
-          </div>
-          <div class="p-8 space-y-4">
-            <!-- Current Status Badge -->
-            <div class="text-center">
-              <div class="inline-flex items-center px-4 py-2 bg-primary-900/50 border border-primary-700/50 rounded-full">
-                <div class="w-2 h-2 bg-magenta-400 rounded-full mr-2 animate-pulse"></div>
-                <span class="text-sm font-medium text-gray-300">
-                  {{ formatStatus(application.status?.current_step) }}
-                </span>
+        <!-- Sticky container with dynamic height -->
+        <div class="sticky top-6 overflow-y-auto custom-scrollbar" style="max-height: calc(100vh - 3rem);">
+          <div class="space-y-6">
+            <!-- Application Status -->
+            <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+              <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+                <h2 class="text-magenta-400 font-bold text-lg">Application Status</h2>
+              </div>
+              <div class="p-8 space-y-4">
+                <!-- Current Status Badge -->
+                <div class="text-center">
+                  <div class="inline-flex items-center px-4 py-2 bg-primary-900/50 border border-primary-700/50 rounded-full">
+                    <div class="w-2 h-2 bg-magenta-400 rounded-full mr-2 animate-pulse"></div>
+                    <span class="text-sm font-medium text-gray-300">
+                      {{ formatStatus(application.status?.current_step) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Next Steps Box -->
+                <div v-if="nextStep" class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+                  <div class="flex items-start gap-2">
+                    <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <div class="flex-1">
+                      <div class="text-xs font-semibold text-yellow-300 uppercase tracking-wide mb-1">Next Step:</div>
+                      <div class="text-sm text-gray-300">{{ nextStep }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- View Full Status Button -->
+                <Link
+                  :href="`/applications/${application.id}/status`"
+                  class="btn-primary w-full text-center block"
+                >
+                  View Full Status & Timeline
+                </Link>
               </div>
             </div>
 
-            <!-- Next Steps Box -->
-            <div v-if="nextStep" class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
-              <div class="flex items-start gap-2">
-                <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                </svg>
-                <div class="flex-1">
-                  <div class="text-xs font-semibold text-yellow-300 uppercase tracking-wide mb-1">Next Step:</div>
-                  <div class="text-sm text-gray-300">{{ nextStep }}</div>
+            <!-- WordPress Credentials Section -->
+            <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+              <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
+                <h2 class="text-magenta-400 font-bold text-lg">WordPress Credentials</h2>
+                <button 
+                  v-if="canEnterWordPress"
+                  @click="showWordPressModal = true" 
+                  class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  {{ application.wordpress_credentials_entered_at ? 'Update' : 'Enter' }} Credentials
+                </button>
+              </div>
+              <div class="p-8">
+                <div v-if="application.wordpress_credentials_entered_at" class="space-y-4">
+                  <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-4 mb-4">
+                    <div class="flex items-center gap-2 text-green-300">
+                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                      </svg>
+                      <span class="font-semibold">Credentials Entered</span>
+                      <span class="text-sm text-green-400">{{ formatDate(application.wordpress_credentials_entered_at) }}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-gray-300 font-medium mb-2">WordPress Site URL</label>
+                    <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 flex items-center justify-between">
+                      <span class="break-all">{{ application.wordpress_url }}</span>
+                      <a 
+                        :href="application.wordpress_url" 
+                        target="_blank"
+                        class="text-blue-400 hover:text-blue-300 text-sm whitespace-nowrap ml-2"
+                      >
+                        Visit Site →
+                      </a>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-gray-300 font-medium mb-2">WordPress Admin Username</label>
+                    <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                      {{ application.wordpress_username }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-gray-300 font-medium mb-2">WordPress Admin Password</label>
+                    <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 font-mono">
+                      {{ showWordPressPassword ? application.wordpress_password : '••••••••••••' }}
+                      <button
+                        @click="showWordPressPassword = !showWordPressPassword"
+                        class="ml-3 text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        {{ showWordPressPassword ? 'Hide' : 'Show' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+                  <p class="text-yellow-300 text-sm">No WordPress credentials entered yet.</p>
                 </div>
               </div>
             </div>
 
-            <!-- View Full Status Button -->
-            <Link
-              :href="`/applications/${application.id}/status`"
-              class="btn-primary w-full text-center block"
-            >
-              View Full Status & Timeline
-            </Link>
+            <!-- CardStream Credentials Section -->
+            <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+              <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
+                <h2 class="text-magenta-400 font-bold text-lg">CardStream Credentials</h2>
+                <button 
+                  v-if="canEditCardstream"
+                  @click="showCardStreamModal = true" 
+                  class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  {{ application.cardstream_credentials_entered_at ? 'Update' : 'Send' }} Credentials
+                </button>
+              </div>
+              <div class="p-8">
+                <div v-if="application.cardstream_credentials_entered_at" class="space-y-4">
+                  <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-4 mb-4">
+                    <div class="flex items-center gap-2 text-green-300">
+                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                      </svg>
+                      <span class="font-semibold">Credentials Sent</span>
+                      <span class="text-sm text-green-400">{{ formatDate(application.cardstream_credentials_entered_at) }}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-gray-300 font-medium mb-2">CardStream Username</label>
+                    <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                      {{ application.cardstream_username }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-gray-300 font-medium mb-2">CardStream Password</label>
+                    <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 font-mono">
+                      {{ showCardStreamPassword ? application.cardstream_password : '••••••••••••' }}
+                      <button
+                        @click="showCardStreamPassword = !showCardStreamPassword"
+                        class="ml-3 text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        {{ showCardStreamPassword ? 'Hide' : 'Show' }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-gray-300 font-medium mb-2">CardStream Merchant ID</label>
+                    <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                      {{ application.cardstream_merchant_id }}
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+                  <p class="text-yellow-300 text-sm">No CardStream credentials entered yet.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -455,8 +583,56 @@
       :application="application" 
       @close="showChangeFeesModal = false" 
     />
+    <word-press-credentials-modal
+      v-if="canEditWordPress"
+      :show="showWordPressModal"
+      :application-id="application.id"
+      :existing-credentials="{
+        wordpress_url: application.wordpress_url,
+        wordpress_username: application.wordpress_username,
+        wordpress_password: application.wordpress_password,
+      }"
+      @close="showWordPressModal = false"
+    />
+
+    <card-stream-credentials-modal
+      v-if="canEditCardstream"
+      :show="showCardStreamModal"
+      :application-id="application.id"
+      :existing-credentials="{
+        cardstream_username: application.cardstream_username,
+        cardstream_password: application.cardstream_password,
+        cardstream_merchant_id: application.cardstream_merchant_id,
+      }"
+      @close="showCardStreamModal = false"
+    />
   </div>
 </template>
+
+<style scoped>
+/* Custom scrollbar for the sticky sidebar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(139, 92, 246, 0.5);
+}
+</style>
 
 <script>
 import { Head, Link } from '@inertiajs/vue3'
@@ -466,9 +642,11 @@ import SelectInput from '@/Shared/SelectInput.vue'
 import LoadingButton from '@/Shared/LoadingButton.vue'
 import ChangeFeesModal from '@/Shared/ChangeFeesModal.vue'
 import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
+import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
+import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
 
 export default {
-  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal, DocumentUploadModal },
+  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal, DocumentUploadModal, WordPressCredentialsModal, CardStreamCredentialsModal },
   layout: Layout,
   remember: 'form',
   props: {
@@ -481,11 +659,17 @@ export default {
       type: Boolean,
       default: false,
     },
+    canEditWordPress: { type: Boolean, default: true },
+    canEditCardstream: { type: Boolean, default: true },
   },
   data() {
     return {
       showChangeFeesModal: false,
       showDocumentUploadModal: false,
+      showWordPressModal: false,
+      showWordPressPassword: false,
+      showCardStreamPassword: false,
+      showCardStreamModal: false,
       form: this.$inertia.form({
         account_id: this.application.account_id,
         name: this.application.name,
@@ -495,7 +679,7 @@ export default {
   computed: {
     shouldShowDocuments() {
       // Show documents until contract is fully signed
-      return !this.application.status?.timestamps?.contract_signed
+      return true
     },
 
     showAccountActions() {
@@ -514,6 +698,10 @@ export default {
       
       // Show sign button if contract sent but not yet signed
       return !!timestamps?.contract_sent && !timestamps?.contract_signed
+    },
+    canEnterWordPress() {
+      // Both users and accounts can enter WordPress credentials
+      return true
     },
     
     nextStep() {

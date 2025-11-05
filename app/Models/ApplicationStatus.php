@@ -57,61 +57,100 @@ class ApplicationStatus extends Model
     ];
 
     /**
-     * UPDATE THE EXISTING getProgressPercentageAttribute METHOD
-     * to include new steps in correct order
+     * Get the ordered timeline of completed steps
+     * This ensures steps appear in the order they were actually completed
+     */
+    public function getOrderedTimelineAttribute(): array
+    {
+        $allSteps = [
+            'created' => ['label' => 'Application Created', 'timestamp' => $this->created_at, 'progress' => 0],
+            'contract_sent' => ['label' => 'Contract Sent', 'timestamp' => $this->contract_sent_at, 'progress' => 10],
+            'documents_uploaded' => ['label' => 'Documents Uploaded', 'timestamp' => $this->documents_uploaded_at, 'progress' => 20],
+            'documents_approved' => ['label' => 'Documents Approved', 'timestamp' => $this->documents_approved_at, 'progress' => 30],
+            'contract_signed' => ['label' => 'Contract Signed', 'timestamp' => $this->contract_signed_at, 'progress' => 50],
+            'contract_submitted' => ['label' => 'Contract Submitted', 'timestamp' => $this->contract_submitted_at, 'progress' => 60],
+            'application_approved' => ['label' => 'Application Approved', 'timestamp' => $this->application_approved_at, 'progress' => 70],
+            'invoice_sent' => ['label' => 'Invoice Sent', 'timestamp' => $this->invoice_sent_at, 'progress' => 82],
+            'invoice_paid' => ['label' => 'Payment Received', 'timestamp' => $this->invoice_paid_at, 'progress' => 90],
+            'gateway_integrated' => ['label' => 'Gateway Integration', 'timestamp' => $this->gateway_integrated_at, 'progress' => 95],
+            'account_live' => ['label' => 'Account Live', 'timestamp' => $this->account_live_at, 'progress' => 100],
+        ];
+
+        // Separate completed and pending steps
+        $completed = collect($allSteps)->filter(fn($step) => $step['timestamp'] !== null)
+            ->sortBy(fn($step) => $step['timestamp']);
+        
+        $pending = collect($allSteps)->filter(fn($step) => $step['timestamp'] === null);
+
+        // Reassign progress values based on actual order
+        $orderedSteps = [];
+        $index = 0;
+        $progressIncrement = 100 / count($allSteps);
+
+        // Add completed steps in chronological order
+        foreach ($completed as $key => $step) {
+            $orderedSteps[$key] = array_merge($step, [
+                'progress' => $key === 'account_live' ? 100 : round($index * $progressIncrement),
+                'is_completed' => true,
+                'is_current' => $key === $this->current_step,
+            ]);
+            $index++;
+        }
+
+        // Add pending steps in their default order
+        foreach ($pending as $key => $step) {
+            $orderedSteps[$key] = array_merge($step, [
+                'progress' => round($index * $progressIncrement),
+                'is_completed' => false,
+                'is_current' => $key === $this->current_step,
+            ]);
+            $index++;
+        }
+
+        return $orderedSteps;
+    }
+
+    /**
+     * Get dynamic progress percentage based on completed steps
      */
     public function getProgressPercentageAttribute(): int
     {
-        $steps = [
-            'created' => 0,
-            'contract_sent' => 10,
-            'documents_uploaded' => 20,
-            'documents_approved' => 30,
-            'contract_signed' => 50,
-            'contract_submitted' => 60,
-            'application_approved' => 70,
-            'approval_email_sent' => 72,
-            'gateway_contract_sent' => 74,
-            'gateway_contract_signed' => 76,
-            'gateway_details_received' => 78,
-            'wordpress_credentials_collected' => 80,
-            'invoice_sent' => 82,
-            'invoice_paid' => 90,
-            'gateway_integrated' => 95,
-            'account_live' => 100,
-        ];
-    
-        // Get current step's progress
-        $currentProgress = $steps[$this->current_step] ?? 0;
+        $orderedTimeline = $this->getOrderedTimelineAttribute();
         
-        // ✅ NEW: Calculate maximum progress based on completed timestamps
-        $maxCompletedProgress = 0;
-        
-        $timestampMapping = [
-            'contract_sent_at' => 10,
-            'documents_uploaded_at' => 20,
-            'documents_approved_at' => 30,
-            'contract_signed_at' => 50,
-            'contract_submitted_at' => 60,
-            'application_approved_at' => 70,
-            'gateway_contract_sent_at' => 74,
-            'gateway_contract_signed_at' => 76,
-            'wordpress_credentials_collected_at' => 80,
-            'invoice_sent_at' => 82,
-            'invoice_paid_at' => 90,
-            'gateway_integrated_at' => 95,
-            'account_live_at' => 100,
-        ];
-        
-        // Check all completed timestamps and get highest progress
-        foreach ($timestampMapping as $field => $progress) {
-            if (!is_null($this->$field)) {
-                $maxCompletedProgress = max($maxCompletedProgress, $progress);
+        // Find the highest progress value among completed steps
+        $maxProgress = 0;
+        foreach ($orderedTimeline as $key => $step) {
+            if ($step['is_completed']) {
+                $maxProgress = max($maxProgress, $step['progress']);
             }
         }
-        
-        // Return the HIGHER of current step or max completed
-        return max($currentProgress, $maxCompletedProgress);
+
+        // Also check current step
+        if (isset($orderedTimeline[$this->current_step])) {
+            $maxProgress = max($maxProgress, $orderedTimeline[$this->current_step]['progress']);
+        }
+
+        return $maxProgress;
+    }
+
+    /**
+     * Get timestamps for display
+     */
+    public function getTimestampsAttribute(): array
+    {
+        return [
+            'documents_uploaded' => $this->documents_uploaded_at?->format('Y-m-d H:i'),
+            'documents_approved' => $this->documents_approved_at?->format('Y-m-d H:i'),
+            'contract_sent' => $this->contract_sent_at?->format('Y-m-d H:i'),
+            'contract_signed' => $this->contract_signed_at?->format('Y-m-d H:i'),
+            'contract_completed' => $this->contract_completed_at?->format('Y-m-d H:i'),
+            'contract_submitted' => $this->contract_submitted_at?->format('Y-m-d H:i'),
+            'application_approved' => $this->application_approved_at?->format('Y-m-d H:i'),
+            'invoice_sent' => $this->invoice_sent_at?->format('Y-m-d H:i'),
+            'invoice_paid' => $this->invoice_paid_at?->format('Y-m-d H:i'),
+            'gateway_integrated' => $this->gateway_integrated_at?->format('Y-m-d H:i'),
+            'account_live' => $this->account_live_at?->format('Y-m-d H:i'),
+        ];
     }
 
     public function application(): BelongsTo
@@ -130,19 +169,39 @@ class ApplicationStatus extends Model
             'timestamp' => now()->toISOString(),
             'notes' => $notes,
         ];
-
+    
         $updateData = [
             'current_step' => $newStep,
             'step_history' => $history,
         ];
-
+    
+        // Get the timestamp field for this step
         $timestampField = $this->getTimestampField($newStep);
-        if ($timestampField) {
+        
+        // Only set timestamp if it doesn't already exist
+        // This prevents overwriting existing timestamps
+        if ($timestampField && is_null($this->$timestampField)) {
             $updateData[$timestampField] = now();
+            
+            \Log::info('Setting timestamp for new step', [
+                'step' => $newStep,
+                'field' => $timestampField,
+                'timestamp' => now(),
+            ]);
+        } elseif ($timestampField) {
+            \Log::info('Timestamp already exists, preserving it', [
+                'step' => $newStep,
+                'field' => $timestampField,
+                'existing_timestamp' => $this->$timestampField,
+            ]);
         }
-
+    
+        // Save the updates
         $this->update($updateData);
-
+        
+        // FORCE refresh to ensure timestamps are loaded
+        $this->refresh();
+    
         // Log the activity
         ActivityLog::create([
             'application_id' => $this->application_id,
@@ -150,15 +209,11 @@ class ApplicationStatus extends Model
             'description' => "Status changed from {$oldStep} to {$newStep}",
             'metadata' => ['notes' => $notes],
         ]);
-
+    
         // Fire event for real-time updates
         event(new ApplicationStatusChanged($this->application, $oldStep, $newStep));
     }
 
-    /**
-     * UPDATE THE EXISTING getTimestampField METHOD
-     * to include new timestamp fields
-     */
     private function getTimestampField(string $step): ?string
     {
         $mapping = [
@@ -166,7 +221,7 @@ class ApplicationStatus extends Model
             'contract_sent' => 'contract_sent_at',
             'documents_uploaded' => 'documents_uploaded_at',
             'documents_approved' => 'documents_approved_at',
-            'contract_signed' => 'contract_signed_at',      // NEW
+            'contract_signed' => 'contract_signed_at',
             'contract_submitted' => 'contract_submitted_at',
             'gateway_contract_sent' => 'gateway_contract_sent_at',
             'gateway_contract_signed' => 'gateway_contract_signed_at',
@@ -182,29 +237,47 @@ class ApplicationStatus extends Model
         return $mapping[$step] ?? null;
     }
 
+    /**
+     * FIXED: Check if all required documents are uploaded
+     * Now properly checks base documents AND additional documents
+     */
     public function hasAllRequiredDocuments(): bool
     {
         $application = $this->application;
         $requiredCategories = array_keys(ApplicationDocument::getRequiredCategories());
         
+        // Check base documents
         $uploadedCategories = $application->documents()
             ->whereIn('document_category', $requiredCategories)
             ->pluck('document_category')
             ->unique()
             ->toArray();
     
-        // Check base documents
+        \Log::info('Checking required documents', [
+            'application_id' => $application->id,
+            'required_categories' => $requiredCategories,
+            'uploaded_categories' => $uploadedCategories,
+            'required_count' => count($requiredCategories),
+            'uploaded_count' => count($uploadedCategories),
+        ]);
+    
         $hasAllBaseDocuments = count($uploadedCategories) === count($requiredCategories);
         
-        // Check all additional documents are uploaded
-        $hasAllAdditionalDocuments = $application->hasAllAdditionalDocumentsUploaded();
+        // Check additional documents - if there are ANY additional document requests,
+        // they must ALL be uploaded
+        $pendingAdditionalDocs = $application->additionalDocuments()->where('is_uploaded', false)->get();
+        $hasAllAdditionalDocuments = $pendingAdditionalDocs->isEmpty();
+        
+        \Log::info('Document check results', [
+            'has_all_base_documents' => $hasAllBaseDocuments,
+            'has_all_additional_documents' => $hasAllAdditionalDocuments,
+            'pending_additional_count' => $pendingAdditionalDocs->count(),
+            'final_result' => $hasAllBaseDocuments && $hasAllAdditionalDocuments,
+        ]);
         
         return $hasAllBaseDocuments && $hasAllAdditionalDocuments;
     }
 
-    /**
-     * NEW METHOD: Check if all required signers have signed the contract
-     */
     public function hasAllRecipientsSigned(): bool
     {
         if (!$this->docusign_recipient_status) {
@@ -223,9 +296,6 @@ class ApplicationStatus extends Model
         });
     }
 
-    /**
-     * NEW METHOD: Get formatted recipient status for display
-     */
     public function getFormattedRecipientStatus(): array
     {
         if (!$this->docusign_recipient_status) {
@@ -244,25 +314,16 @@ class ApplicationStatus extends Model
         })->toArray();
     }
 
-    /**
-     * NEW METHOD: Check if contract has been viewed
-     */
     public function hasContractBeenViewed(): bool
     {
         return !is_null($this->contract_viewed_at);
     }
 
-    /**
-     * NEW METHOD: Check if contract is fully signed
-     */
     public function isContractFullySigned(): bool
     {
         return !is_null($this->contract_signed_at) && $this->hasAllRecipientsSigned();
     }
 
-    /**
-     * NEW METHOD: Get days since contract was sent
-     */
     public function getDaysSinceContractSent(): ?int
     {
         if (!$this->contract_sent_at) {
@@ -272,10 +333,6 @@ class ApplicationStatus extends Model
         return now()->diffInDays($this->contract_sent_at);
     }
 
-    /**
-     * NEW METHOD: Check if contract reminder should be sent
-     * (Contract sent but not viewed after 3 days)
-     */
     public function shouldSendContractReminder(): bool
     {
         if ($this->current_step !== 'contract_sent') {
@@ -291,9 +348,6 @@ class ApplicationStatus extends Model
         return $daysSince !== null && $daysSince >= 3;
     }
 
-    /**
-     * NEW METHOD: Get recipient by email
-     */
     public function getRecipientByEmail(string $email): ?array
     {
         if (!$this->docusign_recipient_status) {
@@ -304,9 +358,6 @@ class ApplicationStatus extends Model
             ->firstWhere('email', $email);
     }
 
-    /**
-     * NEW METHOD: Update recipient status
-     */
     public function updateRecipientStatus(string $email, array $updates): void
     {
         if (!$this->docusign_recipient_status) {
@@ -330,48 +381,34 @@ class ApplicationStatus extends Model
         $this->save();
     }
 
-    /**
-     * UPDATED METHOD: Check if can proceed to next step
-     * Now includes contract signing requirements
-     */
     public function canProceedToNextStep(): bool
     {
         $currentStep = $this->current_step;
 
         switch ($currentStep) {
             case 'created':
-                // Can proceed after contract is sent
                 return true;
 
             case 'contract_sent':
-                // Can proceed to documents_uploaded anytime
-                // Contract signing happens in parallel
                 return true;
 
             case 'documents_uploaded':
-                // Need documents approved
                 return false; // Manual approval required
 
             case 'documents_approved':
-                // Can proceed once approved
                 return true;
 
             case 'contract_signed':
-                // Can proceed to submission
                 return true;
 
             case 'contract_submitted':
-                // Needs manual approval
-                return false;
+                return false; // Needs manual approval
 
             default:
                 return false;
         }
     }
 
-    /**
-     * NEW METHOD: Get next recommended action based on current step
-     */
     public function getNextRecommendedAction(): ?string
     {
         switch ($this->current_step) {

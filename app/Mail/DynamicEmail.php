@@ -28,6 +28,10 @@ class DynamicEmail extends Mailable
         'wordpress_credentials_request' => 'WordPress Integration Details Needed',
         'wordpress_credentials_reminder' => 'Reminder: WordPress Integration Details Needed',
         'cardstream_submission' => 'Email Sent to CardStream with Contract',
+        'invoice_reminder' => 'Reminder: Create Invoice in Xero',
+        'cardstream_credentials' => 'Your CardStream Account is Ready',
+        'cardstream_credentials_reminder' => 'Reminder: Set Up Your CardStream Account',
+        'account_live' => 'Congratulations! Your Account is Live',
     ];
 
     protected array $views = [
@@ -48,6 +52,10 @@ class DynamicEmail extends Mailable
         'wordpress_credentials_request' => 'emails.wordpress-credentials-request',
         'wordpress_credentials_reminder' => 'emails.wordpress-credentials-reminder',
         'cardstream_submission' => 'emails.cardstream-submission',
+        'invoice_reminder' => 'emails.invoice-reminder',
+        'cardstream_credentials' => 'emails.cardstream-credentials',
+        'cardstream_credentials_reminder' => 'emails.cardstream-credentials',
+        'account_live' => 'emails.account-live',
     ];
 
     public function __construct(

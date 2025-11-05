@@ -28,7 +28,7 @@
             <!-- Header -->
             <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
               <h2 class="text-xl font-bold text-magenta-400">
-                {{ existingCredentials ? 'Update' : 'Enter' }} WordPress Credentials
+                {{ existingCredentials ? 'Update' : 'Enter' }} CardStream Credentials
               </h2>
               <button
                 @click="close"
@@ -44,72 +44,72 @@
             <div class="p-6">
               <div class="mb-6">
                 <p class="text-gray-300 mb-4">
-                  {{ isAccount ? 'Enter' : 'Save' }} the WordPress admin credentials to complete the gateway integration.
+                  Enter the CardStream credentials to complete the gateway integration.
                 </p>
                 <div class="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4 mb-6">
                   <p class="text-sm text-blue-300">
-                    <strong>Security Note:</strong> These credentials will be stored securely and used only for gateway integration purposes.
+                    <strong>Note:</strong> These credentials are needed to complete the gateway integration process.
                   </p>
                 </div>
               </div>
 
-              <!-- WordPress URL -->
+              <!-- CardStream Username -->
               <div class="mb-4">
                 <label class="block text-gray-300 font-medium mb-2">
-                  WordPress Site URL <span class="text-red-400">*</span>
+                  CardStream Username <span class="text-red-400">*</span>
                 </label>
                 <input
-                  v-model="form.wordpress_url"
-                  type="url"
-                  placeholder="https://example.com"
-                  class="w-full px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:border-magenta-500 transition-colors"
-                />
-                <p v-if="form.errors.wordpress_url" class="mt-1 text-sm text-red-400">{{ form.errors.wordpress_url }}</p>
-              </div>
-
-              <!-- Admin Username -->
-              <div class="mb-4">
-                <label class="block text-gray-300 font-medium mb-2">
-                  Admin Username <span class="text-red-400">*</span>
-                </label>
-                <input
-                  v-model="form.wordpress_username"
+                  v-model="form.cardstream_username"
                   type="text"
-                  placeholder="admin"
+                  placeholder="username"
                   class="w-full px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:border-magenta-500 transition-colors"
                 />
-                <p v-if="form.errors.wordpress_username" class="mt-1 text-sm text-red-400">{{ form.errors.wordpress_username }}</p>
+                <p v-if="form.errors.cardstream_username" class="mt-1 text-sm text-red-400">{{ form.errors.cardstream_username }}</p>
               </div>
 
-              <!-- Admin Password -->
-              <div class="mb-6">
+              <!-- CardStream Password -->
+              <div class="mb-4">
                 <label class="block text-gray-300 font-medium mb-2">
-                  Admin Password <span class="text-red-400">*</span>
+                  CardStream Password <span class="text-red-400">*</span>
                 </label>
                 <input
-                  v-model="form.wordpress_password"
+                  v-model="form.cardstream_password"
                   type="password"
                   placeholder="••••••••"
                   class="w-full px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:border-magenta-500 transition-colors"
                 />
-                <p v-if="form.errors.wordpress_password" class="mt-1 text-sm text-red-400">{{ form.errors.wordpress_password }}</p>
+                <p v-if="form.errors.cardstream_password" class="mt-1 text-sm text-red-400">{{ form.errors.cardstream_password }}</p>
+              </div>
+
+              <!-- Merchant ID -->
+              <div class="mb-6">
+                <label class="block text-gray-300 font-medium mb-2">
+                  Merchant ID <span class="text-red-400">*</span>
+                </label>
+                <input
+                  v-model="form.cardstream_merchant_id"
+                  type="text"
+                  placeholder="Merchant ID"
+                  class="w-full px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300 placeholder-gray-500 focus:outline-none focus:border-magenta-500 transition-colors"
+                />
+                <p v-if="form.errors.cardstream_merchant_id" class="mt-1 text-sm text-red-400">{{ form.errors.cardstream_merchant_id }}</p>
               </div>
 
               <!-- Send Account Reminder Section (Only for Users/Admins) -->
-              <div v-if="!isAccount" class="mb-6 p-4 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
+              <div class="mb-6 p-4 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
                 <div class="flex items-start gap-3">
                   <input
-                    id="send-wordpress-reminder"
+                    id="send-cardstream-reminder"
                     v-model="sendReminder"
                     type="checkbox"
                     class="mt-1 w-4 h-4 text-magenta-600 bg-dark-900 border-primary-800/30 rounded focus:ring-magenta-500"
                   />
                   <div class="flex-1">
-                    <label for="send-wordpress-reminder" class="text-yellow-300 font-medium cursor-pointer">
+                    <label for="send-cardstream-reminder" class="text-yellow-300 font-medium cursor-pointer">
                       Send reminder email to account
                     </label>
                     <p class="text-sm text-gray-400 mt-1">
-                      Request the account to enter their WordPress credentials and schedule recurring reminders
+                      Notify the account about their CardStream credentials and schedule recurring reminders
                     </p>
                   </div>
                 </div>
@@ -155,7 +155,7 @@
                 </svg>
                 <span v-if="form.processing">Saving...</span>
                 <span v-else>
-                  {{ sendReminder && !isAccount ? 'Save & Send Reminder' : 'Save Credentials' }}
+                  {{ sendReminder ? 'Save & Send Reminder' : 'Save Credentials' }}
                 </span>
               </button>
             </div>
@@ -168,7 +168,7 @@
 
 <script>
 export default {
-  name: 'WordPressCredentialsModal',
+  name: 'CardStreamCredentialsModal',
   props: {
     show: {
       type: Boolean,
@@ -187,25 +187,20 @@ export default {
     return {
       sendReminder: false,
       form: this.$inertia.form({
-        wordpress_url: this.existingCredentials?.wordpress_url || '',
-        wordpress_username: this.existingCredentials?.wordpress_username || '',
-        wordpress_password: this.existingCredentials?.wordpress_password || '',
+        cardstream_username: this.existingCredentials?.cardstream_username || '',
+        cardstream_password: this.existingCredentials?.cardstream_password || '',
+        cardstream_merchant_id: this.existingCredentials?.cardstream_merchant_id || '',
         send_reminder: false,
         reminder_interval: '3_days',
       }),
     }
   },
-  computed: {
-    isAccount() {
-      return this.$page.props.auth.guard === 'account'
-    },
-  },
   watch: {
     show(newVal) {
       if (newVal && this.existingCredentials) {
-        this.form.wordpress_url = this.existingCredentials.wordpress_url || ''
-        this.form.wordpress_username = this.existingCredentials.wordpress_username || ''
-        this.form.wordpress_password = this.existingCredentials.wordpress_password || ''
+        this.form.cardstream_username = this.existingCredentials.cardstream_username || ''
+        this.form.cardstream_password = this.existingCredentials.cardstream_password || ''
+        this.form.cardstream_merchant_id = this.existingCredentials.cardstream_merchant_id || ''
       }
     },
     sendReminder(newVal) {
@@ -221,7 +216,7 @@ export default {
       }
     },
     submit() {
-      this.form.post(`/applications/${this.applicationId}/save-wordpress-credentials`, {
+      this.form.post(`/applications/${this.applicationId}/send-cardstream-credentials`, {
         onSuccess: () => {
           this.close()
           // Reload the page to show updated credentials

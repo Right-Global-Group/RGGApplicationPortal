@@ -211,6 +211,7 @@ class ApplicationsController extends Controller
     
         // Determine if current user can change fees (admin only)
         $canChangeFees = auth()->guard('web')->check() && auth()->guard('web')->user()->isAdmin();
+        $canEditCardstream = auth()->guard('web')->check();
     
         return Inertia::render('Applications/Edit', [
             'application' => [
@@ -233,7 +234,14 @@ class ApplicationsController extends Controller
                 'deleted_at' => $application->deleted_at,
                 'created_at' => $application->created_at,
                 'updated_at' => $application->updated_at,
-                // ADD THIS - Include status information
+                'wordpress_url' => $application->wordpress_url,
+                'wordpress_username' => $application->wordpress_username,
+                'wordpress_password' => $application->wordpress_password,
+                'wordpress_credentials_entered_at' => $application->wordpress_credentials_entered_at,
+                'cardstream_username' => $application->cardstream_username,
+                'cardstream_password' => $application->cardstream_password,
+                'cardstream_merchant_id' => $application->cardstream_merchant_id,
+                'cardstream_credentials_entered_at' => $application->cardstream_credentials_entered_at,
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
@@ -267,6 +275,8 @@ class ApplicationsController extends Controller
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
             'canChangeFees' => $canChangeFees,
+            'canEditCardstream' => $canEditCardstream,
+            'canEditCardStream' => auth()->guard('web')->check(),
             'documents' => $application->documents()->get()->map(fn ($doc) => [
                 'id' => $doc->id,
                 'document_category' => $doc->document_category,
@@ -405,5 +415,304 @@ class ApplicationsController extends Controller
         $application->restore();
 
         return Redirect::back()->with('success', 'Application restored.');
+    }
+
+    /**
+     * Save WordPress credentials (can be done by user or account)
+     */
+/**
+ * Save WordPress credentials (can be done by user or account)
+ */
+public function saveWordPressCredentials(Application $application): RedirectResponse
+{
+    \Log::info('saveWordPressCredentials called', [
+        'application_id' => $application->id,
+        'guard' => auth()->guard('account')->check() ? 'account' : 'web',
+    ]);
+
+    // Both users and accounts can save WordPress credentials
+    if (auth()->guard('account')->check()) {
+        if ($application->account_id !== auth()->guard('account')->id()) {
+            abort(403);
+        }
+    } elseif (auth()->guard('web')->check()) {
+        $user = auth()->guard('web')->user();
+        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+            abort(403);
+        }
+    }
+
+    $validated = Request::validate([
+        'wordpress_url' => ['required', 'url', 'max:255'],
+        'wordpress_username' => ['required', 'string', 'max:255'],
+        'wordpress_password' => ['required', 'string', 'max:255'],
+        'send_reminder' => ['boolean'],
+        'reminder_interval' => ['required_if:send_reminder,true', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+    ]);
+
+    \Log::info('WordPress credentials validated', [
+        'send_reminder' => $validated['send_reminder'] ?? false,
+        'is_web_guard' => auth()->guard('web')->check(),
+    ]);
+
+    $application->update([
+        'wordpress_url' => $validated['wordpress_url'],
+        'wordpress_username' => $validated['wordpress_username'],
+        'wordpress_password' => $validated['wordpress_password'],
+        'wordpress_credentials_entered_at' => now(),
+    ]);
+
+    // Cancel any active reminders when credentials are saved
+    $application->emailReminders()
+        ->where('email_type', 'wordpress_credentials_request')
+        ->update(['is_active' => false]);
+
+    // Update status timestamp
+    if ($application->status) {
+        $application->status->update([
+            'wordpress_credentials_collected_at' => now()
+        ]);
+    }
+
+    // If user/admin is saving and wants to send reminder, send request email
+    if (auth()->guard('web')->check()) {
+        \Log::info('Firing WordPressCredentialsRequestEvent', [
+            'application_id' => $application->id,
+            'account_email' => $application->account->email,
+        ]);
+
+        // Send initial request email to account
+        event(new \App\Events\WordPressCredentialsRequestEvent($application));
+
+        // Set up recurring reminder
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'wordpress_credentials_request',
+            'interval' => $validated['reminder_interval'],
+            'next_send_at' => $intervals[$validated['reminder_interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'WordPress credentials saved and reminder email sent to account.');
+    }
+
+    // If account is saving their own credentials, just save without email
+    return Redirect::back()->with('success', 'WordPress credentials saved successfully.');
+}
+
+/**
+ * Send CardStream credentials to account
+ */
+public function sendCardStreamCredentials(Application $application): RedirectResponse
+{
+    \Log::info('sendCardStreamCredentials called', [
+        'application_id' => $application->id,
+    ]);
+
+    // Only users/admins can send CardStream credentials
+    if (auth()->guard('account')->check()) {
+        abort(403);
+    }
+
+    $validated = Request::validate([
+        'cardstream_username' => ['required', 'string', 'max:255'],
+        'cardstream_password' => ['required', 'string', 'max:255'],
+        'cardstream_merchant_id' => ['required', 'string', 'max:255'],
+        'send_reminder' => ['boolean'],
+        'reminder_interval' => ['required_if:send_reminder,true', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+    ]);
+
+    \Log::info('CardStream credentials validated', [
+        'send_reminder' => $validated['send_reminder'] ?? false,
+        'account_email' => $application->account->email,
+    ]);
+
+    // Save credentials
+    $application->update([
+        'cardstream_username' => $validated['cardstream_username'],
+        'cardstream_password' => $validated['cardstream_password'],
+        'cardstream_merchant_id' => $validated['cardstream_merchant_id'],
+        'cardstream_credentials_entered_at' => now(),
+    ]);
+
+    // Cancel any active reminders
+    $application->emailReminders()
+        ->where('email_type', 'cardstream_credentials')
+        ->update(['is_active' => false]);
+
+    \Log::info('Firing CardStreamCredentialsEvent', [
+        'application_id' => $application->id,
+        'account_email' => $application->account->email,
+    ]);
+
+    // ALWAYS send the initial email with credentials
+    event(new \App\Events\CardStreamCredentialsReminderEvent(
+        $application,
+        $validated['cardstream_username'],
+        $validated['cardstream_password'],
+        $validated['cardstream_merchant_id']
+    ));
+
+    // If send_reminder is checked, also set up recurring reminder
+    if ($validated['send_reminder'] ?? false) {
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'cardstream_credentials',
+            'interval' => $validated['reminder_interval'],
+            'next_send_at' => $intervals[$validated['reminder_interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'CardStream credentials sent and recurring reminder scheduled.');
+    }
+
+    return Redirect::back()->with('success', 'CardStream credentials sent to account.');
+}
+
+    /**
+     * Cancel CardStream credentials reminder
+     */
+    public function cancelCardStreamReminder(Application $application): RedirectResponse
+    {
+        $application->emailReminders()
+            ->where('email_type', 'cardstream_credentials')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'CardStream reminder cancelled.');
+    }
+
+    /**
+     * Mark gateway as integrated and transition step
+     */
+    public function markGatewayIntegrated(Application $application): RedirectResponse
+    {
+        if (auth()->guard('account')->check()) {
+            abort(403);
+        }
+
+        // Verify invoice is paid
+        if (!$application->status->invoice_paid_at) {
+            return Redirect::back()->with('error', 'Invoice must be paid before marking gateway as integrated.');
+        }
+
+        $application->status->update([
+            'gateway_integrated_at' => now()
+        ]);
+
+        $application->status->transitionTo(
+            'gateway_integrated',
+            'Gateway integration marked complete by ' . auth()->user()->name
+        );
+
+        return Redirect::back()->with('success', 'Gateway marked as integrated.');
+    }
+
+    /**
+     * Request WordPress credentials from account
+     */
+    public function requestWordPressCredentials(Application $application): RedirectResponse
+    {
+        if (auth()->guard('account')->check()) {
+            abort(403);
+        }
+
+        $validated = Request::validate([
+            'send_reminder' => ['boolean'],
+            'reminder_interval' => ['required_if:send_reminder,true', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+        ]);
+
+        // Fire event to send email
+        event(new \App\Events\WordPressCredentialsRequestEvent($application));
+
+        // Set up reminder if requested
+        if ($validated['send_reminder'] ?? false) {
+            // Deactivate existing reminders
+            $application->emailReminders()
+                ->where('email_type', 'wordpress_credentials_request')
+                ->update(['is_active' => false]);
+
+            $intervals = [
+                '1_day' => now()->addDay(),
+                '3_days' => now()->addDays(3),
+                '1_week' => now()->addWeek(),
+                '2_weeks' => now()->addWeeks(2),
+                '1_month' => now()->addMonth(),
+            ];
+
+            EmailReminder::create([
+                'remindable_type' => Application::class,
+                'remindable_id' => $application->id,
+                'email_type' => 'wordpress_credentials_request',
+                'interval' => $validated['reminder_interval'],
+                'next_send_at' => $intervals[$validated['reminder_interval']],
+                'is_active' => true,
+            ]);
+        }
+
+        return Redirect::back()->with('success', 'WordPress credentials request sent.');
+    }
+
+    /**
+     * Cancel WordPress credentials reminder
+     */
+    public function cancelWordPressReminder(Application $application): RedirectResponse
+    {
+        $application->emailReminders()
+            ->where('email_type', 'wordpress_credentials_request')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'WordPress credentials reminder cancelled.');
+    }
+
+    /**
+     * Make account live - final step
+     */
+    public function makeAccountLive(Application $application): RedirectResponse
+    {
+        if (auth()->guard('account')->check()) {
+            abort(403);
+        }
+
+        // Verify gateway is integrated
+        if (!$application->status->gateway_integrated_at) {
+            return Redirect::back()->with('error', 'Gateway must be integrated before making account live.');
+        }
+
+        // // Verify WordPress credentials are entered
+        // if (!$application->wordpress_credentials_entered_at) {
+        //     return Redirect::back()->with('error', 'WordPress credentials must be entered before making account live.');
+        // }
+
+        $application->status->update([
+            'account_live_at' => now()
+        ]);
+
+        $application->status->transitionTo(
+            'account_live',
+            'Account made live by ' . auth()->user()->name
+        );
+
+        // Fire event to send congratulations email
+        event(new \App\Events\AccountLiveEvent($application));
+
+        return Redirect::back()->with('success', 'Account is now live! Congratulations email sent.');
     }
 }

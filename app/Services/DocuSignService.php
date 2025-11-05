@@ -32,11 +32,11 @@ class DocuSignService
     }
 
     /**
-     * Send merchant contract and return the signing URL
+     * Get DocuSign contract and return the signing URL
      */
-    public function sendMerchantContract(Application $application): array
+    public function sendDocuSignContract(Application $application): array
     {
-        // ✅ CHECK: Does this application already have an active envelope?
+        // Does this application already have an active envelope?
         $existingEnvelopeId = $application->status->docusign_envelope_id;
         
         if ($existingEnvelopeId) {
@@ -85,7 +85,7 @@ class DocuSignService
             }
         }
         
-        // ✅ CREATE NEW ENVELOPE with BOTH recipients
+        // CREATE NEW ENVELOPE with BOTH recipients
         $account = $application->account;
         
         if (!$account || !$account->email) {
@@ -159,18 +159,6 @@ class DocuSignService
                 ],
                 'status' => 'sent',
             ];
-        
-            Log::info('Creating new DocuSign envelope with both recipients', [
-                'application_id' => $application->id,
-                'embedded_signer' => [
-                    'email' => $embeddedEmail,
-                    'role' => $embeddedRole,
-                ],
-                'email_signer' => [
-                    'email' => $emailSignerEmail,
-                    'role' => $emailSignerRole,
-                ],
-            ]);
     
             $response = Http::withToken($accessToken)
                 ->withHeaders(['Content-Type' => 'application/json'])

@@ -20,39 +20,6 @@
         </span>
       </div>
 
-      <div v-if="showAccountActions" class="mb-6 w-full">
-        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
-          <div class="px-6 py-3 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <h3 class="text-magenta-400 font-bold text-base">Account Actions</h3>
-          </div>
-          <div class="p-4 flex flex-wrap gap-3">
-            <!-- Upload Docs Button (shows until documents_approved) -->
-            <Link
-              v-if="canUploadDocs"
-              :href="`/applications/${activeApplication.id}/edit#documents`"
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Upload Documents
-            </Link>
-
-            <!-- Sign Contract Button (shows when contract_sent and not yet signed) -->
-            <Link
-              v-if="canSignContract"
-              :href="`/applications/${activeApplication.id}/status#section-actions`"
-              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Sign Contract
-            </Link>
-          </div>
-        </div>
-      </div>
-
       <!-- Create Application Button (Admin Only) -->
       <div v-if="$page.props.auth.user.isAdmin" class="mb-8">
         <Link 
@@ -66,6 +33,39 @@
 
     <div class="flex flex-col sm:flex sm:flex-row gap-6">
       <div class="sm:w-1/2 w-full">
+
+        <div v-if="showAccountActions" class="mb-6 w-full">
+          <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+            <div class="px-6 py-3 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+              <h3 class="text-magenta-400 font-bold text-base">Account Actions</h3>
+            </div>
+            <div class="p-4 flex flex-wrap gap-3">
+              <!-- Upload Docs Button (shows until documents_approved) -->
+              <Link
+                v-if="canUploadDocs"
+                :href="`/applications/${activeApplication.id}/edit#documents`"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Documents
+              </Link>
+
+              <!-- Sign Contract Button (shows when contract_sent and not yet signed) -->
+              <Link
+                v-if="canSignContract"
+                :href="`/applications/${activeApplication.id}/status#section-actions`"
+                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Sign Contract
+              </Link>
+            </div>
+          </div>
+        </div>
 
         <!-- Account Details Section -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">

@@ -43,6 +43,14 @@ class Application extends Model
         'requires_additional_document',
         'additional_document_name',
         'additional_document_instructions',
+        'cardstream_username',
+        'cardstream_password',
+        'cardstream_merchant_id',
+        'cardstream_credentials_entered_at',
+        'wordpress_url',
+        'wordpress_username',
+        'wordpress_password',
+        'wordpress_credentials_entered_at',
     ];
 
     protected $casts = [

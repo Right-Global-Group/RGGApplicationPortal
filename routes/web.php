@@ -144,6 +144,34 @@ Route::middleware(['auth:web,account'])->group(function () {
             ->name('applications.mark-documents-approved');
         Route::delete('/{application}/additional-documents/{additionalDocument}/requirement', [ApplicationDocumentsController::class, 'removeAdditionalDocumentRequirement'])
             ->name('applications.additional-documents.remove-requirement');
+
+        // Invoice management
+        Route::post('/{application}/send-invoice-reminder', [ApplicationStatusController::class, 'sendInvoiceReminder'])
+        ->name('applications.send-invoice-reminder');
+        Route::post('/{application}/mark-invoice-paid', [ApplicationStatusController::class, 'markInvoiceAsPaid'])
+        ->name('applications.mark-invoice-paid');
+
+        // CardStream credentials
+        Route::post('/{application}/send-cardstream-credentials', [ApplicationsController::class, 'sendCardStreamCredentials'])
+        ->name('applications.send-cardstream-credentials');
+        Route::post('/{application}/cancel-cardstream-reminder', [ApplicationsController::class, 'cancelCardStreamReminder'])
+        ->name('applications.cancel-cardstream-reminder');
+
+        // Gateway integration
+        Route::post('/{application}/mark-gateway-integrated', [ApplicationsController::class, 'markGatewayIntegrated'])
+        ->name('applications.mark-gateway-integrated');
+
+        // WordPress credentials
+        Route::post('/{application}/request-wordpress-credentials', [ApplicationsController::class, 'requestWordPressCredentials'])
+        ->name('applications.request-wordpress-credentials');
+        Route::post('/{application}/save-wordpress-credentials', [ApplicationsController::class, 'saveWordPressCredentials'])
+        ->name('applications.save-wordpress-credentials');
+        Route::post('/{application}/cancel-wordpress-reminder', [ApplicationsController::class, 'cancelWordPressReminder'])
+        ->name('applications.cancel-wordpress-reminder');
+
+        // Make account live
+        Route::post('/{application}/make-account-live', [ApplicationsController::class, 'makeAccountLive'])
+        ->name('applications.make-account-live');
     });
 
     // Progress Tracker

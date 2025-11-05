@@ -403,6 +403,29 @@ class EmailTemplatesController extends Controller
             'wordpress-credentials-reminder' => [
                 // Uses common data (application_name, account_name, application_url)
             ],
+            'cardstream-submission' => [
+                'submitted_by' => 'Admin User',
+                'contract_url' => URL::to('/docusign/contract/abc123'),
+                'setup_fee' => 500.00,
+                'transaction_percentage' => 2.5,
+                'transaction_fixed_fee' => 0.20,
+                'monthly_fee' => 50.00,
+                'monthly_minimum' => 100.00,
+                'service_fee' => 25.00,
+            ],
+            'cardstream-credentials-reminder' => [
+                'username' => 'sample_merchant_user',
+                'password' => 'SamplePassword123!',
+                'merchant_id' => 'MID123456789',
+            ],
+            'account-live' => [
+                'wordpress_url' => 'https://example-merchant.com',
+            ],
+            'docusign-status-change' => [
+                'status' => 'completed',
+                'status_message' => 'All parties have successfully signed the contract.',
+                'timestamp' => now()->format('F j, Y \a\t g:i A'),
+            ],
             default => [],
         };
 

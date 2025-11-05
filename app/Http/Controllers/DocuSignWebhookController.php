@@ -230,7 +230,7 @@ class DocuSignWebhookController extends Controller
                     
                     $application->status->transitionTo(
                         'contract_signed',
-                        'Contract fully signed via DocuSign'
+                        'Contract signed via DocuSign'
                     );
             
                     event(new \App\Events\DocuSignStatusChangeEvent(

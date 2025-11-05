@@ -26,6 +26,8 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $appends = ['name'];
+
     protected function casts(): array
     {
         return [
@@ -33,6 +35,11 @@ class User extends Authenticatable
             'password' => 'hashed',
             'owner' => 'boolean',
         ];
+    }
+
+    public function getNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->last_name}");
     }
 
     public function accounts(): HasMany

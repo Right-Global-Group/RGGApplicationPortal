@@ -10,8 +10,8 @@
         <div class="text-sm text-magenta-400">Total Applications</div>
       </div>
       <div class="bg-gradient-to-br from-yellow-600/20 to-orange-600/20 backdrop-blur-sm rounded-xl p-6 border border-yellow-700/30">
-        <div class="text-3xl font-bold text-white mb-1">{{ stats.pending_contracts }}</div>
-        <div class="text-sm text-yellow-400">Pending Contracts</div>
+        <div class="text-3xl font-bold text-white mb-1">{{ stats.awaiting_documents }}</div>
+        <div class="text-sm text-yellow-400">Awaiting Documents</div>
       </div>
       <div class="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 backdrop-blur-sm rounded-xl p-6 border border-blue-700/30">
         <div class="text-3xl font-bold text-white mb-1">{{ stats.awaiting_approval }}</div>
@@ -336,9 +336,11 @@ export default {
   methods: {
     formatStatus(status) {
       const statusMap = {
-        created: 'Created',
+        created: 'Application Created',
+        contract_sent: 'Contract Sent',
         documents_uploaded: 'Documents Uploaded',
         documents_approved: 'Documents Approved',
+        contract_signed: 'Contract Signed',
         application_sent: 'Contract Sent',
         contract_completed: 'Contract Signed',
         contract_submitted: 'Contract Submitted',
@@ -347,24 +349,26 @@ export default {
         invoice_sent: 'Invoice Sent',
         invoice_paid: 'Payment Received',
         gateway_integrated: 'Integration Complete',
-        account_live: 'Live',
+        account_live: 'Account Live',
       }
       return statusMap[status] || status
     },
     getStatusClass(status) {
       const classMap = {
-        created: 'bg-gray-700 text-gray-300',
+        created: 'bg-slate-700/50 text-slate-300',
+        contract_sent: 'bg-sky-900/50 text-sky-300',
         documents_uploaded: 'bg-purple-900/50 text-purple-300',
-        documents_approved: 'bg-purple-600/50 text-purple-300',
+        documents_approved: 'bg-indigo-900/50 text-indigo-300',
+        contract_signed: 'bg-blue-900/50 text-blue-300',
         application_sent: 'bg-yellow-900/50 text-yellow-300',
         contract_completed: 'bg-blue-900/50 text-blue-300',
-        contract_submitted: 'bg-blue-900/50 text-blue-300',
-        application_approved: 'bg-green-400/30 text-green-100',
+        contract_submitted: 'bg-teal-900/50 text-teal-300',
+        application_approved: 'bg-green-900/50 text-green-300',
         approval_email_sent: 'bg-purple-900/50 text-purple-300',
         invoice_sent: 'bg-orange-900/50 text-orange-300',
         invoice_paid: 'bg-cyan-900/50 text-cyan-300',
         gateway_integrated: 'bg-emerald-900/50 text-emerald-300',
-        account_live: 'bg-green-900/50 text-green-300',
+        account_live: 'bg-green-600/50 text-green-200 font-bold',
       }
       return classMap[status] || 'bg-gray-700 text-gray-300'
     },

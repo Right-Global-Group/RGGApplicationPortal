@@ -109,7 +109,7 @@ export default {
       ],
       secondaryMenu: [
         { 
-          name: 'dashboard', 
+          name: 'progress-tracker', 
           label: 'Progress Tracker', 
           href: '/progress-tracker', 
           match: 'progress-tracker',

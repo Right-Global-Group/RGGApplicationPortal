@@ -102,9 +102,25 @@ class ProgressTrackerController extends Controller
         }
         
         $allApplications = $statsQuery->get();
+        $allApplications = $statsQuery->get();
         $stats = [
             'total_applications' => $allApplications->count(),
-            'pending_fees' => $allApplications->filter(fn($app) => $app->status?->current_step === 'created')->count(),  // UPDATED: Created = Pending Fees
+            'awaiting_documents' => $allApplications->filter(function($app) {
+                $timestamps = [
+                    'documents_uploaded' => $app->status?->documents_uploaded_at,
+                    'contract_sent' => $app->status?->contract_sent_at,
+                    'contract_signed' => $app->status?->contract_signed_at,
+                    'documents_approved' => $app->status?->documents_approved_at,
+                ];
+                
+                // Has documents_uploaded OR contract_sent timestamp
+                $hasEarlyTimestamp = $timestamps['documents_uploaded'] || $timestamps['contract_sent'];
+                
+                // Does NOT have both contract_signed AND documents_approved
+                $hasNotCompleted = !($timestamps['contract_signed'] && $timestamps['documents_approved']);
+                
+                return $hasEarlyTimestamp && $hasNotCompleted;
+            })->count(),
             'awaiting_approval' => $allApplications->filter(fn($app) => $app->status?->current_step === 'contract_submitted')->count(),
             'awaiting_payment' => $allApplications->filter(fn($app) => $app->status?->current_step === 'invoice_sent')->count(),
             'in_integration' => $allApplications->filter(fn($app) => in_array($app->status?->current_step, ['invoice_paid', 'gateway_integrated']))->count(),
@@ -114,6 +130,10 @@ class ProgressTrackerController extends Controller
         // Available status options for filter dropdown
         $statusOptions = [
             'created' => 'Created',
+            'contract_sent' => 'Contract Sent',
+            'documents_uploaded' => 'Documents Uploaded',
+            'documents_approved' => 'Documents Approved',
+            'contract_signed' => 'Contract Signed',
             'application_sent' => 'Contract Sent',
             'contract_completed' => 'Contract Signed',
             'contract_submitted' => 'Submitted',

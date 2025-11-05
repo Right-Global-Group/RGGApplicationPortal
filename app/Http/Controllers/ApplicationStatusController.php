@@ -76,10 +76,13 @@ class ApplicationStatusController extends Controller
                     'additional_info_notes' => $application->status->additional_info_notes,
                     'step_history' => $application->status->step_history,
                     'timestamps' => [
+                        'created' => $application->created_at?->format('Y-m-d H:i'),
                         'documents_uploaded' => $application->status->documents_uploaded_at?->format('Y-m-d H:i'),
                         'documents_approved' => $application->status->documents_approved_at?->format('Y-m-d H:i'),
                         'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
+                        'contract_signed' => $application->status->contract_signed_at?->format('Y-m-d H:i'), 
                         'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
+                        'contract_submitted' => $application->status->contract_submitted_at?->format('Y-m-d H:i'),
                         'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
                         'gateway_contract_sent' => $application->status->gateway_contract_sent_at?->format('Y-m-d H:i'),
                         'gateway_contract_signed' => $application->status->gateway_contract_signed_at?->format('Y-m-d H:i'),
@@ -114,15 +117,6 @@ class ApplicationStatusController extends Controller
                         'requested_at' => $doc->requested_at->format('Y-m-d H:i'),
                         'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
                     ]),
-                'invoices' => $application->invoices()->get()->map(fn ($inv) => [
-                    'id' => $inv->id,
-                    'invoice_number' => $inv->invoice_number,
-                    'amount' => $inv->amount,
-                    'status' => $inv->status,
-                    'sent_at' => $inv->sent_at?->format('Y-m-d'),
-                    'paid_at' => $inv->paid_at?->format('Y-m-d'),
-                    'due_date' => $inv->due_date?->format('Y-m-d'),
-                ]),
                 'email_logs' => $application->morphMany(\App\Models\EmailLog::class, 'emailable')
                     ->latest()
                     ->get()
@@ -302,37 +296,6 @@ class ApplicationStatusController extends Controller
             ->update(['is_active' => false]);
 
         return Redirect::back()->with('success', 'Additional info reminder cancelled.');
-    }
-
-    /**
-     * Send merchant contract link via DocuSign - returns JSON with signing URL
-     */
-    public function sendContractLink(Application $application): JsonResponse
-    {
-        try {
-            // Send merchant contract via DocuSign
-            $result = $this->docuSignService->sendMerchantContract($application);
-            
-            $application->status->update([
-                'docusign_envelope_id' => $result['envelope_id'],
-                'docusign_status' => 'sent',
-            ]);
-
-            // ✅ FIXED - Transition to 'contract_sent' (NEW flow)
-            $application->status->transitionTo('contract_sent', 'Contract sent via DocuSign');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Contract sent successfully',
-                'signing_url' => $result['signing_url'],
-                'envelope_id' => $result['envelope_id'],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send contract: ' . $e->getMessage(),
-            ], 500);
-        }
     }
 
     /**
@@ -542,6 +505,34 @@ class ApplicationStatusController extends Controller
         ]);
     }
 
+    /**
+     * Send contract link via DocuSign - returns JSON with signing URL
+     */
+    public function sendContractLink(Application $application): JsonResponse
+    {
+        try {
+            // Send contract via DocuSign
+            $result = $this->docuSignService->sendDocuSignContract($application);
+            
+            $application->status->update([
+                'docusign_envelope_id' => $result['envelope_id'],
+                'docusign_status' => 'sent',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contract sent successfully',
+                'signing_url' => $result['signing_url'],
+                'envelope_id' => $result['envelope_id'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send contract: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function sendContractReminder(Application $application): RedirectResponse
     {
         // Check permissions
@@ -554,15 +545,7 @@ class ApplicationStatusController extends Controller
             abort(403);
         }
     
-        // ✅ NEW: If documents are uploaded but not approved, mark them as approved
-        if ($application->status->current_step === 'documents_uploaded') {
-            $application->status->transitionTo(
-                'documents_approved', 
-                'Documents marked as approved when sending contract reminder'
-            );
-        }
-    
-        // ✅ NEW: Ensure contract_sent step is marked complete
+        // Ensure contract_sent step is marked complete
         if (!$application->status->contract_sent_at) {
             $application->status->update([
                 'contract_sent_at' => now()
@@ -612,6 +595,85 @@ class ApplicationStatusController extends Controller
             return Redirect::back()->with('error', 'Failed to send contract reminder.');
         }
     }
+
+
+    /**
+     * Send invoice reminder email
+     */
+    public function sendInvoiceReminder(Application $application): RedirectResponse
+    {
+        // Check permissions
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot send invoice reminders.');
+        }
+
+        $user = auth()->guard('web')->user();
+        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+            abort(403);
+        }
+
+        try {
+            $emailData = [
+                'account_name' => $application->account->name,
+                'application_name' => $application->name,
+                'application_url' => url("/applications/{$application->id}/status"),
+            ];
+
+            Mail::to($application->account->email)->send(
+                new \App\Mail\DynamicEmail('invoice_reminder', $emailData)
+            );
+
+            // Transition to invoice_sent if not already there
+            if (!$application->status->invoice_sent_at) {
+                $application->status->transitionTo(
+                    'invoice_sent',
+                    'Invoice reminder sent by ' . $user->name
+                );
+            }
+
+            // Log the email
+            \App\Models\EmailLog::create([
+                'emailable_type' => get_class($application),
+                'emailable_id' => $application->id,
+                'email_type' => 'invoice_reminder',
+                'recipient_email' => $application->account->email,
+                'subject' => 'Reminder: Invoice Payment Required',
+                'sent_at' => now(),
+            ]);
+
+            return Redirect::back()->with('success', 'Invoice reminder sent successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Failed to send invoice reminder', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return Redirect::back()->with('error', 'Failed to send invoice reminder.');
+        }
+    }
+
+    /**
+     * Mark invoice as paid and transition to next step
+     */
+    public function markInvoiceAsPaid(Application $application): RedirectResponse
+    {
+        if (auth()->guard('account')->check()) {
+            abort(403);
+        }
+
+        // Update status
+        $application->status->update([
+            'invoice_paid_at' => now()
+        ]);
+
+        $application->status->transitionTo(
+            'invoice_paid',
+            'Invoice marked as paid by ' . auth()->user()->name
+        );
+
+        return Redirect::back()->with('success', 'Invoice marked as paid.');
+    }
+
 
     /**
      * Set recurring contract reminder
@@ -686,7 +748,7 @@ class ApplicationStatusController extends Controller
 
         // Verify contract is signed
         if ($application->status->current_step !== 'contract_signed') {
-            return Redirect::back()->with('error', 'Contract must be signed before submitting to CardStream.');
+            return Redirect::back()->with('error', 'Contract must be signed by all recipients before submitting to CardStream.');
         }
 
         // Get the DocuSign envelope ID to generate the contract URL
