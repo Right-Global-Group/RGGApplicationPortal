@@ -29,10 +29,14 @@ class DashboardController extends Controller
 
         // Get filters
         $filters = $request->only(['date_from', 'date_to', 'account_id', 'status', 'search']);
-        
+                
         // Date range (default: last 30 days) - for "created over time" chart only
-        $dateFrom = $filters['date_from'] ?? now()->subDays(30)->toDateString();
-        $dateTo = $filters['date_to'] ?? now()->toDateString();
+        $dateFrom = !empty($filters['date_from'])
+            ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() 
+            : now()->subDays(30)->startOfDay();
+        $dateTo = !empty($filters['date_to'])
+            ? \Carbon\Carbon::parse($filters['date_to'])->endOfDay() 
+            : now()->endOfDay();
 
         // Build base query for ALL applications (not filtered by date)
         $applicationsQuery = Application::query()
@@ -62,13 +66,44 @@ class DashboardController extends Controller
 
         if (!empty($filters['status'])) {
             $applicationsQuery->whereHas('status', function ($q) use ($filters) {
-                $q->where('current_step', $filters['status']);
+                $status = $filters['status'];
+                
+                // Map status to its timestamp column
+                $timestampMapping = [
+                    'created' => null,
+                    'contract_sent' => 'contract_sent_at',
+                    'documents_uploaded' => 'documents_uploaded_at',
+                    'documents_approved' => 'documents_approved_at',
+                    'contract_signed' => 'contract_signed_at',
+                    'contract_submitted' => 'contract_submitted_at',
+                    'application_approved' => 'application_approved_at',
+                    'invoice_sent' => 'invoice_sent_at',
+                    'invoice_paid' => 'invoice_paid_at',
+                    'gateway_integrated' => 'gateway_integrated_at',
+                    'account_live' => 'account_live_at',
+                ];
+                
+                $timestampColumn = $timestampMapping[$status] ?? null;
+                
+                $q->where(function ($query) use ($status, $timestampColumn) {
+                    // Current step matches
+                    $query->where('current_step', $status);
+                    
+                    // OR has a timestamp for this status (meaning it reached it at some point)
+                    if ($timestampColumn) {
+                        $query->orWhereNotNull($timestampColumn);
+                    }
+                });
             });
         }
         
         // Apply global date filters if set
         if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
-            $applicationsQuery->whereBetween('applications.created_at', [$filters['date_from'], $filters['date_to']]);
+            // Convert to Carbon instances and set time boundaries
+            $dateFrom = \Carbon\Carbon::parse($filters['date_from'])->startOfDay();
+            $dateTo = \Carbon\Carbon::parse($filters['date_to'])->endOfDay();
+            
+            $applicationsQuery->whereBetween('applications.created_at', [$dateFrom, $dateTo]);
         }
 
         if (!empty($filters['search'])) {
@@ -105,25 +140,32 @@ class DashboardController extends Controller
         
         if (!empty($applicationIds)) {
             foreach ($allStatuses as $status) {
-                // Count applications currently at this status OR with a timestamp for this status
+                // Map status to its timestamp column
+                $timestampMapping = [
+                    'created' => null, // Always count all applications
+                    'documents_uploaded' => 'documents_uploaded_at',
+                    'documents_approved' => 'documents_approved_at',
+                    'application_sent' => 'contract_sent_at', // Contract sent
+                    'contract_completed' => 'contract_signed_at', // Contract signed
+                    'contract_submitted' => 'contract_submitted_at',
+                    'application_approved' => 'application_approved_at',
+                    'invoice_sent' => 'invoice_sent_at',
+                    'invoice_paid' => 'invoice_paid_at',
+                    'gateway_integrated' => 'gateway_integrated_at',
+                    'account_live' => 'account_live_at',
+                ];
+                
+                $timestampColumn = $timestampMapping[$status] ?? null;
+                
+                // Count applications that have reached this status
                 $count = ApplicationStatus::query()
                     ->whereIn('application_id', $applicationIds)
-                    ->where(function ($q) use ($status) {
+                    ->where(function ($q) use ($status, $timestampColumn) {
                         // Current step matches
                         $q->where('current_step', $status);
                         
                         // OR has a timestamp for this status (meaning it reached it at some point)
-                        $timestampColumn = $status . '_at';
-                        if (in_array($timestampColumn, [
-                            'documents_uploaded_at',
-                            'documents_approved_at',
-                            'contract_sent_at',
-                            'contract_completed_at',
-                            'application_approved_at',
-                            'invoice_sent_at',
-                            'invoice_paid_at',
-                            'account_live_at',
-                        ])) {
+                        if ($timestampColumn) {
                             $q->orWhereNotNull($timestampColumn);
                         }
                     })
@@ -152,6 +194,11 @@ class DashboardController extends Controller
                 'date' => $item->date,
                 'count' => $item->count,
             ]);
+        
+        // Get the most recent application timestamp (for "Last Application" metric)
+        $mostRecentApplication = (clone $applicationsQuery)
+            ->orderBy('applications.created_at', 'desc')
+            ->first();
 
         // Average setup fees
         $avgSetupFee = (clone $applicationsQuery)->avg('setup_fee') ?? 0;
@@ -182,6 +229,7 @@ class DashboardController extends Controller
             ->map(fn ($app) => [
                 'id' => $app->id,
                 'name' => $app->name,
+                'setup_fee' => $app->setup_fee,
                 'account_name' => $app->account?->name,
                 'status' => $app->status?->current_step ?? 'created',
                 'created_at' => $app->created_at->format('Y-m-d H:i'),
@@ -203,17 +251,31 @@ class DashboardController extends Controller
         // All possible statuses for filter
         $availableStatuses = [
             'created' => 'Application Created',
+            'contract_sent' => 'Contract Sent',
             'documents_uploaded' => 'Documents Uploaded',
             'documents_approved' => 'Documents Approved',
-            'application_sent' => 'Contract Sent',
-            'contract_completed' => 'Contract Signed',
+            'contract_signed' => 'Contract Signed',
             'contract_submitted' => 'Contract Submitted',
             'application_approved' => 'Application Approved',
             'invoice_sent' => 'Invoice Sent',
-            'invoice_paid' => 'Payment Received',
-            'gateway_integrated' => 'Gateway Integration',
+            'invoice_paid' => 'Invoice Paid',
+            'gateway_integrated' => 'Gateway Integrated',
             'account_live' => 'Account Live',
         ];
+
+        // Calculate processing times for applications
+        $processingData = $this->getProcessingData($applicationsQuery);
+
+        $userAccountData = [];
+        if ($isAdmin) {
+            $users = User::withCount('accounts')->get();
+            $userAccountData = $users->map(function($user) {
+                return [
+                    'name' => $user->name,
+                    'account_count' => $user->accounts_count,
+                ];
+            })->toArray();
+        }
 
         return Inertia::render('Dashboard/Index', [
             'filters' => $filters + ['date_from' => $dateFrom, 'date_to' => $dateTo],
@@ -227,13 +289,161 @@ class DashboardController extends Controller
                 'totalUsers' => $totalUsers,
                 'avgSetupFee' => round($avgSetupFee, 2),
                 'totalSetupFees' => round($totalSetupFees, 2),
+                'mostRecentApplicationDate' => $mostRecentApplication?->created_at?->toISOString(),
             ],
             'charts' => [
                 'statusCounts' => $statusCounts,
                 'applicationsOverTime' => $applicationsOverTime,
                 'topAccounts' => $topAccounts,
+                'userAccountData' => $userAccountData,
             ],
             'recentApplications' => $recentApplications,
+            'processingStats' => $processingData['stats'],
+            'processingApplications' => $processingData['applications'],
         ]);
+    }
+
+    /**
+     * Calculate processing times for applications
+     */
+    private function getProcessingData($applicationsQuery)
+    {
+        $page = request()->get('processing_page', 1);
+        $perPage = 10;
+
+        // Get all applications with their status timestamps
+        $applications = (clone $applicationsQuery)
+            ->with(['account', 'status'])
+            ->get()
+            ->map(function ($app) {
+                $status = $app->status;
+                if (!$status) {
+                    return null;
+                }
+
+                // Skip applications that are still in 'created' status
+                if ($status->current_step === 'created') {
+                    return null;
+                }
+
+                // Calculate days from creation to current status
+                $createdAt = $app->created_at;
+                $currentTimestamp = null;
+                
+                // Get the most recent timestamp based on current step
+                switch ($status->current_step) {
+                    case 'documents_uploaded':
+                        $currentTimestamp = $status->documents_uploaded_at;
+                        break;
+                    case 'documents_approved':
+                        $currentTimestamp = $status->documents_approved_at;
+                        break;
+                    case 'contract_sent':
+                        $currentTimestamp = $status->contract_sent_at;
+                        break;
+                    case 'contract_signed':
+                        $currentTimestamp = $status->contract_signed_at;
+                        break;
+                    case 'contract_submitted':
+                        $currentTimestamp = $status->contract_submitted_at;
+                        break;
+                    case 'application_approved':
+                        $currentTimestamp = $status->application_approved_at;
+                        break;
+                    case 'invoice_sent':
+                        $currentTimestamp = $status->invoice_sent_at;
+                        break;
+                    case 'invoice_paid':
+                        $currentTimestamp = $status->invoice_paid_at;
+                        break;
+                    case 'gateway_integrated':
+                        $currentTimestamp = $status->gateway_integrated_at;
+                        break;
+                    case 'account_live':
+                        $currentTimestamp = $status->account_live_at;
+                        break;
+                    default:
+                        // If no timestamp found, skip this application
+                        return null;
+                }
+
+                // Skip if we don't have a valid timestamp
+                if (!$currentTimestamp) {
+                    return null;
+                }
+
+                // If account_live, use that as end time, otherwise use current timestamp
+                $endTimestamp = $status->account_live_at ?? $currentTimestamp;
+                $daysInProcess = $createdAt->diffInDays($endTimestamp);
+
+                return [
+                    'id' => $app->id,
+                    'name' => $app->name,
+                    'account_name' => $app->account?->name ?? 'Unknown',
+                    'account_id' => $app->account_id,
+                    'current_step' => $status->current_step,
+                    'created_at' => $createdAt->format('Y-m-d H:i'),
+                    'days_in_process' => $daysInProcess,
+                    'is_completed' => $status->current_step === 'account_live',
+                    'completion_date' => $status->account_live_at?->format('Y-m-d H:i'),
+                ];
+            })
+            ->filter() // Remove nulls (created status and apps without timestamps)
+            ->sortBy('days_in_process')
+            ->values();
+
+        // Calculate statistics
+        $completedApplications = $applications->where('is_completed', true);
+        
+        $stats = [
+            'fastest' => $completedApplications->min('days_in_process') ?? 0,
+            'slowest' => $completedApplications->max('days_in_process') ?? 0,
+            'average' => $completedApplications->avg('days_in_process') 
+                ? round($completedApplications->avg('days_in_process'), 1) 
+                : 0,
+            'median' => $this->calculateMedian($completedApplications->pluck('days_in_process')->toArray()),
+            'total_completed' => $completedApplications->count(),
+            'total_in_progress' => $applications->where('is_completed', false)->count(),
+        ];
+
+        // Paginate results
+        $total = $applications->count();
+        $lastPage = ceil($total / $perPage);
+        $offset = ($page - 1) * $perPage;
+        
+        $paginatedApplications = $applications->slice($offset, $perPage)->values();
+
+        return [
+            'stats' => $stats,
+            'applications' => [
+                'data' => $paginatedApplications,
+                'current_page' => (int) $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => $lastPage,
+                'from' => $offset + 1,
+                'to' => min($offset + $perPage, $total),
+            ],
+        ];
+    }
+
+    /**
+     * Calculate median value
+     */
+    private function calculateMedian(array $values)
+    {
+        if (empty($values)) {
+            return 0;
+        }
+        
+        sort($values);
+        $count = count($values);
+        $middle = floor($count / 2);
+        
+        if ($count % 2 == 0) {
+            return round(($values[$middle - 1] + $values[$middle]) / 2, 1);
+        }
+        
+        return round($values[$middle], 1);
     }
 }
