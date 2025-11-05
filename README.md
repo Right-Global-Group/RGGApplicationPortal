@@ -87,11 +87,11 @@ php artisan serve
 ![Document Upload](screenshots/document-upload.png)
 *Secure document upload and approval workflow*
 
-### Email Template Editor
+### Progress Tracker
 ![Email Templates](screenshots/email-templates.png)
 *Customize automated email templates for each workflow stage*
 
-### User Management
+### Email Template Editor
 ![User Management](screenshots/user-management.png)
 *Admin panel for managing users and permissions*
 
