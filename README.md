@@ -79,7 +79,6 @@ php artisan serve
 ![Application Status](screenshots/application-status.png)
 *Detailed timeline view showing progress through each stage*
 
-### Progress Tracker
 ![Progress Tracker](screenshots/progress-tracker.png)
 *Visual dashboard tracking all applications across workflow stages*
 
