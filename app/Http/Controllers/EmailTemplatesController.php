@@ -426,6 +426,9 @@ class EmailTemplatesController extends Controller
                 'status_message' => 'All parties have successfully signed the contract.',
                 'timestamp' => now()->format('F j, Y \a\t g:i A'),
             ],
+            'account-message-to-user' => [
+                'account_message' => 'Hello, I wanted to follow up regarding the documents you requested. I have uploaded all the required files to the application portal. Please let me know if you need any additional information or clarification on any of the documents provided. Thank you for your assistance with this application.',
+            ],
             default => [],
         };
 

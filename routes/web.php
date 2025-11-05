@@ -172,6 +172,16 @@ Route::middleware(['auth:web,account'])->group(function () {
         // Make account live
         Route::post('/{application}/make-account-live', [ApplicationsController::class, 'makeAccountLive'])
         ->name('applications.make-account-live');
+
+        // Account message routes (only for accounts)
+        Route::post('/{application}/send-account-message', [ApplicationStatusController::class, 'sendAccountMessage'])
+        ->name('applications.send-account-message');
+
+        Route::post('/{application}/set-account-message-reminder', [ApplicationStatusController::class, 'setAccountMessageReminder'])
+        ->name('applications.set-account-message-reminder');
+
+        Route::post('/{application}/cancel-account-message-reminder', [ApplicationStatusController::class, 'cancelAccountMessageReminder'])
+        ->name('applications.cancel-account-message-reminder');
     });
 
     // Progress Tracker

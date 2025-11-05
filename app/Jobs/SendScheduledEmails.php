@@ -93,6 +93,13 @@ class SendScheduledEmails implements ShouldQueue
                 }
                 break;
 
+            case 'account_message_to_user':
+                if ($remindable instanceof \App\Models\Application) {
+                    $message = $remindable->status?->account_message_notes ?? 'Follow-up message from account.';
+                    event(new \App\Events\AccountMessageToUserEvent($remindable, $message));
+                }
+                break;
+
             default:
                 Log::warning('Unknown email type for reminder', [
                     'reminder_id' => $reminder->id,

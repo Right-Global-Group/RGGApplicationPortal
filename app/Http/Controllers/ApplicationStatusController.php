@@ -773,4 +773,110 @@ class ApplicationStatusController extends Controller
 
         return Redirect::back()->with('success', 'Application submitted to CardStream successfully. Email sent with contract details.');
     }
+
+    /**
+     * Send message from account to user (immediate)
+     */
+    public function sendAccountMessage(Application $application): RedirectResponse
+    {
+        // Ensure only accounts can send
+        if (!auth()->guard('account')->check()) {
+            abort(403, 'Only accounts can send messages.');
+        }
+
+        // Ensure account owns this application
+        if ($application->account_id !== auth()->guard('account')->id()) {
+            abort(403, 'You can only send messages for your own applications.');
+        }
+
+        $validated = Request::validate([
+            'message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        // Store in application_statuses
+        $application->status->update([
+            'account_message_notes' => $validated['message']
+        ]);
+
+        // Fire event to send email immediately
+        event(new \App\Events\AccountMessageToUserEvent(
+            $application,
+            $validated['message']
+        ));
+
+        return Redirect::back()->with('success', 'Message sent to administrator.');
+    }
+
+    /**
+     * Set account message reminder (schedules future emails)
+     */
+    public function setAccountMessageReminder(Application $application): RedirectResponse
+    {
+        // Ensure only accounts can set reminders
+        if (!auth()->guard('account')->check()) {
+            abort(403, 'Only accounts can set message reminders.');
+        }
+
+        // Ensure account owns this application
+        if ($application->account_id !== auth()->guard('account')->id()) {
+            abort(403, 'You can only set reminders for your own applications.');
+        }
+
+        $validated = Request::validate([
+            'message' => ['required', 'string', 'max:2000'],
+            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
+        ]);
+
+        // Store in application_statuses
+        $application->status->update([
+            'account_message_notes' => $validated['message']
+        ]);
+
+        // Deactivate existing account message reminders
+        $application->emailReminders()
+            ->where('email_type', 'account_message_to_user')
+            ->update(['is_active' => false]);
+
+        // Create new reminder
+        $intervals = [
+            '1_day' => now()->addDay(),
+            '3_days' => now()->addDays(3),
+            '1_week' => now()->addWeek(),
+            '2_weeks' => now()->addWeeks(2),
+            '1_month' => now()->addMonth(),
+        ];
+
+        EmailReminder::create([
+            'remindable_type' => Application::class,
+            'remindable_id' => $application->id,
+            'email_type' => 'account_message_to_user',
+            'interval' => $validated['interval'],
+            'next_send_at' => $intervals[$validated['interval']],
+            'is_active' => true,
+        ]);
+
+        return Redirect::back()->with('success', 'Message reminder scheduled to send ' . str_replace('_', ' ', $validated['interval']) . '.');
+    }
+
+    /**
+     * Cancel account message reminder
+     */
+    public function cancelAccountMessageReminder(Application $application): RedirectResponse
+    {
+        // Ensure only accounts can cancel
+        if (!auth()->guard('account')->check()) {
+            abort(403, 'Only accounts can cancel message reminders.');
+        }
+
+        // Ensure account owns this application
+        if ($application->account_id !== auth()->guard('account')->id()) {
+            abort(403, 'You can only cancel reminders for your own applications.');
+        }
+
+        $application->emailReminders()
+            ->where('email_type', 'account_message_to_user')
+            ->update(['is_active' => false]);
+
+        return Redirect::back()->with('success', 'Message reminder cancelled.');
+    }
 }

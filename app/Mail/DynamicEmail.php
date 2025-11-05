@@ -32,6 +32,7 @@ class DynamicEmail extends Mailable
         'cardstream_credentials' => 'Your CardStream Account is Ready',
         'cardstream_credentials_reminder' => 'Reminder: Set Up Your CardStream Account',
         'account_live' => 'Congratulations! Your Account is Live',
+        'account_message_to_user' => 'Message from Your Merchant Account',
     ];
 
     protected array $views = [
@@ -56,6 +57,7 @@ class DynamicEmail extends Mailable
         'cardstream_credentials' => 'emails.cardstream-credentials',
         'cardstream_credentials_reminder' => 'emails.cardstream-credentials',
         'account_live' => 'emails.account-live',
+        'account_message_to_user' => 'emails.account-message-to-user',
     ];
 
     public function __construct(

@@ -494,6 +494,25 @@
           <span v-if="isLoadingContract">Opening Contract...</span>
           <span v-else>Sign Contract</span>
         </button>
+
+        <!-- Send Message to Administrator Button -->
+        <button
+          @click="sendMessageToUser"
+          class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send Message to Administrator
+        </button>
+
+        <!-- Cancel Message Reminder (if active) -->
+        <button
+          v-if="accountMessageReminder"
+          @click="cancelAccountMessageReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel Message Reminder
+        </button>
       </div>
     </div>
 
@@ -815,6 +834,13 @@
       :is-request-mode="false"
       @close="showWordPressEnterModal = false"
     />
+
+    <account-message-modal
+      v-if="showAccountMessageModal"
+      :application-id="application.id"
+      :has-active-reminder="!!accountMessageReminder"
+      @close="showAccountMessageModal = false"
+    />
   </div>
 
   <!-- Scroll to Top Button -->
@@ -853,6 +879,8 @@ import ContractReminderModal from '@/Shared/ContractReminderModal.vue'
 import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
 import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
 import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
+import AccountMessageModal from '@/Shared/AccountMessageModal.vue'
+
 
 export default {
   components: {
@@ -867,6 +895,7 @@ export default {
     SubmitToCardStreamModal,
     CardStreamCredentialsModal,
     WordPressCredentialsModal,
+    AccountMessageModal,
     Icon,
   },
   layout: Layout,
@@ -910,6 +939,7 @@ export default {
       showWordPressRequestModal: false,
       showWordPressEnterModal: false,
       showCredentialsModal: false,
+      showAccountMessageModal: false,
     }
   },
   computed: {
@@ -1019,6 +1049,12 @@ export default {
       // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
       return !this.is_account && !timestamps?.application_approved
+    },
+
+    accountMessageReminder() {
+      return this.application.scheduled_emails?.find(
+        email => email.email_type === 'account_message_to_user' && email.is_active
+      )
     },
 
     canAccountSignContract() {
@@ -1377,6 +1413,16 @@ export default {
     markInvoiceAsPaid(invoiceId) {
       if (confirm('Mark this invoice as paid?')) {
         this.$inertia.post(`/applications/${this.application.id}/mark-invoice-paid`)
+      }
+    },
+
+    sendMessageToUser() {
+      this.showAccountMessageModal = true
+    },
+    
+    cancelAccountMessageReminder() {
+      if (confirm('Cancel scheduled message reminders?')) {
+        this.$inertia.post(`/applications/${this.application.id}/cancel-account-message-reminder`)
       }
     },
     

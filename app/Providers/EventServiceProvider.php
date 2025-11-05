@@ -19,8 +19,9 @@ use App\Events\WordPressCredentialsReminderEvent;
 use App\Events\CardStreamSubmissionEvent;
 use App\Events\InvoiceReminderEvent;
 use App\Events\CardStreamCredentialsEvent;
-use App\Events\CardStreamCredentialsReminderEvent; // ADD THIS
+use App\Events\CardStreamCredentialsReminderEvent;
 use App\Events\AccountLiveEvent;
+use App\Events\AccountMessageToUserEvent;
 
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
@@ -38,8 +39,9 @@ use App\Listeners\SendWordPressCredentialsReminderEmail;
 use App\Listeners\SendCardStreamSubmissionEmail;
 use App\Listeners\SendInvoiceReminderEmail;
 use App\Listeners\SendCardStreamCredentialsEmail;
-use App\Listeners\SendCardStreamCredentialsReminderEmail; // ADD THIS
+use App\Listeners\SendCardStreamCredentialsReminderEmail;
 use App\Listeners\SendAccountLiveEmail;
+use App\Listeners\SendAccountMessageToUserEmail;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -94,12 +96,14 @@ class EventServiceProvider extends ServiceProvider
         CardStreamCredentialsEvent::class => [
             SendCardStreamCredentialsEmail::class,
         ],
-        // ADD THIS
         CardStreamCredentialsReminderEvent::class => [
             SendCardStreamCredentialsReminderEmail::class,
         ],
         AccountLiveEvent::class => [
             SendAccountLiveEmail::class,
+        ],
+        AccountMessageToUserEvent::class => [
+            SendAccountMessageToUserEmail::class,
         ],
     ];
 
