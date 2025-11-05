@@ -18,8 +18,43 @@
           <text-input v-model="form.first_name" :error="form.errors.first_name" class="pb-8 pr-6 w-full lg:w-1/2" label="First name" />
           <text-input v-model="form.last_name" :error="form.errors.last_name" class="pb-8 pr-6 w-full lg:w-1/2" label="Last name" />
           <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" />
-          <text-input v-model="form.password" :error="form.errors.password" class="pb-8 pr-6 w-full lg:w-1/2" type="password" autocomplete="new-password" label="Password" />
+          <div class="pb-8 pr-6 w-full lg:w-1/2">
+            <label class="block text-gray-300 font-medium mb-2">
+              Password <span class="text-gray-400 text-xs font-normal">(Leave blank to keep current)</span>
+            </label>
+            <div class="relative">
+              <input
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                class="form-input w-full pr-10"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                @click="showPassword = !showPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                <svg v-if="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
+            </div>
+            <div v-if="form.errors.password" class="form-error">{{ form.errors.password }}</div>
+          </div>
           <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" label="Photo" accept="image/*" />
+          <div class="p-6 w-1/2 flex justify-end">
+            <loading-button
+              :loading="form.processing"
+              class="btn-primary"
+              type="submit"
+            >
+              Save Changes
+            </loading-button>
+          </div>
         </div>
       </form>
     </div>
@@ -121,6 +156,7 @@ export default {
   remember: 'form',
   data() {
     return {
+      showPassword: false,
       form: this.$inertia.form({
         _method: 'put',
         first_name: this.user.first_name,
