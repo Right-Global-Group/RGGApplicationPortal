@@ -60,7 +60,10 @@ npm run build
 
 # Start development server
 php artisan serve
+
+# Mail env constants currently use mailhog.
 ```
+
 
 ## Screenshots
 
