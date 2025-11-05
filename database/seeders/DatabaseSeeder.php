@@ -39,12 +39,6 @@ class DatabaseSeeder extends Seeder
         ]);
         $account->assignRole('account');
 
-        // Create contacts
-        Contact::factory(10)
-            ->create(['account_id' => $account->id])
-            ->each(function ($contact) use ($applications) {
-                $contact->update(['application_id' => $applications->random()->id]);
-            });
 
         $this->command->info('Database seeding completed!');
         $this->command->info('Admin user: max.behrens@rightglobalgroup.com / secret');
