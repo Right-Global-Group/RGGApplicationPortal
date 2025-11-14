@@ -119,7 +119,7 @@ class ProgressTrackerController extends Controller
                 // Does NOT have both contract_signed AND documents_approved
                 $hasNotCompleted = !($timestamps['contract_signed'] && $timestamps['documents_approved']);
                 
-                return $hasEarlyTimestamp && $hasNotCompleted;
+                return $hasEarlyTimestamp || $hasNotCompleted;
             })->count(),
             'awaiting_approval' => $allApplications->filter(fn($app) => $app->status?->current_step === 'contract_submitted')->count(),
             'awaiting_payment' => $allApplications->filter(fn($app) => $app->status?->current_step === 'invoice_sent')->count(),

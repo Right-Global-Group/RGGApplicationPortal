@@ -37,7 +37,7 @@ class SendApplicationCreatedEmail
             'status_url' => $statusUrl,
             'edit_url' => $editUrl, // Add this
             'created_at' => $application->created_at->format('d/m/Y H:i'),
-        ], $application));
+        ]));
 
         // Log the email
         EmailLog::create([

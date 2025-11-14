@@ -238,43 +238,6 @@
     <div v-if="!is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Quick Actions</h2>
       <div class="flex flex-wrap gap-3">
-        <!-- Send Credentials Button (only if account hasn't logged in yet) -->
-        <button
-          @click="showCredentialsModal = true"
-          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="mail" class="w-4 h-4 fill-current" />
-          Send G2Pay Credentials
-        </button>
-
-
-        <button
-          v-if="!is_account"
-          @click="requestAdditionalInfo"
-          class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="mail" class="w-4 h-4 fill-current" />
-          Request Additional Info
-        </button>
-
-        <!-- Cancel Additional Info Reminder (if active) -->
-        <button
-          v-if="additionalInfoReminder"
-          @click="cancelAdditionalInfoReminder"
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="x" class="w-4 h-4 fill-current" />
-          Cancel Info Request Reminder
-        </button>
-
-        <button
-          v-if="canApproveDocuments"
-          @click="markDocumentsAsApproved"
-          class="btn-tertiary flex items-center gap-2"
-        >
-          <Check class="w-4 h-4 text-white" />
-          Mark Documents as Completed
-        </button>
 
         <button
           v-if="canSendContract"
@@ -322,7 +285,7 @@
           <span v-else>Open Contract Link (DocuSign)</span>
         </button>
 
-        <!-- Contract Reminder Button (shows when contract_sent) -->
+        <!-- Send Contract Link Button (shows when contract_sent) -->
         <button
           v-if="canSendContractReminder"
           @click="showContractReminderModal = true"
@@ -348,6 +311,44 @@
           class="btn-tertiary"
         >
           Approve Application
+        </button>
+
+                <!-- Send Credentials Button (only if account hasn't logged in yet) -->
+                <button
+          @click="showCredentialsModal = true"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send G2Pay Credentials
+        </button>
+
+
+        <button
+          v-if="!is_account"
+          @click="requestAdditionalInfo"
+          class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Request Additional Info
+        </button>
+
+        <!-- Cancel Additional Info Reminder (if active) -->
+        <button
+          v-if="additionalInfoReminder"
+          @click="cancelAdditionalInfoReminder"
+          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="x" class="w-4 h-4 fill-current" />
+          Cancel Info Request Reminder
+        </button>
+
+        <button
+          v-if="canApproveDocuments"
+          @click="markDocumentsAsApproved"
+          class="btn-tertiary flex items-center gap-2"
+        >
+          <Check class="w-4 h-4 text-white" />
+          Mark Documents as Completed
         </button>
 
         <!-- Submit to CardStream Button (shows when contract_signed) -->

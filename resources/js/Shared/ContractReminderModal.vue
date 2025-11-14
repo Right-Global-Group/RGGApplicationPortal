@@ -1,7 +1,7 @@
 <template>
     <modal @close="$emit('close')" max-width="2xl">
       <div class="p-6">
-        <h2 class="text-2xl font-bold text-white mb-6">Send Contract Reminder</h2>
+        <h2 class="text-2xl font-bold text-white mb-6">Send Contract Link</h2>
         
         <!-- Info Box -->
         <div class="mb-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
@@ -21,7 +21,7 @@
         <div class="mb-6 p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg">
           <div class="flex items-start justify-between mb-3">
             <div class="flex-1">
-              <h3 class="font-semibold text-white mb-1">Send Reminder Now</h3>
+              <h3 class="font-semibold text-white mb-1">Send Contract Link</h3>
               <p class="text-sm text-gray-400">
                 Sends the contract reminder immediately to the account holder.
               </p>
@@ -31,7 +31,7 @@
             @click="sendNow"
             class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
           >
-            Send Reminder Now
+            Send Contract Link Now
           </button>
         </div>
   

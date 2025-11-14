@@ -35,7 +35,7 @@ class SendAccountCredentialsEmail
             'email' => $account->email,
             'password' => $plainPassword,
             'login_url' => $loginUrl,
-        ], $account));
+        ]));
 
         // Log the email
         EmailLog::create([
