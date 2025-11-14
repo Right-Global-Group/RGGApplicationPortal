@@ -177,6 +177,7 @@ class ApplicationsController extends Controller
 
             // Fire event to send credentials email
             event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
+            
             $credentialsSent = true;
         }
 

@@ -118,7 +118,6 @@ class ApplicationStatusController extends Controller
                         'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
                     ]),
                 'email_logs' => $application->morphMany(\App\Models\EmailLog::class, 'emailable')
-                    ->latest()
                     ->get()
                     ->map(fn ($log) => [
                         'id' => $log->id,
