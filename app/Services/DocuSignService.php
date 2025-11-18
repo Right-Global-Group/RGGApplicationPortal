@@ -85,7 +85,7 @@ class DocuSignService
             }
         }
         
-        // CREATE NEW ENVELOPE with BOTH recipients
+        // CREATE NEW ENVELOPE
         $account = $application->account;
         
         if (!$account || !$account->email) {
@@ -94,13 +94,13 @@ class DocuSignService
         
         // Determine who is currently logged in (they'll use embedded signing)
         $isAccount = auth()->guard('account')->check();
-
+    
         if ($isAccount) {
             // Account is clicking - they sign via popup
             $embeddedEmail = $account->email;
             $embeddedName = $account->name ?? $application->trading_name ?? $account->email;
             $embeddedClientId = 'merchant-' . $application->id;
-            $embeddedRole = 'Account Merchant'; // Must match DocuSign template exactly
+            $embeddedRoleName = 'Account Merchant';
             
             // Portal user gets email
             $user = \App\Models\User::find($application->user_id);
@@ -109,7 +109,7 @@ class DocuSignService
             }
             $emailSignerEmail = $user->email;
             $emailSignerName = $user->name ?? $user->email;
-            $emailSignerRole = 'Product Manager'; // Must match DocuSign template exactly
+            $emailSignerRoleName = 'Product Manager';
             
         } else {
             // Portal user is clicking - they sign via popup
@@ -120,44 +120,176 @@ class DocuSignService
             $embeddedEmail = $user->email;
             $embeddedName = $user->name ?? $user->email;
             $embeddedClientId = 'user-' . $application->id;
-            $embeddedRole = 'Product Manager'; // Must match DocuSign template exactly
+            $embeddedRoleName = 'Product Manager';
             
             // Account gets email
             $emailSignerEmail = $account->email;
             $emailSignerName = $account->name ?? $application->trading_name ?? $account->email;
-            $emailSignerRole = 'Account Merchant'; // Must match DocuSign template exactly
+            $emailSignerRoleName = 'Account Merchant';
         }
         
         try {
             $accessToken = $this->getAccessToken();
-            $templateId = '0989e714-d2a3-4a34-a8cb-ae7cf921a865';
+            $templateId = 'd643f018-7ee6-4707-8ca2-731ae0de1936';
         
-            // Create envelope with ALL THREE recipients
-            $envelopeDefinition = [
-                'emailSubject' => "Merchant Application Contract - {$application->name}",
-                'templateId' => $templateId,
-                'templateRoles' => [
+            // Calculate total fees
+            $totalFees = $application->setup_fee + 
+                        $application->monthly_fee + 
+                        $application->monthly_minimum + 
+                        $application->service_fee;
+            
+            // Use anchor strings to position tabs relative to text
+            $tabsForAllRecipients = [
+                'textTabs' => [
+                    // Monthly Fee row
                     [
-                        'email' => $embeddedEmail,
-                        'name' => $embeddedName,
-                        'roleName' => $embeddedRole, // Either 'Account Merchant' or 'Product Manager'
-                        'routingOrder' => '1',
-                        'clientUserId' => $embeddedClientId, // Enables embedded signing
+                        'documentId' => '1',
+                        'anchorString' => 'Monthly Fee',
+                        'anchorXOffset' => '360',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '80',
+                        'height' => '15',
+                        'value' => '£' . number_format($application->monthly_fee, 2),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'monthly_fee',
                     ],
+                    // Service fee/monthly minimum row
                     [
-                        'email' => $emailSignerEmail,
-                        'name' => $emailSignerName,
-                        'roleName' => $emailSignerRole, // Either 'Product Manager' or 'Account Merchant'
-                        'routingOrder' => '1', // Same routing order - can sign in parallel
+                        'documentId' => '1',
+                        'anchorString' => 'Service fee/monthly minimum',
+                        'anchorXOffset' => '310',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '80',
+                        'height' => '15',
+                        'value' => '£' . number_format($application->service_fee, 2),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'service_fee',
                     ],
+                    // Monthly Fee (inc PCI) row
                     [
-                        'email' => 'contracts@g2pay.co.uk',
-                        'name' => 'G2Pay Director',
-                        'roleName' => 'Director', // Must match DocuSign template exactly
-                        'routingOrder' => '2', // Signs after the first two complete
+                        'documentId' => '1',
+                        'anchorString' => 'Monthly Fee (inc PCI)',
+                        'anchorXOffset' => '320',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '80',
+                        'height' => '15',
+                        'value' => '£' . number_format($application->monthly_minimum, 2),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'monthly_minimum',
+                    ],
+                    // UK Consumer Debit - Amount column (total fees)
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'UK Consumer Debit',
+                        'anchorXOffset' => '360',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '80',
+                        'height' => '15',
+                        'value' => '£' . number_format($totalFees, 2),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'total_fees',
+                    ],
+                    // Merchant name - page 16 signature area
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'Exclusivity Clause',
+                        'anchorXOffset' => '130',
+                        'anchorYOffset' => '20',  // Position below the heading
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'true',
+                        'anchorCaseSensitive' => 'false',
+                        'width' => '250',
+                        'height' => '15',
+                        'value' => $application->account->name ?? $application->trading_name,
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size7',
+                        'tabLabel' => 'merchant_name_signature',
+                    ],
+                    // Registered company name - page 1 field
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'REGISTERED COMPANY NAME*',
+                        'anchorXOffset' => '0',
+                        'anchorYOffset' => '8',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'true',
+                        'width' => '200',
+                        'height' => '15',
+                        'value' => $application->account->name,
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size10',
+                        'tabLabel' => 'registered_company_name',
                     ],
                 ],
+            ];
+    
+            // Create envelope using composite templates
+            $envelopeDefinition = [
+                'emailSubject' => "Merchant Application Contract - {$application->name}",
                 'status' => 'sent',
+                'compositeTemplates' => [
+                    [
+                        'compositeTemplateId' => '1',
+                        'serverTemplates' => [
+                            [
+                                'sequence' => '1',
+                                'templateId' => $templateId,
+                            ],
+                        ],
+                        'inlineTemplates' => [
+                            [
+                                'sequence' => '1',
+                                'recipients' => [
+                                    'signers' => [
+                                        [
+                                            'email' => $embeddedEmail,
+                                            'name' => $embeddedName,
+                                            'roleName' => $embeddedRoleName,
+                                            'routingOrder' => $isAccount ? '2' : '1',
+                                            'recipientId' => '1',
+                                            'clientUserId' => $embeddedClientId,
+                                            'tabs' => $tabsForAllRecipients,
+                                        ],
+                                        [
+                                            'email' => $emailSignerEmail,
+                                            'name' => $emailSignerName,
+                                            'roleName' => $emailSignerRoleName,
+                                            'routingOrder' => $isAccount ? '1' : '2',
+                                            'recipientId' => '2',
+                                            'tabs' => $tabsForAllRecipients,
+                                        ],
+                                        [
+                                            'email' => 'contracts@g2pay.co.uk',
+                                            'name' => 'G2Pay Director',
+                                            'roleName' => 'Director',
+                                            'routingOrder' => '1',
+                                            'recipientId' => '3',
+                                            'tabs' => $tabsForAllRecipients,
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
             ];
     
             $response = Http::withToken($accessToken)
@@ -280,15 +412,12 @@ class DocuSignService
         }
     }
 
-    /**
-     * Send gateway partner contract
-     */
     public function sendGatewayPartnerContract(Application $application): array
     {
         if (!$application->gateway_partner) {
             throw new \Exception('Gateway partner not selected for this application.');
         }
-
+    
         $partnerConfig = config("gateway-partners.{$application->gateway_partner}");
         $recipientEmail = $partnerConfig['contact_email'];
         $recipientName = $partnerConfig['name'] . ' Contracts Team';
@@ -296,9 +425,24 @@ class DocuSignService
         try {
             $accessToken = $this->getAccessToken();
             $pdfBase64 = $this->generateGatewayPartnerContractPDF($application);
-
+    
+            // Add custom fields for prepopulating data
+            $customFields = [
+                'textCustomFields' => [
+                    ['name' => 'setup_fee', 'value' => number_format($application->setup_fee, 2)],
+                    ['name' => 'transaction_percentage', 'value' => number_format($application->transaction_percentage, 2)],
+                    ['name' => 'transaction_fixed_fee', 'value' => number_format($application->transaction_fixed_fee, 2)],
+                    ['name' => 'monthly_fee', 'value' => number_format($application->monthly_fee, 2)],
+                    ['name' => 'monthly_minimum', 'value' => number_format($application->monthly_minimum, 2)],
+                    ['name' => 'service_fee', 'value' => number_format($application->service_fee, 2)],
+                    ['name' => 'merchant_name', 'value' => $application->account->name ?? $application->trading_name],
+                    ['name' => 'registered_company_name', 'value' => $application->account->name],
+                ]
+            ];
+    
             $envelopeDefinition = [
                 'emailSubject' => "New Merchant Application - {$application->name} - {$partnerConfig['name']}",
+                'customFields' => $customFields,
                 'documents' => [
                     [
                         'documentBase64' => $pdfBase64,
@@ -321,11 +465,11 @@ class DocuSignService
                 ],
                 'status' => 'sent',
             ];
-
+    
             $response = Http::withToken($accessToken)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes", $envelopeDefinition);
-
+    
             if ($response->failed()) {
                 Log::error('DocuSign Create Gateway Envelope Error', [
                     'status' => $response->status(),
@@ -334,7 +478,7 @@ class DocuSignService
                 ]);
                 throw new \Exception('Failed to create envelope: ' . $response->body());
             }
-
+    
             $envelopeId = $response->json('envelopeId');
             $viewUrl = $this->getRecipientView(
                 $accessToken,
@@ -344,7 +488,7 @@ class DocuSignService
                 'gateway-' . $application->id,
                 route('applications.gateway-docusign-callback', ['application' => $application->id])
             );
-
+    
             // Store document record
             ApplicationDocument::create([
                 'application_id' => $application->id,
@@ -354,15 +498,15 @@ class DocuSignService
                 'status' => 'sent',
                 'sent_at' => now(),
             ]);
-
+    
             // Update status
             $application->status->update([
                 'gateway_docusign_envelope_id' => $envelopeId,
             ]);
-
+    
             // Fire event to send email (instead of sending directly)
             event(new \App\Events\GatewayPartnerContractReadyEvent($application, $viewUrl));
-
+    
             return [
                 'envelope_id' => $envelopeId,
                 'signing_url' => $viewUrl,
@@ -617,14 +761,6 @@ class DocuSignService
         return JWT::encode($payload, $privateKey, 'RS256');
     }
 
-    private function generateMerchantContractPDF(Application $application): string
-    {
-        $html = view('pdf.contract', ['application' => $application])->render();
-        $pdf = Pdf::loadHTML($html);
-        $pdfContent = $pdf->output();
-        return base64_encode($pdfContent);
-    }
-
     private function generateGatewayPartnerContractPDF(Application $application): string
     {
         $template = config("gateway-partners.{$application->gateway_partner}.contract_template");
@@ -672,8 +808,54 @@ class DocuSignService
     private function getGatewayContractTabs(Application $application): array
     {
         return [
+            'textTabs' => [
+                [
+                    'tabLabel' => 'merchant_name',
+                    'value' => $application->account->name ?? $application->trading_name,
+                    'locked' => true,
+                    'required' => true,
+                ],
+                [
+                    'tabLabel' => 'registered_company_name',
+                    'value' => $application->account->name,
+                    'locked' => true,
+                    'required' => true,
+                ],
+                [
+                    'tabLabel' => 'setup_fee',
+                    'value' => '£' . number_format($application->setup_fee, 2),
+                    'locked' => true,
+                ],
+                [
+                    'tabLabel' => 'transaction_percentage',
+                    'value' => number_format($application->transaction_percentage, 2) . '%',
+                    'locked' => true,
+                ],
+                [
+                    'tabLabel' => 'transaction_fixed_fee',
+                    'value' => '£' . number_format($application->transaction_fixed_fee, 2),
+                    'locked' => true,
+                ],
+                [
+                    'tabLabel' => 'monthly_fee',
+                    'value' => '£' . number_format($application->monthly_fee, 2),
+                    'locked' => true,
+                ],
+                [
+                    'tabLabel' => 'monthly_minimum',
+                    'value' => '£' . number_format($application->monthly_minimum, 2),
+                    'locked' => true,
+                ],
+                [
+                    'tabLabel' => 'service_fee',
+                    'value' => '£' . number_format($application->service_fee, 2),
+                    'locked' => true,
+                ],
+            ],
             'signHereTabs' => [
                 [
+                    'tabLabel' => 'Gateway Partner Signature',
+                    'required' => true,
                     'documentId' => '1',
                     'pageNumber' => '1',
                     'xPosition' => '100',
@@ -682,6 +864,8 @@ class DocuSignService
             ],
             'dateSignedTabs' => [
                 [
+                    'tabLabel' => 'Date Signed',
+                    'required' => true,
                     'documentId' => '1',
                     'pageNumber' => '1',
                     'xPosition' => '300',

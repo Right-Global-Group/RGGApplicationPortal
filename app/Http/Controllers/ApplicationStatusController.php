@@ -518,7 +518,7 @@ class ApplicationStatusController extends Controller
                 'docusign_envelope_id' => $result['envelope_id'],
                 'docusign_status' => 'sent',
             ]);
-
+    
             return response()->json([
                 'success' => true,
                 'message' => 'Contract sent successfully',
@@ -526,6 +526,12 @@ class ApplicationStatusController extends Controller
                 'envelope_id' => $result['envelope_id'],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to send DocuSign contract', [
+                'application_id' => $application->id,
+                'error_message' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString(),
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to send contract: ' . $e->getMessage(),

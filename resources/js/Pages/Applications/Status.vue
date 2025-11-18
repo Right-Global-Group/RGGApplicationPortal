@@ -478,7 +478,7 @@
           v-if="canAccountSignContract"
           @click="openContractForAccount"
           :disabled="isLoadingContract"
-          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg"
         >
           <svg 
             v-if="isLoadingContract" 
@@ -517,7 +517,7 @@
       </div>
     </div>
 
-    <div v-if="hasDocuSignRecipientStatus" id="section-contracts" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+    <div v-if="hasDocuSignRecipientStatus && !is_account" id="section-contracts" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Contract Signing Status</h2>
       <div class="space-y-3">
         <div
@@ -1069,6 +1069,32 @@ export default {
         !timestamps?.application_approved
       );
     },
+
+    canAccountSignContract() {
+      if (!this.is_account) return false;
+      
+      const timestamps = this.application.status?.timestamps;
+      
+      // Contract must be sent
+      if (!timestamps?.contract_sent) return false;
+      
+      // Already signed
+      if (timestamps?.contract_signed) return false;
+      
+      // Check if director and product manager have signed
+      const recipients = this.docusignRecipientStatus || [];
+      
+      const director = recipients.find(r => r.email === 'test@g2pay.co.uk');
+      const productManager = recipients.find(r => 
+        r.name && r.name.toLowerCase().includes('product manager')
+      );
+      
+      // Both director and product manager must have signed
+      const directorSigned = director && ['completed', 'signed'].includes(director.status);
+      const productManagerSigned = productManager && ['completed', 'signed'].includes(productManager.status);
+      
+      return directorSigned && productManagerSigned;
+    },
     
     canSubmitToCardStream() {
       if (this.is_account) return false;
@@ -1261,6 +1287,28 @@ export default {
     },
 
     async openContractForAccount() {
+      // Validate required fields before opening contract
+      const requiredFields = [
+        'Name',
+        'Position',
+        'Signature',
+        'Date',
+      ];
+      
+      // This validation happens in DocuSign's interface
+      // but we can show a warning message
+      
+      const confirmed = confirm(
+        'Please ensure you have filled in all required fields:\n\n' +
+        '• Your full name\n' +
+        '• Your position\n' +
+        '• Your signature\n' +
+        '• Today\'s date\n\n' +
+        'The document will not submit until all fields are complete.'
+      );
+      
+      if (!confirmed) return;
+      
       this.isLoadingContract = true;
       try {
         const response = await fetch(`/applications/${this.application.id}/send-contract`, {
@@ -1270,10 +1318,10 @@ export default {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
           },
         });
+        
         const data = await response.json();
 
         if (data.success && data.signing_url) {
-          // Open in popup for embedded signing
           window.open(data.signing_url, '_blank', 'width=800,height=600');
         } else {
           alert(data.message || 'Failed to open contract');
