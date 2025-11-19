@@ -97,7 +97,6 @@
           </div>
         </div>
 
-        <!-- Fee Structure Display (Read-only) with Change Fees Button -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
             <h2 class="text-magenta-400 font-bold text-lg">Fee Structure</h2>
@@ -112,9 +111,12 @@
           <div class="p-8">
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-gray-300 font-medium mb-2">Setup Fee</label>
+                <label class="block text-gray-300 font-medium mb-2">Scaling Fee</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
                   £{{ parseFloat(application.setup_fee).toFixed(2)}}
+                  <span v-if="application.scaling_fee_start_month" class="text-xs text-gray-500 ml-2">
+                    (From Month {{ application.scaling_fee_start_month }})
+                  </span>
                 </div>
               </div>
               <div>

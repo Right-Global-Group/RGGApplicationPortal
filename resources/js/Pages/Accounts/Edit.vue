@@ -281,9 +281,18 @@ export default {
   },
   methods: {
     update() {
-      this.form.post(`/accounts/${this.account.id}`, {
-        onSuccess: () => this.form.reset('photo'),
-      })
+      // Add _method to the form data
+      const formData = {
+        ...this.form.data(),
+        _method: 'put',
+      }
+      
+      this.form
+        .transform(() => formData)
+        .post(`/accounts/${this.account.id}`, {
+          forceFormData: true,
+          onSuccess: () => this.form.reset('photo'),
+        })
     },
     getNextStep(application) {
       const timestamps = application.status?.timestamps

@@ -130,7 +130,7 @@ class DocuSignService
         
         try {
             $accessToken = $this->getAccessToken();
-            $templateId = 'd643f018-7ee6-4707-8ca2-731ae0de1936';
+            $templateId = '4247195d-137e-47da-bff6-9fb4d6d7e0a6';
         
             // Calculate total fees
             $totalFees = $application->setup_fee + 
@@ -141,7 +141,24 @@ class DocuSignService
             // Use anchor strings to position tabs relative to text
             $tabsForAllRecipients = [
                 'textTabs' => [
-                    // Monthly Fee row
+                    // All Request Types - Fixed fee (£0.20)
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'All request types',
+                        'anchorXOffset' => '360',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '80',
+                        'height' => '15',
+                        'value' => '£' . number_format($application->transaction_fixed_fee, 2),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'all_request_types_fee',
+                    ],
+                    
+                    // Monthly Fee
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee',
@@ -157,15 +174,16 @@ class DocuSignService
                         'fontSize' => 'Size9',
                         'tabLabel' => 'monthly_fee',
                     ],
-                    // Service fee/monthly minimum row
+                    
+                    // Service fee/monthly minimum - MOVED TO FIRST COLUMN
                     [
                         'documentId' => '1',
                         'anchorString' => 'Service fee/monthly minimum',
-                        'anchorXOffset' => '310',
+                        'anchorXOffset' => '0',  // Changed from 310 to 0
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
-                        'width' => '80',
+                        'width' => '200',
                         'height' => '15',
                         'value' => '£' . number_format($application->service_fee, 2),
                         'locked' => true,
@@ -173,11 +191,12 @@ class DocuSignService
                         'fontSize' => 'Size9',
                         'tabLabel' => 'service_fee',
                     ],
-                    // Monthly Fee (inc PCI) row
+                    
+                    // Monthly Minimum - MOVED ONE COLUMN UP
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee (inc PCI)',
-                        'anchorXOffset' => '320',
+                        'anchorXOffset' => '0',  // Changed from 320 to 0 (first column after label)
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -189,7 +208,25 @@ class DocuSignService
                         'fontSize' => 'Size9',
                         'tabLabel' => 'monthly_minimum',
                     ],
-                    // UK Consumer Debit - Amount column (total fees)
+                    
+                    // Scaling Fee (with "From Month: X")
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'Monthly Fee (inc PCI)',
+                        'anchorXOffset' => '90',  // Position after monthly minimum
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '120',
+                        'height' => '15',
+                        'value' => 'From Month: ' . ($application->scaling_fee_start_month ?? 'N/A'),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'scaling_fee_month',
+                    ],
+                    
+                    // UK Consumer Debit - Percentage
                     [
                         'documentId' => '1',
                         'anchorString' => 'UK Consumer Debit',
@@ -199,18 +236,36 @@ class DocuSignService
                         'anchorIgnoreIfNotPresent' => 'false',
                         'width' => '80',
                         'height' => '15',
-                        'value' => '£' . number_format($totalFees, 2),
+                        'value' => number_format($application->transaction_percentage, 2) . '%',
                         'locked' => true,
                         'font' => 'Arial',
                         'fontSize' => 'Size9',
-                        'tabLabel' => 'total_fees',
+                        'tabLabel' => 'uk_debit_percentage',
                     ],
+                    
+                    // UK Consumer Credit - Percentage
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'UK Consumer Credit',
+                        'anchorXOffset' => '360',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '80',
+                        'height' => '15',
+                        'value' => number_format($application->transaction_percentage, 2) . '%',
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                        'tabLabel' => 'uk_credit_percentage',
+                    ],
+                    
                     // Merchant name - page 16 signature area
                     [
                         'documentId' => '1',
                         'anchorString' => 'Exclusivity Clause',
                         'anchorXOffset' => '130',
-                        'anchorYOffset' => '20',  // Position below the heading
+                        'anchorYOffset' => '20',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'true',
                         'anchorCaseSensitive' => 'false',
@@ -222,6 +277,7 @@ class DocuSignService
                         'fontSize' => 'Size7',
                         'tabLabel' => 'merchant_name_signature',
                     ],
+                    
                     // Registered company name - page 1 field
                     [
                         'documentId' => '1',
@@ -256,14 +312,14 @@ class DocuSignService
                         ],
                         'inlineTemplates' => [
                             [
-                                'sequence' => '1',
+                                'sequence' => '2',  // Changed from '1' to '2'
                                 'recipients' => [
                                     'signers' => [
                                         [
                                             'email' => $embeddedEmail,
                                             'name' => $embeddedName,
                                             'roleName' => $embeddedRoleName,
-                                            'routingOrder' => $isAccount ? '2' : '1',
+                                            'routingOrder' => '1',  // Always 1 for first signer
                                             'recipientId' => '1',
                                             'clientUserId' => $embeddedClientId,
                                             'tabs' => $tabsForAllRecipients,
@@ -272,16 +328,8 @@ class DocuSignService
                                             'email' => $emailSignerEmail,
                                             'name' => $emailSignerName,
                                             'roleName' => $emailSignerRoleName,
-                                            'routingOrder' => $isAccount ? '1' : '2',
+                                            'routingOrder' => '2',  // Always 2 for second signer
                                             'recipientId' => '2',
-                                            'tabs' => $tabsForAllRecipients,
-                                        ],
-                                        [
-                                            'email' => 'contracts@g2pay.co.uk',
-                                            'name' => 'G2Pay Director',
-                                            'roleName' => 'Director',
-                                            'routingOrder' => '1',
-                                            'recipientId' => '3',
                                             'tabs' => $tabsForAllRecipients,
                                         ],
                                     ],

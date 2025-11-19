@@ -49,44 +49,48 @@
       </div>
     </div>
 
-    <!-- Fee Structure Display -->
-    <div id="section-fee-structure" class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 shadow-2xl overflow-hidden mb-6 scroll-mt-6">
-      <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-        <h2 class="text-xl font-bold text-magenta-400">Fee Structure</h2>
+<div id="section-fee-structure" class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 shadow-2xl overflow-hidden mb-6 scroll-mt-6">
+  <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+    <h2 class="text-xl font-bold text-magenta-400">Fee Structure</h2>
+  </div>
+  <div class="p-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+        <div class="text-gray-400 text-sm mb-1">Scaling Fee (+ VAT)</div>
+        <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.setup_fee).toFixed(2) }}</div>
+        <div class="text-gray-500 text-xs mt-1">
+          <span v-if="application.scaling_fee_start_month">
+            From Month {{ application.scaling_fee_start_month }}
+          </span>
+          <span v-else>Taken on approval</span>
+        </div>
       </div>
-      <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Setup Fee (+ VAT)</div>
-            <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.setup_fee).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Taken on approval</div>
-          </div>
-          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Transaction Fee</div>
-            <div class="text-2xl font-bold text-magenta-400">{{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Per transaction</div>
-          </div>
-          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Monthly Fee</div>
-            <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.monthly_fee).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Fixed monthly charge</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Monthly Minimum</div>
-            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.monthly_minimum).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Made up of transactional fees</div>
-          </div>
-          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Service Fee</div>
-            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.service_fee).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Additional service charge</div>
-          </div>
-        </div>
+      <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+        <div class="text-gray-400 text-sm mb-1">Transaction Fee</div>
+        <div class="text-2xl font-bold text-magenta-400">{{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}</div>
+        <div class="text-gray-500 text-xs mt-1">Per transaction</div>
+      </div>
+      <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+        <div class="text-gray-400 text-sm mb-1">Monthly Fee</div>
+        <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.monthly_fee).toFixed(2) }}</div>
+        <div class="text-gray-500 text-xs mt-1">Fixed monthly charge</div>
       </div>
     </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+        <div class="text-gray-400 text-sm mb-1">Monthly Minimum</div>
+        <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.monthly_minimum).toFixed(2) }}</div>
+        <div class="text-gray-500 text-xs mt-1">Made up of transactional fees</div>
+      </div>
+      <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+        <div class="text-gray-400 text-sm mb-1">Service Fee</div>
+        <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.service_fee).toFixed(2) }}</div>
+        <div class="text-gray-500 text-xs mt-1">Additional service charge</div>
+      </div>
+    </div>
+  </div>
+</div>
 
     <!-- Progress Bar -->
     <div id="section-progress" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">

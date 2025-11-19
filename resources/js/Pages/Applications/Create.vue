@@ -30,7 +30,18 @@
             type="number" 
             step="0.01" 
             class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Setup Fee (£)" 
+            label="Scaling Fee (£)" 
+          />
+          <text-input 
+            v-model="form.scaling_fee_start_month" 
+            :error="form.errors.scaling_fee_start_month" 
+            type="number" 
+            step="1" 
+            min="1"
+            max="60"
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Scaling Fee Start Month" 
+            placeholder="e.g., 6"
           />
           <text-input 
             v-model="form.transaction_percentage" 
@@ -78,7 +89,11 @@
             <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4 text-gray-300 text-sm">
               <p class="font-semibold mb-2 text-magenta-400">Fee Structure Summary:</p>
               <ul class="list-disc list-inside space-y-1">
-                <li>Setup fee of £{{ parseFloat(form.setup_fee || 0).toFixed(2) }} (+ VAT) taken on approval</li>
+                <li>
+                  Scaling fee of £{{ parseFloat(form.setup_fee || 0).toFixed(2) }} (+ VAT)
+                  <span v-if="form.scaling_fee_start_month"> starting from month {{ form.scaling_fee_start_month }}</span>
+                  <span v-else> - No start month specified</span>
+                </li>
                 <li>{{ form.transaction_percentage || 0 }}% + £{{ parseFloat(form.transaction_fixed_fee || 0).toFixed(2) }} per transaction</li>
                 <li>£{{ parseFloat(form.monthly_fee || 0).toFixed(2) }} monthly fee</li>
                 <li>£{{ parseFloat(form.monthly_minimum || 0).toFixed(2) }} monthly minimum made up of transactional fees</li>
@@ -126,6 +141,7 @@ export default {
         account_id: this.preselected_account_id,
         name: null,
         setup_fee: 450.00,
+        scaling_fee_start_month: 6,
         transaction_percentage: 2.00,
         transaction_fixed_fee: 0.20,
         monthly_fee: 18.00,

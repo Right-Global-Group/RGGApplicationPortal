@@ -51,6 +51,7 @@ class ApplicationStatusController extends Controller
                 'trading_name' => $application->trading_name,
                 'setup_fee' => $application->setup_fee,
                 'transaction_percentage' => $application->transaction_percentage,
+                'scaling_fee_start_month' => $application->scaling_fee_start_month,
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
