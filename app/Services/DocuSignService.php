@@ -145,7 +145,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'All request types',
-                        'anchorXOffset' => '360',
+                        'anchorXOffset' => '310',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -162,7 +162,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee',
-                        'anchorXOffset' => '360',
+                        'anchorXOffset' => '310',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -179,7 +179,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'Service fee/monthly minimum',
-                        'anchorXOffset' => '360',
+                        'anchorXOffset' => '310',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -196,7 +196,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee (inc PCI)',
-                        'anchorXOffset' => '360',
+                        'anchorXOffset' => '310',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -213,7 +213,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'UK Consumer Debit',
-                        'anchorXOffset' => '360',
+                        'anchorXOffset' => '310',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -230,7 +230,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'UK Consumer Credit',
-                        'anchorXOffset' => '360',
+                        'anchorXOffset' => '310',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
