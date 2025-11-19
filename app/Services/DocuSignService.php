@@ -175,55 +175,38 @@ class DocuSignService
                         'tabLabel' => 'monthly_fee',
                     ],
                     
-                    // Service fee/monthly minimum - MOVED TO FIRST COLUMN
+                    // Service fee/monthly minimum - NEW POSITION WITH COMBINED TEXT
                     [
                         'documentId' => '1',
                         'anchorString' => 'Service fee/monthly minimum',
-                        'anchorXOffset' => '0',  // Changed from 310 to 0
+                        'anchorXOffset' => '360',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
-                        'width' => '200',
+                        'width' => '250',  // Wider to fit combined text
                         'height' => '15',
-                        'value' => '£' . number_format($application->service_fee, 2),
+                        'value' => '£' . number_format($application->monthly_minimum, 2) . ' first month. £' . number_format($application->setup_fee, 2) . ' thereafter',
                         'locked' => true,
                         'font' => 'Arial',
                         'fontSize' => 'Size9',
-                        'tabLabel' => 'service_fee',
+                        'tabLabel' => 'service_fee_monthly_minimum',
                     ],
                     
-                    // Monthly Minimum - MOVED ONE COLUMN UP
+                    // Monthly Fee (inc PCI) - Just the amount
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee (inc PCI)',
-                        'anchorXOffset' => '0',  // Changed from 320 to 0 (first column after label)
+                        'anchorXOffset' => '360',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
                         'width' => '80',
                         'height' => '15',
-                        'value' => '£' . number_format($application->monthly_minimum, 2),
+                        'value' => '£' . number_format($application->monthly_fee, 2),
                         'locked' => true,
                         'font' => 'Arial',
                         'fontSize' => 'Size9',
-                        'tabLabel' => 'monthly_minimum',
-                    ],
-                    
-                    // Scaling Fee (with "From Month: X")
-                    [
-                        'documentId' => '1',
-                        'anchorString' => 'Monthly Fee (inc PCI)',
-                        'anchorXOffset' => '90',  // Position after monthly minimum
-                        'anchorYOffset' => '-5',
-                        'anchorUnits' => 'pixels',
-                        'anchorIgnoreIfNotPresent' => 'false',
-                        'width' => '120',
-                        'height' => '15',
-                        'value' => 'From Month: ' . ($application->scaling_fee_start_month ?? 'N/A'),
-                        'locked' => true,
-                        'font' => 'Arial',
-                        'fontSize' => 'Size9',
-                        'tabLabel' => 'scaling_fee_month',
+                        'tabLabel' => 'monthly_fee_inc_pci',
                     ],
                     
                     // UK Consumer Debit - Percentage
@@ -264,8 +247,8 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'Exclusivity Clause',
-                        'anchorXOffset' => '130',
-                        'anchorYOffset' => '20',
+                        'anchorXOffset' => '140',
+                        'anchorYOffset' => '18',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'true',
                         'anchorCaseSensitive' => 'false',
