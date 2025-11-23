@@ -138,9 +138,9 @@ class ApplicationsController extends Controller
             'account_id' => ['required', 'exists:accounts,id'],
             'name' => ['required', 'max:100'],
             'email' => ['nullable', 'max:50', 'email'],
-            'scaling_fee_start_month' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'scaling_fee' => ['nullable', 'integer', 'min:0'],
             'phone' => ['nullable', 'max:50'],
-            'setup_fee' => ['required', 'numeric', 'min:0'],
+            'scaling_fee' => ['required', 'numeric', 'min:0'],
             'transaction_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
             'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
             'monthly_fee' => ['required', 'numeric', 'min:0'],
@@ -227,10 +227,10 @@ class ApplicationsController extends Controller
                     : null,
                 'parent_application_id' => $application->parent_application_id,
                 'parent_application_name' => $application->parentApplication?->name,
-                'setup_fee' => $application->setup_fee,
+                'scaling_fee' => $application->scaling_fee,
                 'transaction_percentage' => $application->transaction_percentage,
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
-'scaling_fee_start_month' => $application->scaling_fee_start_month,
+                'scaling_fee' => $application->scaling_fee,
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
                 'service_fee' => $application->service_fee,
@@ -336,11 +336,11 @@ class ApplicationsController extends Controller
 
         $validated = Request::validate([
             'name' => ['required', 'max:100'],
-            'setup_fee' => ['required', 'numeric', 'min:0'],
+            'scaling_fee' => ['required', 'numeric', 'min:0'],
             'transaction_percentage' => ['required', 'numeric', 'min:0'],
             'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
             'monthly_fee' => ['required', 'numeric', 'min:0'],
-'scaling_fee_start_month' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'scaling_fee' => ['nullable', 'integer', 'min:1'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
             'service_fee' => ['required', 'numeric', 'min:0'],
         ]);
@@ -351,7 +351,7 @@ class ApplicationsController extends Controller
             'user_id' => auth()->id(),
             'name' => $validated['name'],
             'parent_application_id' => $application->id,
-            'setup_fee' => $validated['setup_fee'],
+            'scaling_fee' => $validated['scaling_fee'],
             'transaction_percentage' => $validated['transaction_percentage'],
             'transaction_fixed_fee' => $validated['transaction_fixed_fee'],
             'monthly_fee' => $validated['monthly_fee'],
@@ -364,6 +364,30 @@ class ApplicationsController extends Controller
 
         return Redirect::route('applications.edit', $newApplication)
             ->with('success', 'New application created with updated fees. Email notification sent to account.');
+    }
+
+    /**
+     * Update fees directly on the current application (without creating new one)
+     */
+    public function updateFees(Application $application): RedirectResponse
+    {
+        // Check permissions - only admins can change fees
+        if (!auth()->guard('web')->check() || !auth()->guard('web')->user()->isAdmin()) {
+            abort(403, 'Only administrators can change application fees.');
+        }
+
+        $validated = Request::validate([
+            'scaling_fee' => ['required', 'numeric', 'min:0'],
+            'transaction_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
+            'monthly_fee' => ['required', 'numeric', 'min:0'],
+            'monthly_minimum' => ['required', 'numeric', 'min:0'],
+            'service_fee' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $application->update($validated);
+
+        return Redirect::back()->with('success', 'Application fees updated successfully.');
     }
 
     public function setEmailReminder(Application $application): RedirectResponse

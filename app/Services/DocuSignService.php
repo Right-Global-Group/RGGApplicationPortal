@@ -47,17 +47,70 @@ class DocuSignService
             $isAccount = auth()->guard('account')->check();
             
             if ($isAccount) {
-                $account = $application->account;
-                $recipientEmail = $account->email;
-                $recipientName = $account->name ?? $application->trading_name ?? $account->email;
+                // MERCHANT is trying to sign - check if all previous routing orders are complete
+                try {
+                    $accessToken = $this->getAccessToken();
+                    
+                    // Get envelope details including current routing order
+                    $envelopeResponse = Http::withToken($accessToken)
+                        ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$existingEnvelopeId}/recipients");
+                    
+                    if ($envelopeResponse->failed()) {
+                        throw new \Exception('Failed to get envelope recipients');
+                    }
+                    
+                    $envelopeData = $envelopeResponse->json();
+                    $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
+                    
+                    Log::info('Checking merchant signing eligibility', [
+                        'current_routing_order' => $currentRoutingOrder,
+                        'envelope_data' => $envelopeData,
+                    ]);
+                    
+                    // Get the merchant's routing order
+                    $account = $application->account;
+                    $merchantRoutingOrder = null;
+                    
+                    foreach ($envelopeData['signers'] ?? [] as $signer) {
+                        if ($signer['email'] === $account->email) {
+                            $merchantRoutingOrder = (int)$signer['routingOrder'];
+                            break;
+                        }
+                    }
+                    
+                    if ($merchantRoutingOrder === null) {
+                        throw new \Exception('Merchant recipient not found in envelope');
+                    }
+                    
+                    // Check if merchant's turn to sign
+                    if ($merchantRoutingOrder > $currentRoutingOrder) {
+                        throw new \Exception('The contract is not ready for your signature yet. Previous signers must complete their review first. Please wait for an email notification when it\'s your turn to sign.');
+                    }
+                    
+                    $recipientEmail = $account->email;
+                    $recipientName = $account->name ?? $application->trading_name ?? $account->email;
+                    $clientUserId = 'merchant-' . $application->id;
+                    
+                } catch (\Exception $e) {
+                    Log::error('Failed to check merchant signing eligibility', [
+                        'envelope_id' => $existingEnvelopeId,
+                        'error' => $e->getMessage(),
+                    ]);
+                    throw $e;
+                }
             } else {
+                // USER is opening
+                $accessToken = $this->getAccessToken();
                 $user = auth()->guard('web')->user();
                 $recipientEmail = $user->email;
                 $recipientName = $user->name ?? $user->email;
+                $clientUserId = 'user-' . $application->id;
             }
             
             try {
-                $accessToken = $this->getAccessToken();
+                if (!isset($accessToken)) {
+                    $accessToken = $this->getAccessToken();
+                }
                 
                 // Generate new signing URL for existing envelope
                 $viewUrl = $this->getRecipientView(
@@ -65,9 +118,15 @@ class DocuSignService
                     $existingEnvelopeId,
                     $recipientEmail,
                     $recipientName,
-                    ($isAccount ? 'merchant-' : 'user-') . $application->id,
+                    $clientUserId,
                     route('applications.docusign-callback', ['application' => $application->id])
                 );
+                
+                Log::info('Generated signing URL for existing envelope', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'recipient_email' => $recipientEmail,
+                    'client_user_id' => $clientUserId,
+                ]);
                 
                 return [
                     'envelope_id' => $existingEnvelopeId,
@@ -78,11 +137,12 @@ class DocuSignService
                 Log::error('Failed to get signing URL for existing envelope', [
                     'envelope_id' => $existingEnvelopeId,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
                 
-                // If getting view fails, fall through to create new envelope
-                Log::info('Creating new envelope because existing one failed');
+                throw $e; // Don't create new envelope, throw error
             }
+        
         }
         
         // CREATE NEW ENVELOPE
@@ -92,52 +152,29 @@ class DocuSignService
             throw new \Exception('Account or account email is missing.');
         }
         
-        // Determine who is currently logged in (they'll use embedded signing)
+        // Get both user and account details
+        $user = \App\Models\User::find($application->user_id);
+        if (!$user || !$user->email) {
+            throw new \Exception('Application user or user email is missing.');
+        }
+        
+        // Determine who is currently logged in
         $isAccount = auth()->guard('account')->check();
     
         if ($isAccount) {
-            // Account is clicking - they sign via popup
-            $embeddedEmail = $account->email;
-            $embeddedName = $account->name ?? $application->trading_name ?? $account->email;
-            $embeddedClientId = 'merchant-' . $application->id;
-            $embeddedRoleName = 'Account Merchant';
-            
-            // Portal user gets email
-            $user = \App\Models\User::find($application->user_id);
-            if (!$user || !$user->email) {
-                throw new \Exception('Application user or user email is missing.');
-            }
-            $emailSignerEmail = $user->email;
-            $emailSignerName = $user->name ?? $user->email;
-            $emailSignerRoleName = 'Product Manager';
-            
-        } else {
-            // Portal user is clicking - they sign via popup
-            $user = auth()->guard('web')->user();
-            if (!$user || !$user->email) {
-                throw new \Exception('Portal user or user email is missing.');
-            }
-            $embeddedEmail = $user->email;
-            $embeddedName = $user->name ?? $user->email;
-            $embeddedClientId = 'user-' . $application->id;
-            $embeddedRoleName = 'Product Manager';
-            
-            // Account gets email
-            $emailSignerEmail = $account->email;
-            $emailSignerName = $account->name ?? $application->trading_name ?? $account->email;
-            $emailSignerRoleName = 'Account Merchant';
+            // If MERCHANT clicks first, they cannot create envelope - user must go first
+            throw new \Exception('The contract must be reviewed by the Product Manager before you can sign. Please contact your account manager.');
         }
+        
+        // Only USER can create the envelope
+        $embeddedEmail = $user->email;
+        $embeddedName = $user->name ?? $user->email;
+        $embeddedClientId = 'user-' . $application->id;
         
         try {
             $accessToken = $this->getAccessToken();
             $templateId = '4247195d-137e-47da-bff6-9fb4d6d7e0a6';
         
-            // Calculate total fees
-            $totalFees = $application->setup_fee + 
-                        $application->monthly_fee + 
-                        $application->monthly_minimum + 
-                        $application->service_fee;
-            
             // Use anchor strings to position tabs relative to text
             $tabsForAllRecipients = [
                 'textTabs' => [
@@ -145,7 +182,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'All request types',
-                        'anchorXOffset' => '310',
+                        'anchorXOffset' => '313',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -162,7 +199,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee',
-                        'anchorXOffset' => '310',
+                        'anchorXOffset' => '313',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -175,7 +212,7 @@ class DocuSignService
                         'tabLabel' => 'monthly_fee',
                     ],
                     
-                    // Service fee/monthly minimum - NEW POSITION WITH COMBINED TEXT
+                    // Service fee/monthly minimum
                     [
                         'documentId' => '1',
                         'anchorString' => 'Service fee/monthly minimum',
@@ -183,20 +220,20 @@ class DocuSignService
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
-                        'width' => '250',  // Wider to fit combined text
+                        'width' => '250',
                         'height' => '15',
-                        'value' => '£' . number_format($application->monthly_minimum, 2) . ' first month. £' . number_format($application->setup_fee, 2) . ' thereafter',
+                        'value' => '£' . number_format($application->monthly_minimum, 2) . ' first month. £' . number_format($application->scaling_fee, 2) . ' thereafter',
                         'locked' => true,
                         'font' => 'Arial',
                         'fontSize' => 'Size9',
                         'tabLabel' => 'service_fee_monthly_minimum',
                     ],
                     
-                    // Monthly Fee (inc PCI) - Just the amount
+                    // Monthly Fee (inc PCI)
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee (inc PCI)',
-                        'anchorXOffset' => '310',
+                        'anchorXOffset' => '313',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -213,7 +250,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'UK Consumer Debit',
-                        'anchorXOffset' => '310',
+                        'anchorXOffset' => '313',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -230,7 +267,7 @@ class DocuSignService
                     [
                         'documentId' => '1',
                         'anchorString' => 'UK Consumer Credit',
-                        'anchorXOffset' => '310',
+                        'anchorXOffset' => '313',
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
@@ -280,7 +317,7 @@ class DocuSignService
                 ],
             ];
     
-            // Create envelope using composite templates
+            // Create envelope - User reviews first, Merchant signs second
             $envelopeDefinition = [
                 'emailSubject' => "Merchant Application Contract - {$application->name}",
                 'status' => 'sent',
@@ -295,24 +332,31 @@ class DocuSignService
                         ],
                         'inlineTemplates' => [
                             [
-                                'sequence' => '2',  // Changed from '1' to '2'
+                                'sequence' => '2',
                                 'recipients' => [
                                     'signers' => [
+                                        // USER - Reviews first (routing order 1) - embedded signing
+                                        // Has NO signature tabs, so they just review and click "Finish"
                                         [
-                                            'email' => $embeddedEmail,
-                                            'name' => $embeddedName,
-                                            'roleName' => $embeddedRoleName,
-                                            'routingOrder' => '1',  // Always 1 for first signer
+                                            'email' => $user->email,
+                                            'name' => $user->name ?? $user->email,
+                                            'roleName' => 'Product Manager',
+                                            'routingOrder' => '1',
                                             'recipientId' => '1',
-                                            'clientUserId' => $embeddedClientId,
-                                            'tabs' => $tabsForAllRecipients,
+                                            'clientUserId' => 'user-' . $application->id,
+                                            // NO tabs for user - they just review and finish
+                                            'tabs' => [
+                                                'textTabs' => [],
+                                            ],
                                         ],
+                                        // MERCHANT - Signs second (routing order 2) - embedded signing
                                         [
-                                            'email' => $emailSignerEmail,
-                                            'name' => $emailSignerName,
-                                            'roleName' => $emailSignerRoleName,
-                                            'routingOrder' => '2',  // Always 2 for second signer
+                                            'email' => $account->email,
+                                            'name' => $account->name ?? $application->trading_name ?? $account->email,
+                                            'roleName' => 'Account Merchant',
+                                            'routingOrder' => '2',
                                             'recipientId' => '2',
+                                            'clientUserId' => 'merchant-' . $application->id,
                                             'tabs' => $tabsForAllRecipients,
                                         ],
                                     ],
@@ -339,7 +383,7 @@ class DocuSignService
     
             $envelopeId = $response->json('envelopeId');
     
-            // Get embedded signing URL for current user
+            // Get embedded signing URL for user
             $viewUrl = $this->getRecipientView(
                 $accessToken,
                 $envelopeId,
@@ -460,7 +504,7 @@ class DocuSignService
             // Add custom fields for prepopulating data
             $customFields = [
                 'textCustomFields' => [
-                    ['name' => 'setup_fee', 'value' => number_format($application->setup_fee, 2)],
+                    ['name' => 'scaling_fee', 'value' => number_format($application->scaling_fee, 2)],
                     ['name' => 'transaction_percentage', 'value' => number_format($application->transaction_percentage, 2)],
                     ['name' => 'transaction_fixed_fee', 'value' => number_format($application->transaction_fixed_fee, 2)],
                     ['name' => 'monthly_fee', 'value' => number_format($application->monthly_fee, 2)],
@@ -853,8 +897,8 @@ class DocuSignService
                     'required' => true,
                 ],
                 [
-                    'tabLabel' => 'setup_fee',
-                    'value' => '£' . number_format($application->setup_fee, 2),
+                    'tabLabel' => 'scaling_fee',
+                    'value' => '£' . number_format($application->scaling_fee, 2),
                     'locked' => true,
                 ],
                 [

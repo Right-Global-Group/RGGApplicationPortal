@@ -98,8 +98,8 @@
             <h3 style="margin-top: 0; color: #764ba2;">Updated Fee Structure</h3>
             
             <div class="fee-item">
-                <span class="fee-label">Setup Fee:</span>
-                <span class="fee-value">£{{ number_format($setup_fee ?? 0, 2) }}</span>
+                <span class="fee-label">Scaling Fee:</span>
+                <span class="fee-value">£{{ number_format($scaling_fee ?? 0, 2) }}</span>
             </div>
             
             <div class="fee-item">

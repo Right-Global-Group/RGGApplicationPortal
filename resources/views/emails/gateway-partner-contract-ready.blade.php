@@ -45,8 +45,8 @@
                                         <td style="color: #e2e8f0; font-weight: 600; font-size: 14px; padding: 8px 0; text-align: right; border-top: 1px solid #0f172a;">{{ $trading_name ?? 'Trading Name' }}</td>
                                     </tr>
                                     <tr>
-                                        <td style="color: #94a3b8; font-size: 14px; padding: 8px 0; border-top: 1px solid #0f172a;">Setup Fee:</td>
-                                        <td style="color: #e2e8f0; font-weight: 600; font-size: 14px; padding: 8px 0; text-align: right; border-top: 1px solid #0f172a;">£{{ number_format($setup_fee ?? 0, 2) }}</td>
+                                        <td style="color: #94a3b8; font-size: 14px; padding: 8px 0; border-top: 1px solid #0f172a;">Scaling Fee:</td>
+                                        <td style="color: #e2e8f0; font-weight: 600; font-size: 14px; padding: 8px 0; text-align: right; border-top: 1px solid #0f172a;">£{{ number_format($scaling_fee ?? 0, 2) }}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #94a3b8; font-size: 14px; padding: 8px 0; border-top: 1px solid #0f172a;">Transaction Fee:</td>

@@ -24,7 +24,7 @@
         class="text-magenta-400 hover:text-magenta-300 flex items-center gap-2 ml-6"
       >
         <icon name="arrow-left" class="w-4 h-4 fill-current" />
-        Back to Tracker
+        Progress Tracker
       </Link>
     </div>
 
@@ -57,12 +57,8 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
         <div class="text-gray-400 text-sm mb-1">Scaling Fee (+ VAT)</div>
-        <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.setup_fee).toFixed(2) }}</div>
+        <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.scaling_fee).toFixed(2) }}</div>
         <div class="text-gray-500 text-xs mt-1">
-          <span v-if="application.scaling_fee_start_month">
-            From Month {{ application.scaling_fee_start_month }}
-          </span>
-          <span v-else>Taken on approval</span>
         </div>
       </div>
       <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
@@ -478,12 +474,12 @@
       <div class="flex flex-wrap gap-3">
         
         <!-- Sign Contract Button - generates fresh signing URL -->
-        <button
-          v-if="canAccountSignContract"
-          @click="openContractForAccount"
-          :disabled="isLoadingContract"
-          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg"
-        >
+<button
+  v-if="canAccountSignContract"
+  @click="openContractForAccount"
+  :disabled="isLoadingContract"
+  class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2"
+>
           <svg 
             v-if="isLoadingContract" 
             class="animate-spin w-4 h-4" 
@@ -990,8 +986,8 @@ export default {
         { id: 'contract_signed', label: 'Contract Signed', description: 'All parties have signed the contract' },
         { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted to gateway' },
         { id: 'application_approved', label: 'Application Approved', description: 'Application approved by admin' },
-        { id: 'invoice_sent', label: 'Invoice Sent', description: 'Setup fee invoice sent' },
-        { id: 'invoice_paid', label: 'Payment Received', description: 'Setup fee paid' },
+        { id: 'invoice_sent', label: 'Invoice Sent', description: 'Scaling fee invoice sent' },
+        { id: 'invoice_paid', label: 'Payment Received', description: 'Scaling fee paid' },
         { id: 'gateway_integrated', label: 'Gateway Integration', description: 'Payment gateway integrated' },
         { id: 'account_live', label: 'Account Live', description: 'Merchant account is live' },
       ]
@@ -1070,34 +1066,8 @@ export default {
       
       return (
         !!timestamps?.contract_sent && 
-        !timestamps?.application_approved
+        !!timestamps?.contract_signed
       );
-    },
-
-    canAccountSignContract() {
-      if (!this.is_account) return false;
-      
-      const timestamps = this.application.status?.timestamps;
-      
-      // Contract must be sent
-      if (!timestamps?.contract_sent) return false;
-      
-      // Already signed
-      if (timestamps?.contract_signed) return false;
-      
-      // Check if director and product manager have signed
-      const recipients = this.docusignRecipientStatus || [];
-      
-      const director = recipients.find(r => r.email === 'test@g2pay.co.uk');
-      const productManager = recipients.find(r => 
-        r.name && r.name.toLowerCase().includes('product manager')
-      );
-      
-      // Both director and product manager must have signed
-      const directorSigned = director && ['completed', 'signed'].includes(director.status);
-      const productManagerSigned = productManager && ['completed', 'signed'].includes(productManager.status);
-      
-      return directorSigned && productManagerSigned;
     },
     
     canSubmitToCardStream() {

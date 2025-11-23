@@ -39,8 +39,8 @@
                                 </p>
                                 <table width="100%" cellpadding="8" cellspacing="0" style="font-size: 14px;">
                                     <tr>
-                                        <td style="color: #cbd5e1; padding: 8px 0;">Setup Fee (+ VAT):</td>
-                                        <td style="color: #e2e8f0; text-align: right; font-weight: 600; padding: 8px 0;">£{{ number_format($setup_fee, 2) }}</td>
+                                        <td style="color: #cbd5e1; padding: 8px 0;">Scaling Fee (+ VAT):</td>
+                                        <td style="color: #e2e8f0; text-align: right; font-weight: 600; padding: 8px 0;">£{{ number_format($scaling_fee, 2) }}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #cbd5e1; padding: 8px 0;">Transaction Fee:</td>

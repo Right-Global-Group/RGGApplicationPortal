@@ -200,13 +200,13 @@ class DashboardController extends Controller
             ->orderBy('applications.created_at', 'desc')
             ->first();
 
-        // Average setup fees
-        $avgSetupFee = (clone $applicationsQuery)->avg('setup_fee') ?? 0;
-        $totalSetupFees = (clone $applicationsQuery)->sum('setup_fee') ?? 0;
+        // Average scaling fees
+        $avgSetupFee = (clone $applicationsQuery)->avg('scaling_fee') ?? 0;
+        $totalSetupFees = (clone $applicationsQuery)->sum('scaling_fee') ?? 0;
 
         // Top 5 accounts by application count
         $topAccounts = (clone $applicationsQuery)
-            ->select('account_id', DB::raw('SUM(setup_fee) as total_fees'), DB::raw('count(*) as app_count'))
+            ->select('account_id', DB::raw('SUM(scaling_fee) as total_fees'), DB::raw('count(*) as app_count'))
             ->groupBy('account_id')
             ->orderBy('total_fees', 'desc')
             ->limit(5)
@@ -229,7 +229,7 @@ class DashboardController extends Controller
             ->map(fn ($app) => [
                 'id' => $app->id,
                 'name' => $app->name,
-                'setup_fee' => $app->setup_fee,
+                'scaling_fee' => $app->scaling_fee,
                 'account_name' => $app->account?->name,
                 'status' => $app->status?->current_step ?? 'created',
                 'created_at' => $app->created_at->format('Y-m-d H:i'),

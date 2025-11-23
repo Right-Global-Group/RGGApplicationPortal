@@ -28,7 +28,7 @@
                 required
                 class="form-select w-full bg-primary-900/50 border-primary-700 text-white rounded-lg"
               >
-                <option value="setup_fee">Setup Fee</option>
+                <option value="scaling_fee">Scaling Fee</option>
                 <option value="monthly">Monthly Fee</option>
                 <option value="other">Other</option>
               </select>
@@ -86,7 +86,7 @@
       return {
         form: {
           amount: '',
-          type: 'setup_fee',
+          type: 'scaling_fee',
           due_date: '',
           notes: '',
         },

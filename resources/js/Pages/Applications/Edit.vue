@@ -113,10 +113,7 @@
               <div>
                 <label class="block text-gray-300 font-medium mb-2">Scaling Fee</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                  £{{ parseFloat(application.setup_fee).toFixed(2)}}
-                  <span v-if="application.scaling_fee_start_month" class="text-xs text-gray-500 ml-2">
-                    (From Month {{ application.scaling_fee_start_month }})
-                  </span>
+                  £{{ parseFloat(application.scaling_fee).toFixed(2)}}
                 </div>
               </div>
               <div>

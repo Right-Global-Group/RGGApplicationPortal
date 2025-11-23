@@ -328,7 +328,7 @@ class EmailTemplatesController extends Controller
                 'password' => 'SamplePassword123!',
             ],
             'application-created' => [
-                'setup_fee' => 500.00,
+                'scaling_fee' => 500.00,
                 'transaction_percentage' => 2.5,
                 'transaction_fixed_fee' => 0.20,
                 'monthly_fee' => 50.00,
@@ -337,8 +337,8 @@ class EmailTemplatesController extends Controller
             ],
             'fees-changed' => [
                 'parent_application_name' => 'Previous Application Name',
-                'old_setup_fee' => 400.00,
-                'new_setup_fee' => 500.00,
+                'old_scaling_fee' => 400.00,
+                'new_scaling_fee' => 500.00,
                 'old_transaction_percentage' => 2.0,
                 'new_transaction_percentage' => 2.5,
                 'old_transaction_fixed_fee' => 0.15,
@@ -349,7 +349,7 @@ class EmailTemplatesController extends Controller
                 'new_monthly_minimum' => 100.00,
                 'old_service_fee' => 20.00,
                 'new_service_fee' => 25.00,
-                'setup_fee' => 500.00,
+                'scaling_fee' => 500.00,
                 'transaction_percentage' => 2.5,
                 'transaction_fixed_fee' => 0.20,
                 'monthly_fee' => 50.00,
@@ -357,7 +357,7 @@ class EmailTemplatesController extends Controller
                 'service_fee' => 25.00,
             ],
             'fees-confirmation-reminder' => [
-                'setup_fee' => 500.00,
+                'scaling_fee' => 500.00,
                 'transaction_percentage' => 2.5,
                 'transaction_fixed_fee' => 0.20,
                 'monthly_fee' => 50.00,
@@ -368,8 +368,8 @@ class EmailTemplatesController extends Controller
                 'requested_info' => 'Please provide your business registration documents and proof of address for the registered business location.',
             ],
             'application-approved' => [
-                'next_steps' => 'We will send you an invoice for the setup fee shortly. Once payment is received, we will proceed with gateway integration.',
-                'setup_fee' => 500.00,
+                'next_steps' => 'We will send you an invoice for the scaling fee shortly. Once payment is received, we will proceed with gateway integration.',
+                'scaling_fee' => 500.00,
             ],
             'document-uploaded' => [
                 'document_name' => 'Business Registration Certificate',
@@ -392,7 +392,7 @@ class EmailTemplatesController extends Controller
             'gateway-partner-contract-ready' => [
                 'gateway_partner_name' => 'Cardstream',
                 'signing_url' => URL::to('/docusign/sign/xyz789'),
-                'setup_fee' => 500.00,
+                'scaling_fee' => 500.00,
                 'transaction_percentage' => 2.5,
                 'transaction_fixed_fee' => 0.20,
                 'monthly_fee' => 50.00,
@@ -406,7 +406,7 @@ class EmailTemplatesController extends Controller
             'cardstream-submission' => [
                 'submitted_by' => 'Admin User',
                 'contract_url' => URL::to('/docusign/contract/abc123'),
-                'setup_fee' => 500.00,
+                'scaling_fee' => 500.00,
                 'transaction_percentage' => 2.5,
                 'transaction_fixed_fee' => 0.20,
                 'monthly_fee' => 50.00,

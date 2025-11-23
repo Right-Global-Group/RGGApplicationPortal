@@ -39,7 +39,7 @@ class SendCardStreamSubmissionEmail
             'submitted_by' => $submittedBy,
             'contract_url' => $contractUrl,
             'application_url' => route('applications.status', ['application' => $application->id]),
-            'setup_fee' => $application->setup_fee,
+            'scaling_fee' => $application->scaling_fee,
             'transaction_percentage' => $application->transaction_percentage,
             'transaction_fixed_fee' => $application->transaction_fixed_fee,
             'monthly_fee' => $application->monthly_fee,

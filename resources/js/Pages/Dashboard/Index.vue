@@ -164,7 +164,7 @@
       <!-- Top Accounts + Stats -->
       <div v-if="!isAccount" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div class="lg:col-span-2 bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl">
-          <h2 class="text-xl font-bold text-white mb-6">Top Accounts by Setup Fees</h2>
+          <h2 class="text-xl font-bold text-white mb-6">Top Accounts by Scaling Fees</h2>
           <apexchart
             v-if="charts.topAccounts.length > 0"
             type="bar"
@@ -252,7 +252,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Account</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Setup Fee</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Scaling Fee</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
@@ -270,7 +270,7 @@
                     {{ formatStatus(app.status) }}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-gray-300">£{{ app.setup_fee }}</td>
+                <td class="px-6 py-4 text-gray-300">£{{ app.scaling_fee }}</td>
                 <td class="px-6 py-4 text-gray-400 text-sm">{{ app.created_at }}</td>
                 <td class="px-6 py-4">
                   <Link
@@ -311,7 +311,7 @@
 
         <div class="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-sm rounded-xl p-4 border border-purple-700/30 hover:border-pink-500/50 transition-all duration-300">
           <div class="text-3xl font-bold text-white mb-2">£{{ metrics.totalSetupFees.toFixed(2) }}</div>
-          <div class="text-pink-400 font-semibold">Total Setup Fees</div>
+          <div class="text-pink-400 font-semibold">Total Scaling Fees</div>
           <div class="text-sm text-gray-400 mt-1">Avg: £{{ metrics.avgSetupFee.toFixed(2) }}</div>
         </div>
       </div>
@@ -454,7 +454,7 @@
     <div v-show="activeTab === 'accounts' && !isAccount">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div class="lg:col-span-2 bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl">
-          <h2 class="text-xl font-bold text-white mb-4">Top Accounts by Setup Fees</h2>
+          <h2 class="text-xl font-bold text-white mb-4">Top Accounts by Scaling fees</h2>
           <apexchart
             v-if="charts.topAccounts.length > 0"
             type="bar"
@@ -523,7 +523,7 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div class="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-sm rounded-xl p-6 border border-green-700/30">
           <div class="text-3xl font-bold text-white mb-2">£{{ metrics.totalSetupFees.toFixed(2) }}</div>
-          <div class="text-emerald-400 font-semibold mb-2">Total Setup Fees</div>
+          <div class="text-emerald-400 font-semibold mb-2">Total Scaling fees</div>
           <div class="text-sm text-gray-400">Total revenue</div>
         </div>
 
@@ -1149,7 +1149,7 @@ export default {
     // Bar Chart (Top Accounts)
     barChartSeries() {
       return [{
-        name: 'Total Setup Fees (£)',
+        name: 'Total Scaling Fees (£)',
         data: this.charts.topAccounts.map(item => item.total_fees),
       }]
     },

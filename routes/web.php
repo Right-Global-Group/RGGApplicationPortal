@@ -86,6 +86,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::get('/{application}/status', [ApplicationStatusController::class, 'show'])->name('applications.status');
         Route::post('/{application}/confirm-fees', [ApplicationStatusController::class, 'confirmFees'])->name('applications.confirm-fees');
         Route::post('/{application}/change-fees', [ApplicationsController::class, 'changeFees'])->name('applications.change-fees');
+        Route::put('/{application}/update-fees', [ApplicationsController::class, 'updateFees'])->name('applications.update-fees');
         Route::post('/{application}/update-step', [ApplicationStatusController::class, 'updateStep']);
         
         // Merchant Contract (DocuSign)

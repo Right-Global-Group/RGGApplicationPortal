@@ -162,8 +162,8 @@
             
             <div class="fee-grid">
                 <div class="fee-item">
-                    <div class="fee-label">Setup Fee</div>
-                    <div class="fee-value">£{{ number_format($setup_fee, 2) }}</div>
+                    <div class="fee-label">Scaling Fee</div>
+                    <div class="fee-value">£{{ number_format($scaling_fee, 2) }}</div>
                 </div>
                 
                 <div class="fee-item">

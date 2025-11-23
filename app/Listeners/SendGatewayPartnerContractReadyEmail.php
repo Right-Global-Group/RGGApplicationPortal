@@ -37,7 +37,7 @@ class SendGatewayPartnerContractReadyEmail
                 'trading_name' => $application->trading_name,
                 'gateway_partner_name' => $application->gateway_partner_name,
                 'signing_url' => $event->signingUrl,
-                'setup_fee' => $application->setup_fee,
+                'scaling_fee' => $application->scaling_fee,
                 'transaction_percentage' => $application->transaction_percentage,
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
                 'monthly_fee' => $application->monthly_fee,

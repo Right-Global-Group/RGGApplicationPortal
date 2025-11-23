@@ -341,7 +341,7 @@ export default {
       }
       
       if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
-        return 'Pay the setup fee invoice'
+        return 'Pay the scaling fee invoice'
       }
       
       if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {

@@ -6,17 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::table('applications', function (Blueprint $table) {
-            $table->integer('scaling_fee_start_month')->nullable()->after('setup_fee');
+            $table->renameColumn('setup_fee', 'scaling_fee');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::table('applications', function (Blueprint $table) {
-            $table->dropColumn('scaling_fee_start_month');
+            $table->renameColumn('scaling_fee', 'setup_fee');
         });
     }
 };

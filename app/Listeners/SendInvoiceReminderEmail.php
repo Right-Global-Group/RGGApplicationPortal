@@ -17,7 +17,7 @@ class SendInvoiceReminderEmail
         Mail::to($user->email)->send(new DynamicEmail('invoice_reminder', [
             'application_name' => $application->name,
             'account_name' => $application->account->name,
-            'setup_fee' => $application->setup_fee,
+            'scaling_fee' => $application->scaling_fee,
             'application_url' => route('applications.status', $application),
         ]));
 

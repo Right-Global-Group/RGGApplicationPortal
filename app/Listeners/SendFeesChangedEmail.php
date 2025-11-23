@@ -42,7 +42,7 @@ class SendFeesChangedEmail
         Mail::to($account->email)->send(new DynamicEmail('fees_changed', [
             'account_name' => $account->name,
             'application_name' => $application->name,
-            'setup_fee' => $application->setup_fee,
+            'scaling_fee' => $application->scaling_fee,
             'transaction_percentage' => $application->transaction_percentage,
             'transaction_fixed_fee' => $application->transaction_fixed_fee,
             'monthly_fee' => $application->monthly_fee,
@@ -50,7 +50,7 @@ class SendFeesChangedEmail
             'service_fee' => $application->service_fee,
             'parent_application_name' => $parentApplication->name,
             'status_url' => $statusUrl,
-        ], $application));
+        ]));
 
         // Log the email
         EmailLog::create([

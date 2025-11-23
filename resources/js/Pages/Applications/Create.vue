@@ -25,23 +25,20 @@
           </div>
           
           <text-input 
-            v-model="form.setup_fee" 
-            :error="form.errors.setup_fee" 
+            v-model="form.scaling_fee" 
+            :error="form.errors.scaling_fee" 
             type="number" 
             step="0.01" 
             class="pb-8 pr-6 w-full lg:w-1/2" 
             label="Scaling Fee (£)" 
           />
           <text-input 
-            v-model="form.scaling_fee_start_month" 
-            :error="form.errors.scaling_fee_start_month" 
+            v-model="form.monthly_minimum" 
+            :error="form.errors.monthly_minimum" 
             type="number" 
-            step="1" 
-            min="1"
-            max="60"
+            step="0.01" 
             class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Scaling Fee Start Month" 
-            placeholder="e.g., 6"
+            label="Monthly Minimum (£)" 
           />
           <text-input 
             v-model="form.transaction_percentage" 
@@ -68,14 +65,6 @@
             label="Monthly Fee (£)" 
           />
           <text-input 
-            v-model="form.monthly_minimum" 
-            :error="form.errors.monthly_minimum" 
-            type="number" 
-            step="0.01" 
-            class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Monthly Minimum (£)" 
-          />
-          <text-input 
             v-model="form.service_fee" 
             :error="form.errors.service_fee" 
             type="number" 
@@ -90,9 +79,7 @@
               <p class="font-semibold mb-2 text-magenta-400">Fee Structure Summary:</p>
               <ul class="list-disc list-inside space-y-1">
                 <li>
-                  Scaling fee of £{{ parseFloat(form.setup_fee || 0).toFixed(2) }} (+ VAT)
-                  <span v-if="form.scaling_fee_start_month"> starting from month {{ form.scaling_fee_start_month }}</span>
-                  <span v-else> - No start month specified</span>
+                  Scaling fee of £{{ parseFloat(form.scaling_fee || 0).toFixed(2) }}
                 </li>
                 <li>{{ form.transaction_percentage || 0 }}% + £{{ parseFloat(form.transaction_fixed_fee || 0).toFixed(2) }} per transaction</li>
                 <li>£{{ parseFloat(form.monthly_fee || 0).toFixed(2) }} monthly fee</li>
@@ -140,8 +127,7 @@ export default {
       form: this.$inertia.form({
         account_id: this.preselected_account_id,
         name: null,
-        setup_fee: 450.00,
-        scaling_fee_start_month: 6,
+        scaling_fee: 450.00,
         transaction_percentage: 2.00,
         transaction_fixed_fee: 0.20,
         monthly_fee: 18.00,

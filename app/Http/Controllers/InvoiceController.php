@@ -18,7 +18,7 @@ class InvoiceController extends Controller
     {
         $validated = Request::validate([
             'amount' => ['required', 'numeric', 'min:0'],
-            'type' => ['required', 'in:setup_fee,monthly,other'],
+            'type' => ['required', 'in:scaling_fee,monthly,other'],
             'due_date' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
@@ -45,7 +45,7 @@ class InvoiceController extends Controller
                 'sent_at' => now(),
             ]);
 
-            $invoice->application->status->transitionTo('invoice_sent', 'Setup fee invoice sent');
+            $invoice->application->status->transitionTo('invoice_sent', 'Scaling fee invoice sent');
 
             return Redirect::back()->with('success', 'Invoice sent successfully.');
         } catch (\Exception $e) {
