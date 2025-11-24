@@ -781,11 +781,6 @@ class ApplicationStatusController extends Controller
             abort(403, 'Accounts cannot submit applications to CardStream.');
         }
 
-        // Verify contract is signed
-        if ($application->status->current_step !== 'contract_signed') {
-            return Redirect::back()->with('error', 'Contract must be signed by all recipients before submitting to CardStream.');
-        }
-
         // Get the DocuSign envelope ID
         $envelopeId = $application->status->docusign_envelope_id;
         
