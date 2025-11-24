@@ -42,7 +42,7 @@ class SendDocumentUploadedEmail
             'document_category' => $document->category_name,
             'uploaded_at' => $document->created_at->format('d/m/Y H:i'),
             'application_url' => route('applications.edit', $application),
-        ], $application));
+        ]));
 
         // Log the email
         EmailLog::create([

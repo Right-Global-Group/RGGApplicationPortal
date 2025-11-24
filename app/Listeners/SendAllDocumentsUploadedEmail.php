@@ -47,7 +47,7 @@ class SendAllDocumentsUploadedEmail
             'account_name' => $application->account->name,
             'documents' => $documentList,
             'application_url' => route('applications.edit', $application),
-        ], $application));
+        ]));
 
         // Log the email
         EmailLog::create([
