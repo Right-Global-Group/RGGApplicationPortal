@@ -47,7 +47,7 @@ return [
     ],
 
     'cardstream' => [
-        'contact_email' => env('CARDSTREAM_CONTACT_EMAIL', 'rachel.atwood@g2pay.co.uk'),
+        'contact_email' => env('CARDSTREAM_CONTACT_EMAIL', 'rachel.attwood@g2pay.co.uk'),
         'api_url' => env('CARDSTREAM_API_URL'),
         'api_key' => env('CARDSTREAM_API_KEY'),
     ],
