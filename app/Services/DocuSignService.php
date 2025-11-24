@@ -398,12 +398,6 @@ class DocuSignService
                 'docusign_envelope_id' => $envelopeId,
             ]);
     
-            // Fire event to send notification email
-            event(new \App\Events\MerchantContractReadyEvent(
-                $application, 
-                route('applications.status', ['application' => $application->id])
-            ));
-    
             return [
                 'envelope_id' => $envelopeId,
                 'signing_url' => $viewUrl,
