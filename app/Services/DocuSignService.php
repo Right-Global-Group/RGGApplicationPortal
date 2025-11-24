@@ -175,10 +175,11 @@ class DocuSignService
             $accessToken = $this->getAccessToken();
             $templateId = '4247195d-137e-47da-bff6-9fb4d6d7e0a6';
         
-            // Use anchor strings to position tabs relative to text
+            // Define tabs that will be applied to ALL recipients
+            // These are locked text fields that display pre-filled fee information
             $tabsForAllRecipients = [
                 'textTabs' => [
-                    // All Request Types - Fixed fee (£0.20)
+                    // All Request Types - Fixed fee
                     [
                         'documentId' => '1',
                         'anchorString' => 'All request types',
@@ -186,6 +187,7 @@ class DocuSignService
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
+                        'anchorMatchWholeWord' => 'true',
                         'width' => '80',
                         'height' => '15',
                         'value' => '£' . number_format($application->transaction_fixed_fee, 2),
@@ -195,7 +197,7 @@ class DocuSignService
                         'tabLabel' => 'all_request_types_fee',
                     ],
                     
-                    // Monthly Fee
+                    // Monthly Fee (first occurrence)
                     [
                         'documentId' => '1',
                         'anchorString' => 'Monthly Fee',
@@ -209,7 +211,7 @@ class DocuSignService
                         'locked' => true,
                         'font' => 'Arial',
                         'fontSize' => 'Size9',
-                        'tabLabel' => 'monthly_fee',
+                        'tabLabel' => 'monthly_fee_1',
                     ],
                     
                     // Service fee/monthly minimum
@@ -220,12 +222,13 @@ class DocuSignService
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
-                        'width' => '250',
+                        'anchorMatchWholeWord' => 'true',
+                        'width' => '350',
                         'height' => '15',
                         'value' => '£' . number_format($application->monthly_minimum, 2) . ' first month. £' . number_format($application->scaling_fee, 2) . ' thereafter',
                         'locked' => true,
                         'font' => 'Arial',
-                        'fontSize' => 'Size9',
+                        'fontSize' => 'Size7',
                         'tabLabel' => 'service_fee_monthly_minimum',
                     ],
                     
@@ -237,6 +240,7 @@ class DocuSignService
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
+                        'anchorMatchWholeWord' => 'true',
                         'width' => '80',
                         'height' => '15',
                         'value' => '£' . number_format($application->monthly_fee, 2),
@@ -254,6 +258,7 @@ class DocuSignService
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
+                        'anchorMatchWholeWord' => 'true',
                         'width' => '80',
                         'height' => '15',
                         'value' => number_format($application->transaction_percentage, 2) . '%',
@@ -271,6 +276,7 @@ class DocuSignService
                         'anchorYOffset' => '-5',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
+                        'anchorMatchWholeWord' => 'true',
                         'width' => '80',
                         'height' => '15',
                         'value' => number_format($application->transaction_percentage, 2) . '%',
@@ -317,56 +323,40 @@ class DocuSignService
                 ],
             ];
     
-            // Create envelope - User reviews first, Merchant signs second
+            // SIMPLIFIED: Use templateRoles instead of compositeTemplates
+            // This ensures proper role matching with your DocuSign template
             $envelopeDefinition = [
                 'emailSubject' => "Merchant Application Contract - {$application->name}",
-                'status' => 'sent',
-                'compositeTemplates' => [
+                'templateId' => $templateId,
+                'templateRoles' => [
+                    // USER/PRODUCT MANAGER - Gets the pre-filled tabs
                     [
-                        'compositeTemplateId' => '1',
-                        'serverTemplates' => [
-                            [
-                                'sequence' => '1',
-                                'templateId' => $templateId,
-                            ],
-                        ],
-                        'inlineTemplates' => [
-                            [
-                                'sequence' => '2',
-                                'recipients' => [
-                                    'signers' => [
-                                        // USER - Reviews first (routing order 1) - embedded signing
-                                        // Has NO signature tabs, so they just review and click "Finish"
-                                        [
-                                            'email' => $user->email,
-                                            'name' => $user->name ?? $user->email,
-                                            'roleName' => 'Product Manager',
-                                            'routingOrder' => '1',
-                                            'recipientId' => '1',
-                                            'clientUserId' => 'user-' . $application->id,
-                                            // NO tabs for user - they just review and finish
-                                            'tabs' => [
-                                                'textTabs' => [],
-                                            ],
-                                        ],
-                                        // MERCHANT - Signs second (routing order 2) - embedded signing
-                                        [
-                                            'email' => $account->email,
-                                            'name' => $account->name ?? $application->trading_name ?? $account->email,
-                                            'roleName' => 'Account Merchant',
-                                            'routingOrder' => '2',
-                                            'recipientId' => '2',
-                                            'clientUserId' => 'merchant-' . $application->id,
-                                            'tabs' => $tabsForAllRecipients,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
+                        'email' => $user->email,
+                        'name' => $user->name ?? $user->email,
+                        'roleName' => 'Product Manager',
+                        'routingOrder' => '1',
+                        'clientUserId' => 'user-' . $application->id,
+                        'tabs' => $tabsForAllRecipients,  // ← Only here
+                    ],
+                    // MERCHANT - No tabs needed (inherits from template)
+                    [
+                        'email' => $account->email,
+                        'name' => $account->name ?? $application->trading_name ?? $account->email,
+                        'roleName' => 'Account Merchant',
+                        'routingOrder' => '2',
+                        'clientUserId' => 'merchant-' . $application->id,
+                        // 'tabs' => $tabsForAllRecipients,  // ← Remove this line
                     ],
                 ],
+                'status' => 'sent',
             ];
     
+            Log::info('Creating DocuSign envelope', [
+                'user_email' => $user->email,
+                'merchant_email' => $account->email,
+                'application_id' => $application->id,
+            ]);
+
             $response = Http::withToken($accessToken)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes", $envelopeDefinition);

@@ -43,6 +43,34 @@ class ApplicationStatusController extends Controller
         if (!$canViewStatus) {
             abort(403, 'Unauthorized access.');
         }
+
+        $liveRecipientStatus = [];
+        if ($application->status->docusign_envelope_id) {
+            try {
+                $liveRecipientStatus = $this->docuSignService->getEnvelopeRecipients(
+                    $application->status->docusign_envelope_id
+                );
+                
+                // Optionally update the stored status
+                if (!empty($liveRecipientStatus)) {
+                    $application->status->update([
+                        'docusign_recipient_status' => $liveRecipientStatus
+                    ]);
+                }
+                
+                \Log::info('Fetched live DocuSign recipient status', [
+                    'application_id' => $application->id,
+                    'recipient_count' => count($liveRecipientStatus),
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to fetch live recipient status', [
+                    'application_id' => $application->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Fall back to stored status
+                $liveRecipientStatus = $application->status->docusign_recipient_status ?? [];
+            }
+        }
     
         return Inertia::render('Applications/Status', [
             'application' => [
@@ -156,7 +184,7 @@ class ApplicationStatusController extends Controller
                         'created_at' => $log->created_at->format('Y-m-d H:i'),
                     ]),
             ],
-            'docusignRecipientStatus' => $application->status->docusign_recipient_status ?? [],
+            'docusignRecipientStatus' => $liveRecipientStatus,
             'is_account' => $isAccount,
             'is_admin' => $isAdmin,
             'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
