@@ -70,7 +70,7 @@
             type="number" 
             step="0.01" 
             class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Service Fee (£)" 
+            label="Setup Fee (£)" 
           />
           
           <!-- Fee Explanation -->

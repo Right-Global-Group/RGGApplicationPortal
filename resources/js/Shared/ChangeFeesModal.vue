@@ -91,7 +91,7 @@
                     :error="form.errors.service_fee" 
                     type="number" 
                     step="0.01" 
-                    label="Service Fee (£)" 
+                    label="Setup Fee (£)" 
                     required
                   />
                 </div>
