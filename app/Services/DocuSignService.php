@@ -173,12 +173,31 @@ class DocuSignService
         
         try {
             $accessToken = $this->getAccessToken();
-            $templateId = 'ebda4f17-baa1-4abb-8136-18a99ffbd101';
+            $templateId = '4247195d-137e-47da-bff6-9fb4d6d7e0a6';
         
             // Define tabs that will be applied to ALL recipients
             // These are locked text fields that display pre-filled fee information
             $tabsForAllRecipients = [
                 'textTabs' => [
+                    // Merchant name on page 1 - FIRST OCCURRENCE (before "incorporated")
+                    [
+                        'documentId' => '1',
+                        'anchorString' => 'incorporated in England and Wales, with registered address as',
+                        'anchorXOffset' => '-130',
+                        'anchorYOffset' => '-5',  // Changed from '0' to '-3'
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '190',
+                        'height' => '15',
+                        'value' => $application->account->name ?? $application->trading_name,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size8',
+                        'tabLabel' => 'merchant_name_before_incorporated',
+                        'bold' => 'true',
+                        'required' => false,
+                        'locked' => true,
+                    ],
+                    
                     // All Request Types - Fixed fee
                     [
                         'documentId' => '1',
@@ -291,20 +310,20 @@ class DocuSignService
                         'documentId' => '1',
                         'anchorString' => 'Exclusivity Clause',
                         'anchorXOffset' => '140',
-                        'anchorYOffset' => '18',
+                        'anchorYOffset' => '16',
                         'anchorUnits' => 'pixels',
-                        'anchorIgnoreIfNotPresent' => 'true',
-                        'anchorCaseSensitive' => 'false',
-                        'width' => '250',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'width' => '190',
                         'height' => '15',
                         'value' => $application->account->name ?? $application->trading_name,
                         'locked' => true,
                         'font' => 'Arial',
-                        'fontSize' => 'Size7',
-                        'tabLabel' => 'merchant_name_signature',
+                        'fontSize' => 'Size8',
+                        'tabLabel' => 'merchant_name_as_herein',
+                        'bold' => 'true',
                     ],
                     
-                    // Registered company name - page 1 field
+                    // Registered company name - Doc 2 page 1 field
                     [
                         'documentId' => '1',
                         'anchorString' => 'REGISTERED COMPANY NAME*',
@@ -322,35 +341,620 @@ class DocuSignService
                     ],
                 ],
             ];
+
+// Second doc form fields - OPTIONAL for User, REQUIRED for Merchant
+$fillableFormTabs = [
+    'textTabs' => [
+
+        // Doc 1 Address
+        [
+            'documentId' => '1',
+            'anchorString' => 'as hereinafter referred to as',
+            'anchorXOffset' => '-250',
+            'anchorYOffset' => '0',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_registration_number',
+        ],
+
+        // Registration Number
+        [
+            'documentId' => '2',
+            'anchorString' => '2. REGISTRATION NUMBER',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '13',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_registration_number',
+        ],
+        
+        // Registered Address - Street (use full section header)
+        [
+            'documentId' => '2',
+            'anchorString' => '3. REGISTERED ADDRESS*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '27',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_street',
+        ],
+        
+        // City (under Registered Address)
+        [
+            'documentId' => '2',
+            'anchorString' => '3. REGISTERED ADDRESS*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '63',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_city',
+        ],
+        
+        // Country (under Registered Address)
+        [
+            'documentId' => '2',
+            'anchorString' => '3. REGISTERED ADDRESS*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '95',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_country',
+        ],
+        
+        // Postal Code (under Registered Address)
+        [
+            'documentId' => '2',
+            'anchorString' => '3. REGISTERED ADDRESS*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '129',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_postal_code',
+        ],
+        
+        // Trading Address - Street
+        [
+            'documentId' => '2',
+            'anchorString' => '4. TRADING ADDRESS* (CHECK HERE IF SAME AS ABOVE)',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '24',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_trading_street',
+        ],
+        
+        // Trading City
+        [
+            'documentId' => '2',
+            'anchorString' => '4. TRADING ADDRESS* (CHECK HERE IF SAME AS ABOVE)',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '60',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_trading_city',
+        ],
+        
+        // Trading Country
+        [
+            'documentId' => '2',
+            'anchorString' => '4. TRADING ADDRESS* (CHECK HERE IF SAME AS ABOVE)',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '94',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_trading_country',
+        ],
+        
+        // Trading Postal Code
+        [
+            'documentId' => '2',
+            'anchorString' => '4. TRADING ADDRESS* (CHECK HERE IF SAME AS ABOVE)',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '125',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_trading_postal_code',
+        ],
+        
+        // Business Type
+        [
+            'documentId' => '2',
+            'anchorString' => '5. BUSINESS & INDUSTRY TYPE*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '39',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '60',
+            'required' => false,
+            'tabLabel' => 'form_business_type',
+        ],
+        
+        // URL
+        [
+            'documentId' => '2',
+            'anchorString' => '6. URL/S*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '15',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '60',
+            'required' => false,
+            'tabLabel' => 'form_urls',
+        ],
+        
+        // Processing Traffic
+        [
+            'documentId' => '2',
+            'anchorString' => '7. PROCESSING TRAFFIC - COUNTRIES WHERE',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '29',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '60',
+            'required' => false,
+            'tabLabel' => 'form_processing_traffic',
+        ],
+        
+        // Account Country
+        [
+            'documentId' => '2',
+            'anchorString' => '8. ACCOUNT COUNTRY*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '12',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_account_country',
+        ],
+        
+        // Director/Shareholder Location
+        [
+            'documentId' => '2',
+            'anchorString' => '9. DIRECTOR/SHAREHOLDER LOCATION (COUNTRY)*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '13',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_director_location',
+        ],
+
+        // Accepting Card Payments - If Yes
+        [
+            'documentId' => '2',
+            'anchorString' => 'IF YES PLEASE PROVIDE THE NAME OF THE PROVIDER.',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '13',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_annual_turnover',
+        ],
+        
+        // Projected Annual Turnover
+        [
+            'documentId' => '2',
+            'anchorString' => '12. PROJECTED ANNUAL TURNOVER',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '17',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_annual_turnover',
+        ],
+        
+        // Average Transaction Value
+        [
+            'documentId' => '2',
+            'anchorString' => '13. AVERAGE TRANSACTION VALUE',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '16',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_avg_transaction',
+        ],
+        
+        // Chargebacks - Percentage
+        [
+            'documentId' => '2',
+            'anchorString' => '14. CHARGEBACKS',
+            'anchorXOffset' => '20',
+            'anchorYOffset' => '15',
+            'anchorUnits' => 'pixels',
+            'width' => '80',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_chargebacks_percentage',
+        ],
+        
+        // Chargebacks - Value
+        [
+            'documentId' => '2',
+            'anchorString' => '14. CHARGEBACKS',
+            'anchorXOffset' => '160',
+            'anchorYOffset' => '12',
+            'anchorUnits' => 'pixels',
+            'width' => '80',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_chargebacks_value',
+        ],
+        
+        // Refunds - Percentage
+        [
+            'documentId' => '2',
+            'anchorString' => '15. REFUNDS',
+            'anchorXOffset' => '20',
+            'anchorYOffset' => '15',
+            'anchorUnits' => 'pixels',
+            'width' => '80',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_refunds_percentage',
+        ],
+        
+        // Refunds - Value
+        [
+            'documentId' => '2',
+            'anchorString' => '15. REFUNDS',
+            'anchorXOffset' => '160',
+            'anchorYOffset' => '17',
+            'anchorUnits' => 'pixels',
+            'width' => '80',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_refunds_value',
+        ],
+        
+        // Delivery Delay
+        [
+            'documentId' => '2',
+            'anchorString' => '16. WHAT IS THE PROJECTED DELIVERY DELAY',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '15',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_delivery_delay',
+        ],
+        
+        // License Details
+        [
+            'documentId' => '2',
+            'anchorString' => 'IF YES PLEASE GIVE DETAILS TO THE LICENSE HELD',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '25',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '60',
+            'required' => false,
+            'tabLabel' => 'form_license_details',
+        ],
+        
+        // Form Creation Date
+        [
+            'documentId' => '2',
+            'anchorString' => 'FORM CREATION DATE*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '14',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_creation_date',
+        ],
+        
+        // Partner Name
+        [
+            'documentId' => '2',
+            'anchorString' => 'PARTNER NAME*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '14',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_partner_name',
+        ],
+        
+        // Commercial Owner Name
+        [
+            'documentId' => '2',
+            'anchorString' => 'COMMERCIAL OWNER NAME*',
+            'anchorXOffset' => '0',
+            'anchorYOffset' => '14',
+            'anchorUnits' => 'pixels',
+            'width' => '250',
+            'height' => '20',
+            'required' => false,
+            'tabLabel' => 'form_commercial_owner',
+        ],
+    ],
+    'checkboxTabs' => [
+        // Question 10 - YES
+        [
+            'documentId' => '2',
+            'anchorString' => '10. ARE YOU CURRENTLY ACCEPTING CARD PAYMENTS?',
+            'anchorXOffset' => '-6',
+            'anchorYOffset' => '12',
+            'anchorUnits' => 'pixels',
+            'required' => false,
+            'tabLabel' => 'q10_yes',
+        ],
+        
+        // Question 10 - NO
+        [
+            'documentId' => '2',
+            'anchorString' => '10. ARE YOU CURRENTLY ACCEPTING CARD PAYMENTS?',
+            'anchorXOffset' => '100',
+            'anchorYOffset' => '12',
+            'anchorUnits' => 'pixels',
+            'required' => false,
+            'tabLabel' => 'q10_no',
+        ],
+        
+        // Question 11 - ECOM
+        [
+            'documentId' => '2',
+            'anchorString' => '11. CARD ACCEPTING DETAILS',
+            'anchorXOffset' => '-12',
+            'anchorYOffset' => '12',
+            'anchorUnits' => 'pixels',
+            'required' => false,
+            'tabLabel' => 'q11_ecom',
+        ],
+        
+        // Question 11 - MOTO
+        [
+            'documentId' => '2',
+            'anchorString' => '11. CARD ACCEPTING DETAILS',
+            'anchorXOffset' => '96',
+            'anchorYOffset' => '12',
+            'anchorUnits' => 'pixels',
+            'required' => false,
+            'tabLabel' => 'q11_moto',
+        ],
+        
+        // Question 17 - YES
+        [
+            'documentId' => '2',
+            'anchorString' => '17. IS A LICENSE REQUIRED?',
+            'anchorXOffset' => '-8',
+            'anchorYOffset' => '11',
+            'anchorUnits' => 'pixels',
+            'required' => false,
+            'tabLabel' => 'q17_yes',
+        ],
+        
+        // Question 17 - NO
+        [
+            'documentId' => '2',
+            'anchorString' => '17. IS A LICENSE REQUIRED?',
+            'anchorXOffset' => '98',
+            'anchorYOffset' => '11',
+            'anchorUnits' => 'pixels',
+            'required' => false,
+            'tabLabel' => 'q17_no',
+        ],
+    ],
+];
+
+// Create REQUIRED version for Merchant (deep copy and modify)
+$fillableFormTabsForMerchant = ['textTabs' => [], 'checkboxTabs' => []];
+
+// Copy and make text tabs required
+foreach ($fillableFormTabs['textTabs'] as $tab) {
+    $requiredTab = $tab;
+    $requiredTab['required'] = true; // Required for Merchant
+    $fillableFormTabsForMerchant['textTabs'][] = $requiredTab;
+}
+
+$fillableFormTabsForMerchant['radioGroupTabs'] = [
+    // Question 10 - Radio Group
+    [
+        'groupName' => 'q10_accepting_payments',
+        'radios' => [
+            [
+                'documentId' => '2',
+                'anchorString' => '10. ARE YOU CURRENTLY ACCEPTING CARD PAYMENTS?',
+                'anchorXOffset' => '-6',
+                'anchorYOffset' => '12',
+                'anchorUnits' => 'pixels',
+                'value' => 'yes',
+                'required' => true,
+            ],
+            [
+                'documentId' => '2',
+                'anchorString' => '10. ARE YOU CURRENTLY ACCEPTING CARD PAYMENTS?',
+                'anchorXOffset' => '100',
+                'anchorYOffset' => '12',
+                'anchorUnits' => 'pixels',
+                'value' => 'no',
+                'required' => true,
+            ],
+        ],
+    ],
     
-            // SIMPLIFIED: Use templateRoles instead of compositeTemplates
-            // This ensures proper role matching with your DocuSign template
-            $envelopeDefinition = [
-                'emailSubject' => "Merchant Application Contract - {$application->name}",
-                'templateId' => $templateId,
-                'templateRoles' => [
-                    // USER/PRODUCT MANAGER - Gets the pre-filled tabs
-                    [
-                        'email' => $user->email,
-                        'name' => $user->name ?? $user->email,
-                        'roleName' => 'Product Manager',
-                        'routingOrder' => '1',
-                        'clientUserId' => 'user-' . $application->id,
-                        'tabs' => $tabsForAllRecipients,  // ← Only here
-                    ],
-                    // MERCHANT - No tabs needed (inherits from template)
-                    [
-                        'email' => $account->email,
-                        'name' => $account->name ?? $application->trading_name ?? $account->email,
-                        'roleName' => 'Account Merchant',
-                        'routingOrder' => '2',
-                        'clientUserId' => 'merchant-' . $application->id,
-                        // 'tabs' => $tabsForAllRecipients,  // ← Remove this line
-                    ],
-                ],
-                'status' => 'sent',
-            ];
+    // Question 11 - Radio Group
+    [
+        'groupName' => 'q11_card_details',
+        'radios' => [
+            [
+                'documentId' => '2',
+                'anchorString' => '11. CARD ACCEPTING DETAILS',
+                'anchorXOffset' => '-12',
+                'anchorYOffset' => '12',
+                'anchorUnits' => 'pixels',
+                'value' => 'ecom',
+                'required' => true,
+            ],
+            [
+                'documentId' => '2',
+                'anchorString' => '11. CARD ACCEPTING DETAILS',
+                'anchorXOffset' => '96',
+                'anchorYOffset' => '12',
+                'anchorUnits' => 'pixels',
+                'value' => 'moto',
+                'required' => true,
+            ],
+        ],
+    ],
     
+    // Question 17 - Radio Group
+    [
+        'groupName' => 'q17_license_required',
+        'radios' => [
+            [
+                'documentId' => '2',
+                'anchorString' => '17. IS A LICENSE REQUIRED?',
+                'anchorXOffset' => '-8',
+                'anchorYOffset' => '11',
+                'anchorUnits' => 'pixels',
+                'value' => 'yes',
+                'required' => true,
+            ],
+            [
+                'documentId' => '2',
+                'anchorString' => '17. IS A LICENSE REQUIRED?',
+                'anchorXOffset' => '98',
+                'anchorYOffset' => '11',
+                'anchorUnits' => 'pixels',
+                'value' => 'no',
+                'required' => true,
+            ],
+        ],
+    ],
+];
+
+// User tabs (optional page 2 fields)
+// User tabs - gets both locked display fields AND editable page 2 fields (optional)
+$userTabs = [
+    'textTabs' => array_merge(
+        $tabsForAllRecipients['textTabs'],
+        $fillableFormTabs['textTabs']
+    ),
+    'checkboxTabs' => $fillableFormTabs['checkboxTabs'] ?? [],
+];
+
+// Merchant tabs - signature fields for RIGHT column only (no anchor strings)
+$merchantSignatureTabs = [
+    'signHereTabs' => [
+        [
+            'documentId' => '1',
+            'pageNumber' => '13',
+            'xPosition' => '377',
+            'yPosition' => '182',
+            'required' => true,
+            'tabLabel' => 'merchant_signature',
+        ],
+    ],
+    'textTabs' => [
+        // Name field
+        [
+            'documentId' => '1',
+            'pageNumber' => '13',
+            'xPosition' => '377',
+            'yPosition' => '135',
+            'width' => '150',
+            'height' => '20',
+            'required' => true,
+            'tabLabel' => 'merchant_signer_name',
+        ],
+        // Position field
+        [
+            'documentId' => '1',
+            'pageNumber' => '13',
+            'xPosition' => '377',
+            'yPosition' => '164',
+            'width' => '100',
+            'height' => '20',
+            'required' => true,
+            'tabLabel' => 'merchant_signer_position',
+        ],
+    ],
+    'dateSignedTabs' => [
+        [
+            'documentId' => '1',
+            'pageNumber' => '13',
+            'xPosition' => '377',
+            'yPosition' => '220',
+            'required' => true,
+            'tabLabel' => 'merchant_signature_date',
+        ],
+    ],
+];
+
+// Update Merchant tabs to include signature tabs
+$merchantTabs = [
+    'textTabs' => array_merge(
+        $fillableFormTabsForMerchant['textTabs'],
+        $merchantSignatureTabs['textTabs']
+    ),
+    'signHereTabs' => $merchantSignatureTabs['signHereTabs'],
+    'dateSignedTabs' => $merchantSignatureTabs['dateSignedTabs'],
+    'radioGroupTabs' => $fillableFormTabsForMerchant['radioGroupTabs'],
+];
+
+// Merge merchant text tabs from both sources
+$merchantTabs['textTabs'] = array_merge(
+    $merchantTabs['textTabs'],
+    $merchantSignatureTabs['textTabs'] // Name and Position fields
+);
+
+// Update the envelope definition
+$envelopeDefinition = [
+    'emailSubject' => "Merchant Application Contract - {$application->name}",
+    'templateId' => $templateId,
+    'templateRoles' => [
+        // USER/PRODUCT MANAGER
+        [
+            'email' => $user->email,
+            'name' => $user->name ?? $user->email,
+            'roleName' => 'Product Manager',
+            'routingOrder' => '1',
+            'clientUserId' => 'user-' . $application->id,
+            'tabs' => $userTabs,
+        ],
+        // MERCHANT - Now includes signature tabs
+        [
+            'email' => $account->email,
+            'name' => $account->name ?? $application->trading_name ?? $account->email,
+            'roleName' => 'Account Merchant',
+            'routingOrder' => '2',
+            'clientUserId' => 'merchant-' . $application->id,
+            'tabs' => $merchantTabs, // ✅ Includes signature, name, position, and date
+        ],
+    ],
+    'status' => 'sent',
+];
+
             Log::info('Creating DocuSign envelope', [
                 'user_email' => $user->email,
                 'merchant_email' => $account->email,

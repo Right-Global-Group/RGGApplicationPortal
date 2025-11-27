@@ -109,7 +109,6 @@ class ApplicationDocumentsController extends Controller
             ]);
             
             // Set the documents_uploaded timestamp if not already set
-            // This is important even if we've moved past this step
             if (!$application->status->documents_uploaded_at) {
                 $application->status->update([
                     'documents_uploaded_at' => now()
@@ -118,14 +117,16 @@ class ApplicationDocumentsController extends Controller
                 Log::info('Set documents_uploaded_at timestamp');
             }
             
-            // Only transition current_step if we're still in early stages
+            // Only transition current_step AND fire event if we're still in early stages
             if (in_array($application->status->current_step, ['created', 'contract_sent'])) {
-                Log::info('Transitioning to documents_uploaded');
+                Log::info('Transitioning to documents_uploaded and firing event');
                 
                 $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
+                
+                // ALWAYS fire the AllDocumentsUploadedEvent when all required docs are complete
                 event(new AllDocumentsUploadedEvent($application));
             } else {
-                Log::info('All documents uploaded but already past that step', [
+                Log::info('All documents uploaded but already past that step - no transition or event', [
                     'current_step' => $application->status->current_step
                 ]);
             }

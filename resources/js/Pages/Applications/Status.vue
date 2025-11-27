@@ -1260,28 +1260,6 @@ export default {
     },
 
     async openContractForAccount() {
-      // Validate required fields before opening contract
-      const requiredFields = [
-        'Name',
-        'Position',
-        'Signature',
-        'Date',
-      ];
-      
-      // This validation happens in DocuSign's interface
-      // but we can show a warning message
-      
-      const confirmed = confirm(
-        'Please ensure you have filled in all required fields:\n\n' +
-        '• Your full name\n' +
-        '• Your position\n' +
-        '• Your signature\n' +
-        '• Today\'s date\n\n' +
-        'The document will not submit until all fields are complete.'
-      );
-      
-      if (!confirmed) return;
-      
       this.isLoadingContract = true;
       try {
         const response = await fetch(`/applications/${this.application.id}/send-contract`, {

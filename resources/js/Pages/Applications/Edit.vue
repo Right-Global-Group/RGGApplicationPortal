@@ -691,7 +691,6 @@ export default {
   },
   computed: {
     shouldShowDocuments() {
-      // Show documents until contract is fully signed
       return true
     },
 
@@ -700,10 +699,7 @@ export default {
     },
     
     canUploadDocs() {
-      const timestamps = this.application.status?.timestamps
-      
-      // Show upload button until documents are approved
-      return !timestamps?.documents_approved
+      return true
     },
     
     canSignContract() {

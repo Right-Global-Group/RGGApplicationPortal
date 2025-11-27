@@ -793,7 +793,7 @@ class ApplicationStatusController extends Controller
         
         // Download and attach the FIRST DocuSign document (the contract)
         try {
-            $docusignPdf = $this->docuSignService->downloadEnvelopeDocument($envelopeId, '1'); // Changed from '2' to '1'
+            $docusignPdf = $this->docuSignService->downloadEnvelopeDocument($envelopeId, '2');
             $tempPath = storage_path('app/temp/docusign_contract_' . $application->id . '.pdf');
             
             // Ensure temp directory exists
