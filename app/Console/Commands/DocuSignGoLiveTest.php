@@ -65,6 +65,7 @@ class DocuSignGoLiveTest extends Command
                 $this->line("   ✓ Created: {$application->name}");
                 
                 // Step 2: Send contract to DocuSign
+                // Exisitng method makes 2 API calls:
                 // 1. POST /envelopes (create envelope)
                 // 2. POST /envelopes/{id}/views/recipient (get embedded signing URL)
                 $this->line("   🔹 Calling sendDocuSignContract()...");
@@ -122,12 +123,12 @@ class DocuSignGoLiveTest extends Command
             'name' => "GoLive Test #{$index}",
             'trading_name' => "Test Merchant {$index}",
             'company_number' => '0000000' . $index,
-            'business_type' => 'limited_company',
+            'business_type' => 'limited',
             'trading_start_date' => now()->subYears(2),
             'estimated_annual_turnover' => 100000.00,
             'website_url' => "https://test{$index}.example.com",
             'pci_compliant' => true,
-            'gateway_preference' => 'cardstream',
+            'gateway_partner' => 'cardstream',
             
             // Fees
             'transaction_percentage' => 1.5,
