@@ -87,8 +87,8 @@
                   />
                   
                   <text-input 
-                    v-model="form.service_fee" 
-                    :error="form.errors.service_fee" 
+                    v-model="form.setup_fee" 
+                    :error="form.errors.setup_fee" 
                     type="number" 
                     step="0.01" 
                     label="Setup Fee (£)" 
@@ -161,7 +161,7 @@ export default {
         transaction_fixed_fee: this.application.transaction_fixed_fee,
         monthly_fee: this.application.monthly_fee,
         monthly_minimum: this.application.monthly_minimum,
-        service_fee: this.application.service_fee,
+        setup_fee: this.application.setup_fee,
       }),
     }
   },
@@ -175,7 +175,7 @@ export default {
         this.form.transaction_fixed_fee = this.application.transaction_fixed_fee
         this.form.monthly_fee = this.application.monthly_fee
         this.form.monthly_minimum = this.application.monthly_minimum
-        this.form.service_fee = this.application.service_fee
+        this.form.setup_fee = this.application.setup_fee
         this.form.clearErrors()
       }
     },
@@ -192,7 +192,7 @@ export default {
         parseFloat(this.form.transaction_fixed_fee) !== parseFloat(this.application.transaction_fixed_fee) ||
         parseFloat(this.form.monthly_fee) !== parseFloat(this.application.monthly_fee) ||
         parseFloat(this.form.monthly_minimum) !== parseFloat(this.application.monthly_minimum) ||
-        parseFloat(this.form.service_fee) !== parseFloat(this.application.service_fee)
+        parseFloat(this.form.setup_fee) !== parseFloat(this.application.setup_fee)
 
       if (!hasChanges) {
         alert('No changes detected. Please modify at least one fee field.')
@@ -214,7 +214,7 @@ export default {
         parseFloat(this.form.transaction_fixed_fee) !== parseFloat(this.application.transaction_fixed_fee) ||
         parseFloat(this.form.monthly_fee) !== parseFloat(this.application.monthly_fee) ||
         parseFloat(this.form.monthly_minimum) !== parseFloat(this.application.monthly_minimum) ||
-        parseFloat(this.form.service_fee) !== parseFloat(this.application.service_fee)
+        parseFloat(this.form.setup_fee) !== parseFloat(this.application.setup_fee)
 
       if (!hasChanges) {
         alert('No changes detected. Please modify at least one field.')

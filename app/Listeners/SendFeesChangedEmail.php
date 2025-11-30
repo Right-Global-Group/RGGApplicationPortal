@@ -47,7 +47,7 @@ class SendFeesChangedEmail
             'transaction_fixed_fee' => $application->transaction_fixed_fee,
             'monthly_fee' => $application->monthly_fee,
             'monthly_minimum' => $application->monthly_minimum,
-            'service_fee' => $application->service_fee,
+            'setup_fee' => $application->setup_fee,
             'parent_application_name' => $parentApplication->name,
             'status_url' => $statusUrl,
         ]));

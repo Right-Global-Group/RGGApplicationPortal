@@ -35,13 +35,23 @@ class SendCardStreamSubmissionEmail
         $emailData = [
             'application_name' => $application->name,
             'account_name' => $application->account->name ?? 'N/A',
+            'account_email' => $application->account->email ?? 'N/A',
+            'account_mobile' => $application->account->mobile ?? 'N/A',
             'trading_name' => $application->trading_name ?? 'N/A',
             'submitted_by' => $submittedBy,
             'contract_url' => $contractUrl,
             'application_url' => route('applications.status', ['application' => $application->id]),
-            'transaction_percentage' => $application->transaction_percentage,
+        
+            // Fee
+            'transaction_percentage' => $application->transaction_percentage ?? 0,
+        
+            // Payout option
+            'payout_option' => $application->payout_option ?? 'daily',
+            'payout_timing' => $application->payout_option === 'every_3_days' ? 'T+3' : 'T+1',
+        
+            // Attachments
             'document_count' => count($documents),
-        ];
+        ];        
 
         // Send email with attachments
         Mail::to($cardstreamEmail)->send(

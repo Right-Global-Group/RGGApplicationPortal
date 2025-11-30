@@ -21,6 +21,7 @@ class DynamicEmail extends Mailable
         'application_approved' => 'Application Approved',
         // Contract & DocuSign email types
         'merchant_contract_ready' => 'Please Sign Your Merchant Application Contract',
+        'director_signed_contract' => 'Contract Ready for Your Signature',
         'contract_reminder' => 'Reminder: Contract Awaiting Signature',
         'docusign_status_change' => 'DocuSign Status Update',
         // Gateway & WordPress email types
@@ -46,6 +47,7 @@ class DynamicEmail extends Mailable
         'application_approved' => 'emails.application-approved',
         // Contract & DocuSign email views
         'merchant_contract_ready' => 'emails.merchant-contract-ready',
+        'director_signed_contract' => 'emails.director-signed-contract',
         'contract_reminder' => 'emails.contract-reminder',
         'docusign_status_change' => 'emails.docusign-status-change',
         // Gateway & WordPress email views

@@ -145,7 +145,7 @@ class ApplicationsController extends Controller
             'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
             'monthly_fee' => ['required', 'numeric', 'min:0'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
-            'service_fee' => ['required', 'numeric', 'min:0'],
+            'setup_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         // Verify user has permission to create application for this account
@@ -233,7 +233,7 @@ class ApplicationsController extends Controller
                 'scaling_fee' => $application->scaling_fee,
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
-                'service_fee' => $application->service_fee,
+                'setup_fee' => $application->setup_fee,
                 'deleted_at' => $application->deleted_at,
                 'created_at' => $application->created_at,
                 'updated_at' => $application->updated_at,
@@ -342,7 +342,7 @@ class ApplicationsController extends Controller
             'monthly_fee' => ['required', 'numeric', 'min:0'],
             'scaling_fee' => ['nullable', 'integer', 'min:1'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
-            'service_fee' => ['required', 'numeric', 'min:0'],
+            'setup_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         // Create new application with updated fees
@@ -356,7 +356,7 @@ class ApplicationsController extends Controller
             'transaction_fixed_fee' => $validated['transaction_fixed_fee'],
             'monthly_fee' => $validated['monthly_fee'],
             'monthly_minimum' => $validated['monthly_minimum'],
-            'service_fee' => $validated['service_fee'],
+            'setup_fee' => $validated['setup_fee'],
         ]);
 
         // Fire event to send email notification
@@ -382,7 +382,7 @@ class ApplicationsController extends Controller
             'transaction_fixed_fee' => ['required', 'numeric', 'min:0'],
             'monthly_fee' => ['required', 'numeric', 'min:0'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
-            'service_fee' => ['required', 'numeric', 'min:0'],
+            'setup_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         $application->update($validated);

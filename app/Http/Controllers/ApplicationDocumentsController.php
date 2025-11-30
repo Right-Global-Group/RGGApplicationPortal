@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Events\AllDocumentsUploadedEvent;
-use App\Events\DocumentUploadedEvent;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Models\ApplicationAdditionalDocument;
@@ -90,8 +89,8 @@ class ApplicationDocumentsController extends Controller
             }
         }
     
-        // Fire document uploaded event
-        event(new DocumentUploadedEvent($document));
+        // Fire individual document uploaded event
+        // event(new DocumentUploadedEvent($document));
     
         // Refresh the application to get updated relationships
         $application->load('documents', 'additionalDocuments');
@@ -123,20 +122,13 @@ class ApplicationDocumentsController extends Controller
                 
                 $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
                 
-                // ALWAYS fire the AllDocumentsUploadedEvent when all required docs are complete
+                // Fire "all documents uploaded" event (ONE email to user)
                 event(new AllDocumentsUploadedEvent($application));
             } else {
                 Log::info('All documents uploaded but already past that step - no transition or event', [
                     'current_step' => $application->status->current_step
                 ]);
             }
-        } else {
-            Log::info('Not all documents uploaded yet', [
-                'has_all' => false,
-                'required_categories' => ApplicationDocument::getRequiredCategories(),
-                'uploaded_count' => $application->documents()->count(),
-                'pending_additional' => $application->additionalDocuments()->where('is_uploaded', false)->count(),
-            ]);
         }
     
         return Redirect::back()->with('success', 'Document uploaded successfully.');

@@ -145,6 +145,16 @@
                 <span class="info-value">{{ $trading_name }}</span>
             </div>
             @endif
+
+            <div class="info-row">
+                <span class="info-label">Email Address:</span>
+                <span class="info-value">{{ $account_email }}</span>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">Mobile Number:</span>
+                <span class="info-value">{{ $account_mobile ?? 'Not provided' }}</span>
+            </div>
             
             <div class="info-row">
                 <span class="info-label">Submitted By:</span>
@@ -155,16 +165,23 @@
                 <span class="info-label">Submission Date:</span>
                 <span class="info-value">{{ now()->format('F j, Y \a\t g:i A') }}</span>
             </div>
+
+            <div class="info-row">
+                <span class="info-label">Payout Option:</span>
+                <span class="info-value" style="font-weight: bold; color: #667eea;">{{ $payout_timing }}</span>
+            </div>
         </div>
 
         <div class="info-box">
             <h3 style="margin-top: 0; color: #667eea;">Fee Structure</h3>
             
             <div class="fee-grid">
+                @if($scaling_fee > 0)
                 <div class="fee-item">
                     <div class="fee-label">Scaling Fee</div>
                     <div class="fee-value">£{{ number_format($scaling_fee, 2) }}</div>
                 </div>
+                @endif
                 
                 <div class="fee-item">
                     <div class="fee-label">Transaction Fee</div>
@@ -180,6 +197,13 @@
                     <div class="fee-label">Monthly Minimum</div>
                     <div class="fee-value">£{{ number_format($monthly_minimum, 2) }}</div>
                 </div>
+
+                @if($setup_fee > 0)
+                <div class="fee-item">
+                    <div class="fee-label">Setup Fee</div>
+                    <div class="fee-value">£{{ number_format($setup_fee, 2) }}</div>
+                </div>
+                @endif
             </div>
         </div>
         
@@ -199,6 +223,7 @@
                 All supporting documents have been attached to this email, including:
             </p>
             <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px;">
+                <li>Signed contract</li>
                 <li>Identity verification documents</li>
                 <li>Business verification documents</li>
                 <li>Bank account verification</li>
@@ -220,7 +245,7 @@
         </div>
         
         <p style="margin-top: 30px;">
-            Please review the application at your earliest convenience. All required documentation has been completed and verified.
+            Please review the application at your earliest convenience. All required documentation has been completed and verified. Payouts are configured for <strong>{{ $payout_timing }}</strong> settlement.
         </p>
         
         <p>

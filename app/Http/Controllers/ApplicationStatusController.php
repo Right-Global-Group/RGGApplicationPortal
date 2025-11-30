@@ -83,7 +83,7 @@ class ApplicationStatusController extends Controller
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
-                'service_fee' => $application->service_fee,
+                'setup_fee' => $application->setup_fee,
                 // Gateway partner fields
                 'gateway_partner' => $application->gateway_partner,
                 'gateway_partner_name' => $application->gateway_partner_name,
@@ -205,6 +205,7 @@ class ApplicationStatusController extends Controller
             // Account credentials data
             'accountId' => $application->account_id,
             'accountName' => $application->account_name ?? $application->account->name ?? 'Unknown',
+            'accountMobile' => $application->account->mobile ?? 'Unknown',
             'accountHasLoggedIn' => $application->account->first_login_at !== null,
             'credentialsReminder' => $application->account->emailReminders()
                 ->where('email_type', 'account_credentials')
@@ -475,11 +476,7 @@ class ApplicationStatusController extends Controller
                 $document->update([
                     'status' => 'completed',
                     'completed_at' => now(),
-                ]);
-                
-                // Use 'contract_signed' instead of 'contract_completed'
-                $application->status->transitionTo('contract_signed', 'Contract signed via DocuSign');
-                
+                ]); 
             }
             
             // Return a view that closes the window and notifies the opener
@@ -517,9 +514,6 @@ class ApplicationStatusController extends Controller
                     'status' => 'completed',
                     'completed_at' => now(),
                 ]);
-                
-                // Update application status
-                $application->status->transitionTo('gateway_contract_signed', 'Gateway contract signed via DocuSign');
             }
             
             return Inertia::render('DocuSign/Callback', [
@@ -772,7 +766,7 @@ class ApplicationStatusController extends Controller
     }
 
     /**
-     * Submit application to CardStream
+     * Submit application to CardStream with payout option
      */
     public function submitToCardStream(Application $application): RedirectResponse
     {
@@ -780,6 +774,16 @@ class ApplicationStatusController extends Controller
         if (auth()->guard('account')->check()) {
             abort(403, 'Accounts cannot submit applications to CardStream.');
         }
+
+        // Validate payout option
+        $validated = Request::validate([
+            'payout_option' => ['required', 'in:daily,every_3_days'],
+        ]);
+
+        // Update application with payout option
+        $application->update([
+            'payout_option' => $validated['payout_option'],
+        ]);
 
         // Get the DocuSign envelope ID
         $envelopeId = $application->status->docusign_envelope_id;
@@ -791,7 +795,7 @@ class ApplicationStatusController extends Controller
         // Collect all uploaded documents with their files
         $documents = [];
         
-        // Download and attach the FIRST DocuSign document (the contract)
+        // Download and attach the DocuSign document (the contract)
         try {
             $docusignPdf = $this->docuSignService->downloadEnvelopeDocument($envelopeId, '2');
             $tempPath = storage_path('app/temp/docusign_contract_' . $application->id . '.pdf');
@@ -809,13 +813,12 @@ class ApplicationStatusController extends Controller
                 'filename' => "Signed_Contract_{$application->name}.pdf",
                 'path' => $tempPath,
                 'mime' => 'application/pdf',
-                'is_temp' => true, // Flag to delete after sending
+                'is_temp' => true,
             ];
             
             \Log::info('DocuSign contract downloaded for CardStream submission', [
                 'application_id' => $application->id,
                 'envelope_id' => $envelopeId,
-                'document_id' => '1',
             ]);
         } catch (\Exception $e) {
             \Log::error('Failed to download DocuSign contract', [
@@ -829,7 +832,6 @@ class ApplicationStatusController extends Controller
         // Get standard documents
         foreach ($application->documents as $doc) {
             try {
-                // Skip if file_path is null or empty
                 if (empty($doc->file_path)) {
                     \Log::warning('Document has no file path', [
                         'document_id' => $doc->id,
@@ -846,59 +848,42 @@ class ApplicationStatusController extends Controller
                         'mime' => \Storage::disk('private')->mimeType($doc->file_path),
                         'is_temp' => false,
                     ];
-                } else {
-                    \Log::warning('Document file does not exist', [
-                        'document_id' => $doc->id,
-                        'file_path' => $doc->file_path,
-                    ]);
                 }
             } catch (\Exception $e) {
                 \Log::warning('Failed to access document file', [
                     'document_id' => $doc->id,
-                    'file_path' => $doc->file_path,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        \Log::info('Documents collected for CardStream submission', [
-            'application_id' => $application->id,
-            'document_count' => count($documents),
-        ]);
-
-        // Get the DocuSign view URL for reference in email (NOT as attachment)
         $documentUrl = "https://app.docusign.com/documents/details/{$envelopeId}";
 
         // Update application status
         $application->status->transitionTo(
             'contract_submitted',
-            'Application submitted to CardStream by ' . auth()->user()->name
+            'Application submitted to CardStream with ' . str_replace('_', ' ', $validated['payout_option']) . ' payout by ' . auth()->user()->name
         );
 
         // Fire event to send email with documents
         event(new CardStreamSubmissionEvent($application, $documentUrl, $documents));
 
-        // Clean up temporary DocuSign file after a delay (the event is dispatched synchronously)
+        // Clean up temporary DocuSign file
         foreach ($documents as $doc) {
             if (isset($doc['is_temp']) && $doc['is_temp'] && file_exists($doc['path'])) {
                 @unlink($doc['path']);
             }
         }
 
-        return Redirect::back()->with('success', 'Application submitted to CardStream successfully. Email sent with signed contract and all supporting documents.');
+        return Redirect::back()->with('success', 'Application submitted to CardStream successfully with ' . str_replace('_', ' ', $validated['payout_option']) . ' payout option.');
     }
 
-    /**
-     * Format document category for display
-     */
     private function formatDocumentCategory(string $category): string
     {
-        // Handle additional documents
         if (str_starts_with($category, 'additional_requested_')) {
             return 'Additional Document';
         }
         
-        // Format standard categories
         return ucwords(str_replace('_', ' ', $category));
     }
 

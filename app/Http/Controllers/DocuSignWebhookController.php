@@ -162,6 +162,64 @@ class DocuSignWebhookController extends Controller
                         // Check if ALL recipients have signed
                         $allSigned = collect($currentRecipients)->every(fn($r) => in_array($r['status'], ['completed', 'signed']));
                         Log::info('Checked if all signed', ['all_signed' => $allSigned, 'recipient_count' => count($currentRecipients)]);
+
+                        $directorSigned = false;
+                        $allSigned = true;
+                        $merchantEmail = null;
+                        
+                        foreach ($currentRecipients as $recipient) {
+                            // Find the director (the user associated with the application)
+                            if ($recipient['email'] === $application->user->email) {
+                                if (in_array($recipient['status'], ['completed', 'signed'])) {
+                                    $directorSigned = true;
+                                }
+                            }
+                            
+                            // Find the merchant
+                            if ($recipient['email'] === $application->account->email) {
+                                $merchantEmail = $recipient['email'];
+                            }
+                            
+                            // Check if anyone hasn't signed yet
+                            if (!in_array($recipient['status'], ['completed', 'signed'])) {
+                                $allSigned = false;
+                            }
+                        }
+                        
+                        // If director just signed and merchant hasn't signed yet, send email to merchant
+                        if ($directorSigned && !$allSigned && $merchantEmail) {
+                            try {
+                                $merchantSigningUrl = $this->docuSignService->getRecipientView(
+                                    $this->docuSignService->getAccessToken(),
+                                    $envelopeId,
+                                    $application->account->email,
+                                    $application->account->name ?? $application->trading_name ?? $application->account->email,
+                                    'merchant-' . $application->id,
+                                    route('applications.docusign-callback', ['application' => $application->id])
+                                );
+
+                                // Transition to contract_sent if not already there
+                                if ($application->status->current_step !== 'contract_sent') {
+                                    $application->status->transitionTo(
+                                        'contract_sent',
+                                        'Contract reminder sent - marked as sent'
+                                    );
+                                }
+                
+                                // Fire event to send email to merchant
+                                event(new \App\Events\DirectorSignedContractEvent($application, $merchantSigningUrl));
+                
+                                Log::info('Director signed - merchant email sent', [
+                                    'application_id' => $application->id,
+                                    'merchant_email' => $merchantEmail,
+                                ]);
+                            } catch (\Exception $e) {
+                                Log::error('Failed to get merchant signing URL', [
+                                    'application_id' => $application->id,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
                         
                         if ($allSigned && count($currentRecipients) > 0) {
                             $document->update([

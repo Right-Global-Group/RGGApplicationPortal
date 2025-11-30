@@ -6,7 +6,7 @@
       <h1 class="mb-4 text-3xl font-bold text-white">Applications</h1>
 
       <!-- Create Button -->
-      <div class="flex justify-end mb-6">
+      <div v-if="$page.props.auth.user.isAdmin" class="flex justify-end mb-6">
         <Link class="btn-primary flex items-center gap-2" href="/applications/create">
           <span>Create</span>
           <span class="hidden md:inline">Application</span>

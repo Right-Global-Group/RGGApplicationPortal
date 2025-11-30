@@ -9,10 +9,10 @@ use App\Events\FeesChangedEvent;
 use App\Events\FeesConfirmationReminderEvent;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\ApplicationApprovedEvent;
-use App\Events\DocumentUploadedEvent;
 use App\Events\AllDocumentsUploadedEvent;
 use App\Events\DocuSignStatusChangeEvent;
 use App\Events\MerchantContractReadyEvent;
+use App\Events\DirectorSignedContractEvent;
 use App\Events\GatewayPartnerContractReadyEvent;
 use App\Events\WordPressCredentialsRequestEvent;
 use App\Events\WordPressCredentialsReminderEvent;
@@ -29,10 +29,10 @@ use App\Listeners\SendFeesChangedEmailListener;
 use App\Listeners\SendFeesConfirmationReminderListener;
 use App\Listeners\SendAdditionalInfoRequestEmail;
 use App\Listeners\SendApplicationApprovedEmail;
-use App\Listeners\SendDocumentUploadedEmailListener;
 use App\Listeners\SendAllDocumentsUploadedEmailListener;
 use App\Listeners\SendDocuSignStatusChangeEmail;
 use App\Listeners\SendMerchantContractReadyEmail;
+use App\Listeners\SendDirectorSignedEmail;
 use App\Listeners\SendGatewayPartnerContractReadyEmail;
 use App\Listeners\SendWordPressCredentialsRequestEmail;
 use App\Listeners\SendWordPressCredentialsReminderEmail;
@@ -60,9 +60,6 @@ class EventServiceProvider extends ServiceProvider
         FeesConfirmationReminderEvent::class => [
             SendFeesConfirmationReminderListener::class,
         ],
-        DocumentUploadedEvent::class => [
-            SendDocumentUploadedEmailListener::class,
-        ],
         AllDocumentsUploadedEvent::class => [
             SendAllDocumentsUploadedEmailListener::class,
         ],
@@ -77,6 +74,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         MerchantContractReadyEvent::class => [
             SendMerchantContractReadyEmail::class,
+        ],
+        DirectorSignedContractEvent::class => [
+            SendDirectorSignedEmail::class,
         ],
         GatewayPartnerContractReadyEvent::class => [
             SendGatewayPartnerContractReadyEmail::class,

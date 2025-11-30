@@ -23,7 +23,7 @@ class Application extends Model
         'transaction_fixed_fee',
         'monthly_fee',
         'monthly_minimum',
-        'service_fee',
+        'setup_fee',
         'trading_name',
         'company_number',
         'business_type',
@@ -63,7 +63,7 @@ class Application extends Model
         'monthly_fee' => 'decimal:2',
         'monthly_minimum' => 'decimal:2',
         'scaling_fee' => 'integer',
-        'service_fee' => 'decimal:2',
+        'setup_fee' => 'decimal:2',
         'gateway_integration_details' => 'array',
         'requires_additional_document' => 'boolean',
     ];

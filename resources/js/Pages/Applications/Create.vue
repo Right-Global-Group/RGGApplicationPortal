@@ -25,12 +25,12 @@
           </div>
           
           <text-input 
-            v-model="form.scaling_fee" 
-            :error="form.errors.scaling_fee" 
+            v-model="form.setup_fee" 
+            :error="form.errors.setup_fee" 
             type="number" 
             step="0.01" 
             class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Scaling Fee (£)" 
+            label="Setup Fee (£)" 
           />
           <text-input 
             v-model="form.monthly_minimum" 
@@ -39,6 +39,14 @@
             step="0.01" 
             class="pb-8 pr-6 w-full lg:w-1/2" 
             label="Monthly Minimum (£)" 
+          />
+          <text-input 
+            v-model="form.scaling_fee" 
+            :error="form.errors.scaling_fee" 
+            type="number" 
+            step="0.01" 
+            class="pb-8 pr-6 w-full lg:w-1/2" 
+            label="Scaling Fee (£)" 
           />
           <text-input 
             v-model="form.transaction_percentage" 
@@ -64,14 +72,6 @@
             class="pb-8 pr-6 w-full lg:w-1/2" 
             label="Monthly Fee (£)" 
           />
-          <text-input 
-            v-model="form.service_fee" 
-            :error="form.errors.service_fee" 
-            type="number" 
-            step="0.01" 
-            class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Setup Fee (£)" 
-          />
           
           <!-- Fee Explanation -->
           <div class="pb-8 pr-6 w-full">
@@ -85,7 +85,7 @@
                 <li>£{{ parseFloat(form.monthly_fee || 0).toFixed(2) }} monthly fee</li>
                 <li>£{{ parseFloat(form.monthly_minimum || 0).toFixed(2) }} monthly minimum made up of transactional fees</li>
                 <li v-if="form.transaction_fixed_fee > 0">Example: {{ Math.floor(parseFloat(form.monthly_minimum || 100) / parseFloat(form.transaction_fixed_fee || 0.20)) }} transactions × £{{ parseFloat(form.transaction_fixed_fee || 0.20).toFixed(2) }} = £{{ (Math.floor(parseFloat(form.monthly_minimum || 100) / parseFloat(form.transaction_fixed_fee || 0.20)) * parseFloat(form.transaction_fixed_fee || 0.20)).toFixed(2) }}</li>
-                <li>A service fee of £{{ parseFloat(form.service_fee || 0).toFixed(2) }} is added</li>
+                <li>A setup fee of £{{ parseFloat(form.setup_fee || 0).toFixed(2) }} is added</li>
               </ul>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default {
         transaction_fixed_fee: 0.20,
         monthly_fee: 18.00,
         monthly_minimum: 100.00,
-        service_fee: 10.00,
+        setup_fee: 10.00,
       }),
     }
   },

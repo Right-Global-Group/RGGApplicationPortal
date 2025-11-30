@@ -137,7 +137,7 @@
               <div>
                 <label class="block text-gray-300 font-medium mb-2">Setup Fee</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                  £{{ parseFloat(application.service_fee).toFixed(2) }}
+                  £{{ parseFloat(application.setup_fee).toFixed(2) }}
                 </div>
               </div>
             </div>

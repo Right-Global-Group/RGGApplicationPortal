@@ -5,7 +5,7 @@
       <h1 class="text-3xl font-bold text-white">Merchant Accounts</h1>
 
       <!-- Create Button -->
-      <div class="flex justify-end mb-6">
+      <div v-if="$page.props.auth.user.isAdmin" class="flex justify-end mb-6">
         <Link class="btn-primary flex items-center gap-2" href="/accounts/create">
           <span>Create</span>
           <span class="hidden md:inline">Account</span>
