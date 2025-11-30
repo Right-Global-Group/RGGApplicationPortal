@@ -35,12 +35,8 @@ class DocuSignGoLiveTest extends Command
         $delayMinutes = (int) $this->option('delay');
         
         $this->warn('⚠️  This will take approximately ' . ($numApplications * $delayMinutes) . ' minutes');
-        $this->warn('⚠️  Do NOT stop this script until it completes');
+        $this->warn('⚠️  Script will start automatically in background mode');
         $this->newLine();
-        
-        if (!$this->confirm('Start test?', true)) {
-            return Command::SUCCESS;
-        }
 
         // Get or create single test user and account (reused for all applications)
         $testUser = $this->getOrCreateTestUser();
