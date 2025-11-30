@@ -121,26 +121,21 @@ class DocuSignGoLiveTest extends Command
             'user_id' => $user->id,
             'name' => "GoLive Test #{$index}",
             'trading_name' => "Test Merchant {$index}",
-            'company_type' => 'limited_company',
-            'business_email' => "test{$index}@example.com",
-            'business_phone' => '07700900000',
+            'company_number' => '0000000' . $index,
+            'business_type' => 'limited_company',
+            'trading_start_date' => now()->subYears(2),
+            'estimated_annual_turnover' => 100000.00,
             'website_url' => "https://test{$index}.example.com",
-            'business_description' => "Test for DocuSign API review",
-            'monthly_turnover' => 10000,
-            'average_transaction_value' => 50,
-            'card_present_percentage' => 0,
-            'card_not_present_percentage' => 100,
-            'business_established_date' => now()->subYears(2),
+            'pci_compliant' => true,
+            'gateway_preference' => 'cardstream',
             
             // Fees
             'transaction_percentage' => 1.5,
             'transaction_fixed_fee' => 0.20,
             'monthly_fee' => 25.00,
             'monthly_minimum' => 50.00,
-            'scaling_fee' => 495.00,
+            'scaling_fee' => 495,
             'setup_fee' => 0.00,
-            
-            'status' => 'pending',
         ]);
     }
 
@@ -149,9 +144,9 @@ class DocuSignGoLiveTest extends Command
         return User::firstOrCreate(
             ['email' => 'docusign.golive@g2pay.co.uk'],
             [
-                'name' => 'DocuSign Go-Live Tester',
+                'first_name' => 'DocuSign',
+                'last_name' => 'Tester',
                 'password' => bcrypt('test-' . uniqid()),
-                'role' => 'admin',
             ]
         );
     }
