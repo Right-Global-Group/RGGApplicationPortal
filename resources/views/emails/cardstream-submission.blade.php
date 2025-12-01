@@ -208,18 +208,6 @@
         </div>
         @endif
         
-        <div style="text-align: center;">
-            <a href="{{ $contract_url }}" class="button">
-                View Signed Contract (DocuSign)
-            </a>
-        </div>
-
-        <div style="text-align: center; margin-top: 10px;">
-            <a href="{{ $application_url }}" class="button" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                View Full Application Details
-            </a>
-        </div>
-        
         <p style="margin-top: 30px;">
             Please review the application at your earliest convenience. All required documentation has been completed and verified. Payouts are configured for <strong>{{ $payout_timing }}</strong> settlement.
         </p>
