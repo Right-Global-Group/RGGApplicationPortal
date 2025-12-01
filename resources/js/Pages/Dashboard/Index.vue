@@ -881,6 +881,20 @@ export default {
       ],
     }
   },
+  watch: {
+    filters: {
+      handler(newFilters) {
+        // Update filterForm when props change
+        this.filterForm.date_from = newFilters.date_from || ''
+        this.filterForm.date_to = newFilters.date_to || ''
+        this.filterForm.account_id = newFilters.account_id || ''
+        this.filterForm.status = newFilters.status || ''
+        this.filterForm.search = newFilters.search || ''
+      },
+      deep: true,
+      immediate: true
+    }
+  },
   computed: {
     // Timeline Stats
     totalInPeriod() {
@@ -1509,32 +1523,26 @@ daysInStatusSeries() {
     },
   },
   methods: {
-    applyFilters() {
-      this.$inertia.get('/dashboard', this.filterForm, {
-        preserveState: true,
-      })
-    },
-    resetFilters() {
-      this.filterForm = {
-        date_from: '',
-        date_to: '',
-        account_id: '',
-        status: '',
-        search: '',
-      }
-      this.applyFilters()
-    },
-    changeProcessingPage(page) {
-      if (page < 1 || page > this.processingApplications.last_page) return
-      
-      this.$inertia.get('/dashboard', {
-        ...this.filterForm,
-        processing_page: page,
-      }, {
-        preserveState: true,
-        preserveScroll: true,
-      })
-    },
+applyFilters() {
+  this.$inertia.get('/dashboard', this.filterForm, {
+    preserveState: false, // Changed from true - this forces a full reload
+    preserveScroll: false, // Also reload scroll position
+  })
+},
+
+resetFilters() {
+  this.filterForm = {
+    date_from: '',
+    date_to: '',
+    account_id: '',
+    status: '',
+    search: '',
+  }
+  this.$inertia.get('/dashboard', this.filterForm, {
+    preserveState: false, // Changed from true
+    preserveScroll: false,
+  })
+},
     
     getSpeedClass(days) {
       if (days <= 7) return 'bg-green-900/50 text-green-300'

@@ -133,11 +133,11 @@ class DashboardController extends Controller
             'invoice_paid',
             'gateway_integrated',
             'account_live',
-        ];
+                ];
 
         $statusCounts = [];
         $applicationIds = (clone $applicationsQuery)->pluck('id')->toArray();
-        
+
         if (!empty($applicationIds)) {
             foreach ($allStatuses as $status) {
                 // Map status to its timestamp column
@@ -157,20 +157,24 @@ class DashboardController extends Controller
                 
                 $timestampColumn = $timestampMapping[$status] ?? null;
                 
-                // Count applications that have reached this status
-                $count = ApplicationStatus::query()
-                    ->whereIn('application_id', $applicationIds)
-                    ->where(function ($q) use ($status, $timestampColumn) {
-                        // Current step matches
-                        $q->where('current_step', $status);
-                        
-                        // OR has a timestamp for this status (meaning it reached it at some point)
-                        if ($timestampColumn) {
-                            $q->orWhereNotNull($timestampColumn);
-                        }
-                    })
-                    ->distinct('application_id')
-                    ->count('application_id');
+                if ($status === 'created') {
+                    // All applications start as created
+                    $count = count($applicationIds);
+                } else {
+                    // Count applications that have reached this status
+                    $count = ApplicationStatus::query()
+                        ->whereIn('application_id', $applicationIds)
+                        ->where(function ($q) use ($status, $timestampColumn) {
+                            if ($timestampColumn) {
+                                // Has a timestamp for this status (meaning it reached it at some point)
+                                $q->whereNotNull($timestampColumn);
+                            } else {
+                                // Fallback to current_step if no timestamp column
+                                $q->where('current_step', $status);
+                            }
+                        })
+                        ->count();
+                }
                     
                 $statusCounts[$status] = $count;
             }
@@ -321,59 +325,39 @@ class DashboardController extends Controller
                     return null;
                 }
 
-                // Skip applications that are still in 'created' status
-                if ($status->current_step === 'created') {
-                    return null;
-                }
-
-                // Calculate days from creation to current status
+                // Calculate days from creation to current status OR to account_live if completed
                 $createdAt = $app->created_at;
-                $currentTimestamp = null;
                 
-                // Get the most recent timestamp based on current step
-                switch ($status->current_step) {
-                    case 'documents_uploaded':
-                        $currentTimestamp = $status->documents_uploaded_at;
-                        break;
-                    case 'documents_approved':
-                        $currentTimestamp = $status->documents_approved_at;
-                        break;
-                    case 'contract_sent':
-                        $currentTimestamp = $status->contract_sent_at;
-                        break;
-                    case 'contract_signed':
-                        $currentTimestamp = $status->contract_signed_at;
-                        break;
-                    case 'contract_submitted':
-                        $currentTimestamp = $status->contract_submitted_at;
-                        break;
-                    case 'application_approved':
-                        $currentTimestamp = $status->application_approved_at;
-                        break;
-                    case 'invoice_sent':
-                        $currentTimestamp = $status->invoice_sent_at;
-                        break;
-                    case 'invoice_paid':
-                        $currentTimestamp = $status->invoice_paid_at;
-                        break;
-                    case 'gateway_integrated':
-                        $currentTimestamp = $status->gateway_integrated_at;
-                        break;
-                    case 'account_live':
-                        $currentTimestamp = $status->account_live_at;
-                        break;
-                    default:
-                        // If no timestamp found, skip this application
-                        return null;
+                // Determine if completed (reached account_live)
+                $isCompleted = $status->account_live_at !== null;
+                
+                // Get the end timestamp
+                if ($isCompleted) {
+                    $endTimestamp = $status->account_live_at;
+                } else {
+                    // Use the timestamp of the current status
+                    $statusTimestampMap = [
+                        'documents_uploaded' => 'documents_uploaded_at',
+                        'documents_approved' => 'documents_approved_at',
+                        'contract_sent' => 'contract_sent_at',
+                        'contract_signed' => 'contract_signed_at',
+                        'contract_submitted' => 'contract_submitted_at',
+                        'application_approved' => 'application_approved_at',
+                        'invoice_sent' => 'invoice_sent_at',
+                        'invoice_paid' => 'invoice_paid_at',
+                        'gateway_integrated' => 'gateway_integrated_at',
+                        'account_live' => 'account_live_at',
+                    ];
+                    
+                    $timestampField = $statusTimestampMap[$status->current_step] ?? null;
+                    $endTimestamp = $timestampField ? $status->{$timestampField} : null;
                 }
 
-                // Skip if we don't have a valid timestamp
-                if (!$currentTimestamp) {
+                // Skip if we don't have a valid end timestamp
+                if (!$endTimestamp) {
                     return null;
                 }
 
-                // If account_live, use that as end time, otherwise use current timestamp
-                $endTimestamp = $status->account_live_at ?? $currentTimestamp;
                 $daysInProcess = $createdAt->diffInDays($endTimestamp);
 
                 return [
@@ -384,9 +368,8 @@ class DashboardController extends Controller
                     'current_step' => $status->current_step,
                     'created_at' => $createdAt->format('Y-m-d H:i'),
                     'days_in_process' => $daysInProcess,
-                    'is_completed' => $status->current_step === 'account_live',
+                    'is_completed' => $isCompleted,
                     'completion_date' => $status->account_live_at?->format('Y-m-d H:i'),
-                    // Add individual status timestamps for per-status analysis
                     'status_timestamps' => [
                         'created' => $createdAt,
                         'documents_uploaded' => $status->documents_uploaded_at,
@@ -402,33 +385,40 @@ class DashboardController extends Controller
                     ],
                 ];
             })
-            ->filter() // Remove nulls (created status and apps without timestamps)
+            ->filter() // Remove nulls
             ->values();
 
-        // Calculate statistics
+        // Separate completed and in-progress applications
         $completedApplications = $applications->where('is_completed', true);
+        $inProgressApplications = $applications->where('is_completed', false);
         
         // Calculate average days spent in each status
         $daysPerStatus = $this->calculateDaysPerStatus($applications);
         
+        // Calculate statistics for ALL applications (not just completed)
+        $allDays = $applications->pluck('days_in_process')->filter(function($days) {
+            return $days > 0; // Only include positive values
+        });
+        
         $stats = [
-            'fastest' => $completedApplications->min('days_in_process') ?? 0,
-            'slowest' => $completedApplications->max('days_in_process') ?? 0,
-            'average' => $completedApplications->avg('days_in_process') 
-                ? round($completedApplications->avg('days_in_process'), 1) 
-                : 0,
-            'median' => $this->calculateMedian($completedApplications->pluck('days_in_process')->toArray()),
+            'fastest' => $allDays->min() ?? 0,
+            'slowest' => $allDays->max() ?? 0,
+            'average' => $allDays->count() > 0 ? round($allDays->avg(), 2) : 0,
+            'median' => $this->calculateMedian($allDays->toArray()),
             'total_completed' => $completedApplications->count(),
-            'total_in_progress' => $applications->where('is_completed', false)->count(),
+            'total_in_progress' => $inProgressApplications->count(),
             'days_per_status' => $daysPerStatus,
         ];
 
+        // Sort by days_in_process ascending (fastest first)
+        $sortedApplications = $applications->sortBy('days_in_process')->values();
+
         // Paginate results
-        $total = $applications->count();
-        $lastPage = ceil($total / $perPage);
+        $total = $sortedApplications->count();
+        $lastPage = $total > 0 ? ceil($total / $perPage) : 1;
         $offset = ($page - 1) * $perPage;
         
-        $paginatedApplications = $applications->slice($offset, $perPage)->values();
+        $paginatedApplications = $sortedApplications->slice($offset, $perPage)->values();
 
         return [
             'stats' => $stats,
@@ -438,7 +428,7 @@ class DashboardController extends Controller
                 'per_page' => $perPage,
                 'total' => $total,
                 'last_page' => $lastPage,
-                'from' => $offset + 1,
+                'from' => $total > 0 ? $offset + 1 : 0,
                 'to' => min($offset + $perPage, $total),
             ],
         ];
@@ -476,19 +466,21 @@ class DashboardController extends Controller
                     return null;
                 }
 
-                // If there's a next status, calculate time to reach it
+                // If there's a next status and app reached it, calculate time between them
                 if ($nextStatus && isset($timestamps[$nextStatus]) && $timestamps[$nextStatus]) {
                     $endTime = $timestamps[$nextStatus];
-                    return $startTime->diffInDays($endTime);
+                    return $startTime->diffInDays($endTime, false); // false = can be negative if dates are wrong
                 }
 
-                // If this is the last status the app reached, calculate time from start to now
-                if ($app['current_step'] === $status) {
-                    return $startTime->diffInDays(now());
+                // If this is the current status the app is on, calculate time from start to now
+                if ($app['current_step'] === $status && !$app['is_completed']) {
+                    return $startTime->diffInDays(now(), false);
                 }
 
                 return null;
-            })->filter()->values();
+            })->filter(function($duration) {
+                return $duration !== null && $duration >= 0; // Only include valid positive durations
+            })->values();
 
             // Calculate average if we have data
             if ($durations->isNotEmpty()) {
@@ -515,9 +507,9 @@ class DashboardController extends Controller
         $middle = floor($count / 2);
         
         if ($count % 2 == 0) {
-            return round(($values[$middle - 1] + $values[$middle]) / 2, 1);
+            return round(($values[$middle - 1] + $values[$middle]) / 2, 2);
         }
         
-        return round($values[$middle], 1);
+        return round($values[$middle], 2);
     }
 }
