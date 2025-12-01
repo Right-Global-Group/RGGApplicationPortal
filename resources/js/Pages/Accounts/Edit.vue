@@ -119,6 +119,7 @@
             <div class="flex flex-wrap -mb-8 -mr-6 p-8">
               <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Account Name" />
               <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" type="email" />
+              <text-input v-model="form.mobile" :error="form.errors.mobile" class="pb-8 pr-6 w-full lg:w-1/2" label="Mobile" type="tel" />
               <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" label="Photo" accept="image/*" />
             </div>
             <div class="flex items-center justify-between px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
@@ -245,6 +246,7 @@ export default {
       form: this.$inertia.form({
         name: this.account.name,
         email: this.account.email,
+        mobile: this.account.mobile,
         photo: null,
       }),
     }

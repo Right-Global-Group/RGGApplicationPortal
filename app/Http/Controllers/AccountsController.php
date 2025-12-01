@@ -73,6 +73,7 @@ class AccountsController extends Controller
                 'id' => $account->id,
                 'name' => $account->name,
                 'email' => $account->email,
+                'mobile' => $account->mobile,
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
                 'status' => $account->status,
                 'is_confirmed' => $account->isConfirmed(),
@@ -109,6 +110,7 @@ class AccountsController extends Controller
         $validated = Request::validate([
             'name' => ['required', 'max:50'],
             'email' => ['required', 'email', 'unique:accounts,email'],
+            'mobile' => ['nullable', 'string', 'max:20'],
             'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
 
@@ -125,6 +127,7 @@ class AccountsController extends Controller
         $account = Account::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'mobile' => $validated['mobile'] ?? null,
             'password' => $plainPassword,
             'user_id' => auth()->id(),
             'status' => Account::STATUS_PENDING,
@@ -164,6 +167,7 @@ class AccountsController extends Controller
                 'id' => $account->id,
                 'name' => $account->name,
                 'email' => $account->email,
+                'mobile' => $account->mobile,
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
                 'status' => $account->status,
                 'is_confirmed' => $account->isConfirmed(),
@@ -218,12 +222,14 @@ class AccountsController extends Controller
         $validated = Request::validate([
             'name' => ['required', 'max:50'],
             'email' => ['required', 'email', 'unique:accounts,email,' . $account->id],
+            'mobile' => ['nullable', 'string', 'max:20'],
             'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
 
         $account->update([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'mobile' => $validated['mobile'] ?? null,
         ]);
 
         if (Request::file('photo')) {
