@@ -192,6 +192,10 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::get('/{application}/documents/{document}/view', [ApplicationDocumentsController::class, 'view'])
         ->name('applications.documents.view');
 
+        // Download document (returns file download)
+        Route::get('/{application}/documents/{document}/download', [DocumentLibraryController::class, 'downloadDocument'])
+        ->name('applications.documents.download');
+
         // DocuSign contract viewing and downloading
         Route::get('/{application}/docusign/view', [DocumentLibraryController::class, 'viewDocuSignContract'])
         ->name('applications.docusign.view');

@@ -16,55 +16,6 @@ class DocumentLibraryController extends Controller
     public function __construct(
         private DocuSignService $docuSignService
     ) {}
-    
-    /**
-     * View a document inline (returns base64 encoded content for modal viewing)
-     */
-    private function view(Application $application, ApplicationDocument $document): JsonResponse
-    {
-        // Check permissions
-        $isAccount = auth()->guard('account')->check();
-        
-        if ($isAccount) {
-            if ($application->account_id !== auth()->guard('account')->id()) {
-                abort(403);
-            }
-        } elseif (auth()->guard('web')->check()) {
-            $user = auth()->guard('web')->user();
-            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
-                abort(403);
-            }
-        } else {
-            abort(403);
-        }
-
-        // Verify document belongs to application
-        if ($document->application_id !== $application->id) {
-            abort(404);
-        }
-
-        try {
-            $content = Storage::disk('public')->get($document->file_path);
-            $base64 = base64_encode($content);
-
-            return response()->json([
-                'success' => true,
-                'filename' => $document->original_filename,
-                'mime_type' => $document->document_type,
-                'content' => $base64,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to load document for viewing', [
-                'document_id' => $document->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load document',
-            ], 500);
-        }
-    }
 
     public function index(): Response
     {
@@ -119,6 +70,114 @@ class DocumentLibraryController extends Controller
             'applications' => $applicationsWithDocs,
             'is_account' => $isAccount,
         ]);
+    }
+    
+    /**
+     * View a document inline (returns base64 encoded content for modal viewing)
+     */
+    private function view(Application $application, ApplicationDocument $document): JsonResponse
+    {
+        // Check permissions
+        $isAccount = auth()->guard('account')->check();
+        
+        if ($isAccount) {
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403);
+            }
+        } else {
+            abort(403);
+        }
+
+        // Verify document belongs to application
+        if ($document->application_id !== $application->id) {
+            abort(404);
+        }
+
+        try {
+            $content = Storage::disk('public')->get($document->file_path);
+            $base64 = base64_encode($content);
+
+            return response()->json([
+                'success' => true,
+                'filename' => $document->original_filename,
+                'mime_type' => $document->document_type,
+                'content' => $base64,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to load document for viewing', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load document',
+            ], 500);
+        }
+    }
+
+    /**
+     * Download an uploaded document (streaming approach)
+     */
+    public function downloadDocument(Application $application, ApplicationDocument $document)
+    {
+        // Check permissions
+        $isAccount = auth()->guard('account')->check();
+        
+        if ($isAccount) {
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403);
+            }
+        } else {
+            abort(403);
+        }
+
+        // Verify document belongs to application
+        if ($document->application_id !== $application->id) {
+            abort(404);
+        }
+
+        // Check if file exists
+        if (empty($document->file_path)) {
+            abort(404, 'Document file not found');
+        }
+
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'Document file not found in storage');
+        }
+
+        try {
+            $content = Storage::disk('public')->get($document->file_path);
+            $mimeType = Storage::disk('public')->mimeType($document->file_path);
+            
+            return response()->streamDownload(
+                function() use ($content) {
+                    echo $content;
+                },
+                $document->original_filename,
+                [
+                    'Content-Type' => $mimeType,
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to download document', [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+                'error' => $e->getMessage(),
+            ]);
+            
+            abort(500, 'Failed to download document');
+        }
     }
 
     /**
