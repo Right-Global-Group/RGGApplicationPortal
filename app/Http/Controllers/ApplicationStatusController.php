@@ -840,12 +840,12 @@ class ApplicationStatusController extends Controller
                     continue;
                 }
                 
-                if (\Storage::disk('private')->exists($doc->file_path)) {
+                if (\Storage::disk('public')->exists($doc->file_path)) {
                     $documents[] = [
                         'category' => $this->formatDocumentCategory($doc->document_category),
                         'filename' => $doc->original_filename,
-                        'path' => storage_path('app/private/' . $doc->file_path),
-                        'mime' => \Storage::disk('private')->mimeType($doc->file_path),
+                        'path' => storage_path('app/public/' . $doc->file_path),
+                        'mime' => \Storage::disk('public')->mimeType($doc->file_path),
                         'is_temp' => false,
                     ];
                 }

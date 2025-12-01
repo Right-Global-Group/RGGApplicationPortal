@@ -119,7 +119,7 @@ class AccountsController extends Controller
         if (Request::file('photo')) {
             $file = Request::file('photo');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $photoPath = $file->storeAs('accounts', $filename, 'private');
+            $photoPath = $file->storeAs('accounts', $filename, 'public');
         }
 
         $account = Account::create([
@@ -229,13 +229,13 @@ class AccountsController extends Controller
         if (Request::file('photo')) {
             // Delete old photo if exists
             if ($account->photo_path) {
-                Storage::disk('private')->delete($account->photo_path);
+                Storage::disk('public')->delete($account->photo_path);
             }
             
             // Store new photo
             $file = Request::file('photo');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $photoPath = $file->storeAs('accounts', $filename, 'private');
+            $photoPath = $file->storeAs('accounts', $filename, 'public');
             
             $account->update(['photo_path' => $photoPath]);
         }
@@ -321,7 +321,7 @@ class AccountsController extends Controller
     {
         // Delete photo if exists
         if ($account->photo_path) {
-            Storage::disk('private')->delete($account->photo_path);
+            Storage::disk('public')->delete($account->photo_path);
         }
 
         $account->delete();
@@ -361,13 +361,13 @@ class AccountsController extends Controller
         }
 
         // Check if file exists
-        if (!Storage::disk('private')->exists($account->photo_path)) {
+        if (!Storage::disk('public')->exists($account->photo_path)) {
             abort(404);
         }
 
         // Get the file
-        $file = Storage::disk('private')->get($account->photo_path);
-        $mimeType = Storage::disk('private')->mimeType($account->photo_path);
+        $file = Storage::disk('public')->get($account->photo_path);
+        $mimeType = Storage::disk('public')->mimeType($account->photo_path);
 
         return response($file, 200)
             ->header('Content-Type', $mimeType)

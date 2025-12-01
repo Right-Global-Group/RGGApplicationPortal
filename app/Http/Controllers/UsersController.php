@@ -88,7 +88,7 @@ class UsersController extends Controller
         if (Request::file('photo')) {
             $file = Request::file('photo');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $photoPath = $file->storeAs('users', $filename, 'private');
+            $photoPath = $file->storeAs('users', $filename, 'public');
         }
 
         User::create([
@@ -154,13 +154,13 @@ class UsersController extends Controller
         if (Request::file('photo')) {
             // Delete old photo if exists
             if ($user->photo_path) {
-                Storage::disk('private')->delete($user->photo_path);
+                Storage::disk('public')->delete($user->photo_path);
             }
             
             // Store new photo
             $file = Request::file('photo');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $photoPath = $file->storeAs('users', $filename, 'private');
+            $photoPath = $file->storeAs('users', $filename, 'public');
             
             $user->update(['photo_path' => $photoPath]);
         }
@@ -180,7 +180,7 @@ class UsersController extends Controller
 
         // Delete photo if exists
         if ($user->photo_path) {
-            Storage::disk('private')->delete($user->photo_path);
+            Storage::disk('public')->delete($user->photo_path);
         }
 
         $user->delete();
@@ -239,13 +239,13 @@ class UsersController extends Controller
         }
 
         // Check if file exists
-        if (!Storage::disk('private')->exists($user->photo_path)) {
+        if (!Storage::disk('public')->exists($user->photo_path)) {
             abort(404);
         }
 
         // Get the file
-        $file = Storage::disk('private')->get($user->photo_path);
-        $mimeType = Storage::disk('private')->mimeType($user->photo_path);
+        $file = Storage::disk('public')->get($user->photo_path);
+        $mimeType = Storage::disk('public')->mimeType($user->photo_path);
 
         return response($file, 200)
             ->header('Content-Type', $mimeType)

@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocuSignWebhookController;
 use App\Http\Controllers\ProgressTrackerController;
 use App\Http\Controllers\EmailTemplatesController;
+use App\Http\Controllers\DocumentLibraryController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +51,9 @@ Route::middleware(['auth:web,account'])->group(function () {
         ->name('email-templates.preview');
     Route::post('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
         ->name('email-templates.preview');
+
+    Route::get('/documents', [DocumentLibraryController::class, 'index'])
+        ->name('documents.index');
 
     // Accounts Routes
     Route::prefix('accounts')->group(function () {
@@ -183,6 +187,17 @@ Route::middleware(['auth:web,account'])->group(function () {
 
         Route::post('/{application}/cancel-account-message-reminder', [ApplicationStatusController::class, 'cancelAccountMessageReminder'])
         ->name('applications.cancel-account-message-reminder');
+
+        // Document viewing routes
+        Route::get('/{application}/documents/{document}/view', [ApplicationDocumentsController::class, 'view'])
+        ->name('applications.documents.view');
+
+        // DocuSign contract viewing and downloading
+        Route::get('/{application}/docusign/view', [DocumentLibraryController::class, 'viewDocuSignContract'])
+        ->name('applications.docusign.view');
+
+        Route::get('/{application}/docusign/download', [DocumentLibraryController::class, 'downloadDocuSignContract'])
+        ->name('applications.docusign.download');
     });
 
     // Progress Tracker

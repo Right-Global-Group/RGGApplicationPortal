@@ -15,6 +15,7 @@
   <svg v-else-if="name === 'x'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 8.586L2.929 1.515 1.515 2.929 8.586 10l-7.071 7.071 1.414 1.414L10 11.414l7.071 7.071 1.414-1.414L11.414 10l7.071-7.071-1.414-1.414L10 8.586z" /></svg>
   <svg v-else-if="name === 'arrow-left'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M3.828 9l6.071-6.071-1.414-1.414L0 10l.707.707 7.778 7.778 1.414-1.414L3.828 11H20V9H3.828z" /></svg>
   <svg v-else-if="name === 'alert-circle'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 20a10 10 0 1 1 0-20 10 10 0 0 1 0 20zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm0-13a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0V6a1 1 0 0 1 1-1zm0 10a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" /></svg>
+  <svg v-else-if="name === 'documents'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M4 18h12V6h-4V2H4v16zm-2 1V0h12l4 4v16H2v-1z M12 4a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h4zM7 8a1 1 0 1 1 0 2H5a1 1 0 1 1 0-2h2zm8 0a1 1 0 1 1 0 2h-4a1 1 0 1 1 0-2h4zm0 4a1 1 0 1 1 0 2H5a1 1 0 1 1 0-2h10z" /></svg>
 </template>
 
 <script>

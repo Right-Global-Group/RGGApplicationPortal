@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 class ApplicationDocumentsController extends Controller
@@ -51,7 +52,7 @@ class ApplicationDocumentsController extends Controller
     
         $file = Request::file('file');
         $filename = time() . '_' . $file->getClientOriginalName();
-        $path = $file->storeAs('applications/' . $application->id . '/documents', $filename, 'private');
+        $path = $file->storeAs('applications/' . $application->id . '/documents', $filename, 'public');
     
         // Create document record
         $document = ApplicationDocument::create([
@@ -157,7 +158,69 @@ class ApplicationDocumentsController extends Controller
             abort(404);
         }
 
-        return Storage::disk('private')->download($document->file_path, $document->original_filename);
+        return Storage::disk('public')->download($document->file_path, $document->original_filename);
+    }
+
+    /**
+     * View a document inline (returns base64 encoded content for modal viewing)
+     */
+    public function view(Application $application, ApplicationDocument $document): JsonResponse
+    {
+        // Check permissions
+        $isAccount = auth()->guard('account')->check();
+        
+        if ($isAccount) {
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403);
+            }
+        } else {
+            abort(403);
+        }
+
+        // Verify document belongs to application
+        if ($document->application_id !== $application->id) {
+            abort(404);
+        }
+
+        try {
+            if (!Storage::disk('public')->exists($document->file_path)) {
+                Log::warning('Document file not found', [
+                    'document_id' => $document->id,
+                    'file_path' => $document->file_path,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Document file not found',
+                ], 404);
+            }
+
+            $content = Storage::disk('public')->get($document->file_path);
+            $base64 = base64_encode($content);
+
+            return response()->json([
+                'success' => true,
+                'filename' => $document->original_filename,
+                'mime_type' => $document->document_type,
+                'content' => $base64,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to load document for viewing', [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load document: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function destroy(Application $application, ApplicationDocument $document): RedirectResponse
@@ -178,7 +241,7 @@ class ApplicationDocumentsController extends Controller
         }
 
         // Delete file from storage
-        Storage::disk('private')->delete($document->file_path);
+        Storage::disk('public')->delete($document->file_path);
 
         // Delete database record
         $document->delete();
@@ -208,7 +271,7 @@ class ApplicationDocumentsController extends Controller
         $uploadedDocs = $application->documents()->where('document_category', $categoryName)->get();
         
         foreach ($uploadedDocs as $doc) {
-            Storage::disk('private')->delete($doc->file_path);
+            Storage::disk('public')->delete($doc->file_path);
             $doc->delete();
         }
 

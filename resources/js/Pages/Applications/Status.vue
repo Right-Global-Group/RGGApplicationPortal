@@ -583,15 +583,38 @@
     </div>
 
     <!-- Documents Section -->
-    <div v-if="application.documents?.length > 0" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
-      <h2 class="text-xl font-bold text-white mb-4">Documents</h2>
-      <div 
-          v-for="(label, category) in documentCategoriesWithAdditional" 
-          :key="category"
-          class="mb-6 last:mb-0"
+    <div v-if="application.documents?.length > 0 || is_account" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+      <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between -mx-6 -mt-6 mb-6">
+        <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
+        <button 
+          v-if="is_account"
+          @click="showDocumentUploadModal = true" 
+          class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
         >
-          <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
-          <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
+          Upload Document
+        </button>
+      </div>
+
+      <!-- Explanation for Merchant Directors (only for accounts) -->
+      <div v-if="is_account" class="mb-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p class="text-blue-300 font-medium mb-1">Important: Individual Document Requirements</p>
+            <p class="text-sm text-gray-300">Each Merchant Director must upload their own documents for every category below. All directors are required to provide their individual documentation.</p>
+          </div>
+        </div>
+      </div>
+
+      <div 
+        v-for="(label, category) in documentCategoriesWithAdditional" 
+        :key="category"
+        class="mb-6 last:mb-0"
+      >
+        <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
+        <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
 
         <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
           <div 
@@ -785,6 +808,16 @@
       @close="showAdditionalInfoModal = false"
     />
 
+    <!-- Document Upload Modal (for accounts) -->
+    <document-upload-modal 
+      v-if="is_account"
+      :show="showDocumentUploadModal"
+      :application-id="application.id"
+      :categories="documentCategories"
+      :category-descriptions="categoryDescriptions"
+      @close="showDocumentUploadModal = false"
+    />
+
     <credentials-modal
       v-if="showCredentialsModal"
       :account-id="accountId"
@@ -882,6 +915,7 @@ import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
 import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
 import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
 import AccountMessageModal from '@/Shared/AccountMessageModal.vue'
+import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
 
 
 export default {
@@ -898,6 +932,7 @@ export default {
     CardStreamCredentialsModal,
     WordPressCredentialsModal,
     AccountMessageModal,
+    DocumentUploadModal,
     Icon,
   },
   layout: Layout,
@@ -944,6 +979,7 @@ export default {
       showWordPressEnterModal: false,
       showCredentialsModal: false,
       showAccountMessageModal: false,
+      showDocumentUploadModal: false,
     }
   },
   computed: {
@@ -1160,7 +1196,6 @@ export default {
       return categories
     },
     
-    // Build category descriptions including all pending additional documents
     categoryDescriptionsWithAdditional() {
       const descriptions = { ...this.categoryDescriptions }
       

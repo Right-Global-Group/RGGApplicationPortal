@@ -116,6 +116,13 @@ export default {
           adminOnly: false 
         },
         { 
+          name: 'documents', 
+          label: 'Documents', 
+          href: '/documents', 
+          match: 'documents',
+          adminOnly: false
+        },
+        { 
           name: 'mail', 
           label: 'Email Templates', 
           href: '/email-templates', 
