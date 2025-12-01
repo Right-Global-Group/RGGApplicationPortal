@@ -292,7 +292,7 @@
           class="px-6 py-2 bg-blue-300/50 hover:bg-blue-400/50 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
-          Send Contract Link
+          Send Contract Link To Merchant
         </button>
 
         <!-- Cancel Contract Reminder (if active) -->
@@ -1021,7 +1021,7 @@ export default {
     processSteps() {      
       const allSteps = [
         { id: 'created', label: 'Application Created', description: 'Initial application setup' },
-        { id: 'contract_sent', label: 'Contract Sent', description: 'Contract sent to merchant for signature' },
+        { id: 'contract_sent', label: 'Contract Sent To Merchant', description: 'Contract sent to merchant for signature' },
         { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
         { id: 'documents_approved', label: 'Documents Approved', description: 'Documents reviewed and approved' },
         { id: 'contract_signed', label: 'Contract Signed', description: 'All parties have signed the contract' },
