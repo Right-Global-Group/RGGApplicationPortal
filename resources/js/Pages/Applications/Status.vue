@@ -837,9 +837,11 @@
     <!-- Submit to CardStream Modal -->
     <submit-to-card-stream-modal
       v-if="showSubmitCardStreamModal"
+      :show="showSubmitCardStreamModal"
       :application-id="application.id"
       :application-name="application.name"
       :account-name="accountName"
+      :account-email="accountEmail"
       :account-mobile="accountMobile"
       :recipient-status="docusignRecipientStatus"
       @close="showSubmitCardStreamModal = false"
@@ -943,6 +945,7 @@ export default {
     credentialsReminder: Object,
     accountId: Number,
     accountName: String,
+    accountEmail: String,
     accountMobile: Number,
     accountHasLoggedIn: Boolean,
     documentCategories: Object,

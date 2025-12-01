@@ -205,6 +205,7 @@ class ApplicationStatusController extends Controller
             // Account credentials data
             'accountId' => $application->account_id,
             'accountName' => $application->account_name ?? $application->account->name ?? 'Unknown',
+            'accountEmail' => $application->account->email,
             'accountMobile' => $application->account->mobile ?? 'Unknown',
             'accountHasLoggedIn' => $application->account->first_login_at !== null,
             'credentialsReminder' => $application->account->emailReminders()

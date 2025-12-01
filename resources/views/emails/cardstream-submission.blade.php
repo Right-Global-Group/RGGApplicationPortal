@@ -176,34 +176,10 @@
             <h3 style="margin-top: 0; color: #667eea;">Fee Structure</h3>
             
             <div class="fee-grid">
-                @if($scaling_fee > 0)
                 <div class="fee-item">
-                    <div class="fee-label">Scaling Fee</div>
-                    <div class="fee-value">£{{ number_format($scaling_fee, 2) }}</div>
+                    <div class="fee-label">Transaction Percentage</div>
+                    <div class="fee-value">{{ $transaction_percentage }}%</div>
                 </div>
-                @endif
-                
-                <div class="fee-item">
-                    <div class="fee-label">Transaction Fee</div>
-                    <div class="fee-value">{{ $transaction_percentage }}% + £{{ number_format($transaction_fixed_fee, 2) }}</div>
-                </div>
-                
-                <div class="fee-item">
-                    <div class="fee-label">Monthly Fee</div>
-                    <div class="fee-value">£{{ number_format($monthly_fee, 2) }}</div>
-                </div>
-                
-                <div class="fee-item">
-                    <div class="fee-label">Monthly Minimum</div>
-                    <div class="fee-value">£{{ number_format($monthly_minimum, 2) }}</div>
-                </div>
-
-                @if($setup_fee > 0)
-                <div class="fee-item">
-                    <div class="fee-label">Setup Fee</div>
-                    <div class="fee-value">£{{ number_format($setup_fee, 2) }}</div>
-                </div>
-                @endif
             </div>
         </div>
         
