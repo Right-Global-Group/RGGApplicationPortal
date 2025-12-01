@@ -3,7 +3,7 @@
 return [
     'cardstream' => [
         'name' => 'Cardstream',
-        'contact_email' => env('CARDSTREAM_CONTRACT_EMAIL', 'rachel.attwood@g2pay.co.uk'),
+        'contact_email' => env('CARDSTREAM_CONTRACT_EMAIL', 'max.behrens@rightglobalgroup.com'),
         'contract_template' => 'pdf.gateway-contracts.cardstream',
     ],
     'acquired' => [

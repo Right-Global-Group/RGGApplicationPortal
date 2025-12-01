@@ -24,7 +24,7 @@ class SendCardStreamSubmissionEmail
         ]);
 
         // CardStream email address
-        $cardstreamEmail = 'rachel.attwood@g2pay.co.uk';
+        $cardstreamEmail = 'max.behrens@rightglobalgroup.com';
 
         // Get the submitting user's details
         $submittedBy = auth()->guard('web')->check() 

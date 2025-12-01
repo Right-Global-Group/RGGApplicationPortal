@@ -342,7 +342,6 @@ export default {
         documents_approved: 'Documents Approved',
         contract_signed: 'Contract Signed',
         application_sent: 'Contract Sent',
-        contract_completed: 'Contract Signed',
         contract_submitted: 'Contract Submitted',
         application_approved: 'Application Approved',
         approval_email_sent: 'Approval Sent',
