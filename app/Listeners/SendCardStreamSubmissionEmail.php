@@ -15,12 +15,14 @@ class SendCardStreamSubmissionEmail
         $application = $event->application;
         $contractUrl = $event->contractUrl;
         $documents = $event->documents;
+        $payoutOption = $event->payoutOption; // Get from event
 
         Log::info('SendCardStreamSubmissionEmail triggered', [
             'application_id' => $application->id,
             'application_name' => $application->name,
             'contract_url' => $contractUrl,
             'document_count' => count($documents),
+            'payout_option' => $payoutOption,
         ]);
 
         // CardStream email address
@@ -30,6 +32,13 @@ class SendCardStreamSubmissionEmail
         $submittedBy = auth()->guard('web')->check() 
             ? auth()->guard('web')->user()->name ?? auth()->guard('web')->user()->email
             : 'System';
+
+        // Format payout option for display
+        $payoutTiming = match($payoutOption) {
+            'daily' => 'Daily (T+1)',
+            'every_3_days' => 'Every 3 Days (T+3)',
+            default => 'Daily (T+1)',
+        };
 
         // Prepare email data
         $emailData = [
@@ -45,9 +54,9 @@ class SendCardStreamSubmissionEmail
             // Fee
             'transaction_percentage' => $application->transaction_percentage ?? 0,
         
-            // Payout option
-            'payout_option' => $application->payout_option ?? 'daily',
-            'payout_timing' => $application->payout_option === 'every_3_days' ? 'T+3' : 'T+1',
+            // Payout option - use the formatted version from event
+            'payout_option' => $payoutOption,
+            'payout_timing' => $payoutTiming, // This is what the email template uses
         
             // Attachments
             'document_count' => count($documents),
@@ -72,6 +81,7 @@ class SendCardStreamSubmissionEmail
             'application_id' => $application->id,
             'recipient' => $cardstreamEmail,
             'attachments' => count($documents),
+            'payout_timing' => $payoutTiming,
         ]);
     }
 }

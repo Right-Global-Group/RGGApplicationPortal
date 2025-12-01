@@ -867,8 +867,12 @@ class ApplicationStatusController extends Controller
         );
 
         // Fire event to send email with documents
-        event(new CardStreamSubmissionEvent($application, $documentUrl, $documents));
-
+        event(new CardStreamSubmissionEvent(
+            $application, 
+            $documentUrl, 
+            $documents, 
+            $validated['payout_option'] // Pass the payout option
+        ));
         // Clean up temporary DocuSign file
         foreach ($documents as $doc) {
             if (isset($doc['is_temp']) && $doc['is_temp'] && file_exists($doc['path'])) {
