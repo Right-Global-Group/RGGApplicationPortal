@@ -1364,14 +1364,30 @@ export default {
       }
     },
 
-    // Monitoring - Days in Status
-    daysInStatusSeries() {
+// Monitoring - Days in Status
+daysInStatusSeries() {
+      if (!this.processingStats.days_per_status) {
+        return [{
+          name: 'Avg Days',
+          data: []
+        }]
+      }
+      
       return [{
         name: 'Avg Days',
-        data: [2, 5, 8, 12, 3, 7, 4, 6, 5, 3, 2] // Mock data
+        data: Object.values(this.processingStats.days_per_status)
       }]
     },
     daysInStatusOptions() {
+      const categories = this.processingStats.days_per_status 
+        ? Object.keys(this.processingStats.days_per_status).map(key => {
+            // Format the status names nicely
+            return key.split('_').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ')
+          })
+        : []
+      
       return {
         chart: {
           type: 'bar',
@@ -1391,15 +1407,11 @@ export default {
         ],
         dataLabels: {
           enabled: true,
-          formatter: (val) => val + 'd',
+          formatter: (val) => val ? val.toFixed(1) + 'd' : '0d',
           style: { fontSize: '11px', colors: ['#fff'] }
         },
         xaxis: {
-          categories: [
-            'Created', 'Docs Upload', 'Docs Approved', 'Contract Sent',
-            'Contract Signed', 'Submitted', 'Approved', 'Invoice Sent',
-            'Invoice Paid', 'Gateway', 'Live'
-          ],
+          categories: categories,
           labels: { style: { colors: '#9ca3af' } },
         },
         yaxis: {

@@ -386,14 +386,30 @@ class DashboardController extends Controller
                     'days_in_process' => $daysInProcess,
                     'is_completed' => $status->current_step === 'account_live',
                     'completion_date' => $status->account_live_at?->format('Y-m-d H:i'),
+                    // Add individual status timestamps for per-status analysis
+                    'status_timestamps' => [
+                        'created' => $createdAt,
+                        'documents_uploaded' => $status->documents_uploaded_at,
+                        'documents_approved' => $status->documents_approved_at,
+                        'contract_sent' => $status->contract_sent_at,
+                        'contract_signed' => $status->contract_signed_at,
+                        'contract_submitted' => $status->contract_submitted_at,
+                        'application_approved' => $status->application_approved_at,
+                        'invoice_sent' => $status->invoice_sent_at,
+                        'invoice_paid' => $status->invoice_paid_at,
+                        'gateway_integrated' => $status->gateway_integrated_at,
+                        'account_live' => $status->account_live_at,
+                    ],
                 ];
             })
             ->filter() // Remove nulls (created status and apps without timestamps)
-            ->sortBy('days_in_process')
             ->values();
 
         // Calculate statistics
         $completedApplications = $applications->where('is_completed', true);
+        
+        // Calculate average days spent in each status
+        $daysPerStatus = $this->calculateDaysPerStatus($applications);
         
         $stats = [
             'fastest' => $completedApplications->min('days_in_process') ?? 0,
@@ -404,6 +420,7 @@ class DashboardController extends Controller
             'median' => $this->calculateMedian($completedApplications->pluck('days_in_process')->toArray()),
             'total_completed' => $completedApplications->count(),
             'total_in_progress' => $applications->where('is_completed', false)->count(),
+            'days_per_status' => $daysPerStatus,
         ];
 
         // Paginate results
@@ -425,6 +442,63 @@ class DashboardController extends Controller
                 'to' => min($offset + $perPage, $total),
             ],
         ];
+    }
+
+    /**
+     * Calculate average days spent in each status
+     */
+    private function calculateDaysPerStatus($applications)
+    {
+        $statusOrder = [
+            'created',
+            'documents_uploaded',
+            'documents_approved',
+            'contract_sent',
+            'contract_signed',
+            'contract_submitted',
+            'application_approved',
+            'invoice_sent',
+            'invoice_paid',
+            'gateway_integrated',
+            'account_live',
+        ];
+
+        $daysPerStatus = [];
+
+        foreach ($statusOrder as $index => $status) {
+            $nextStatus = $statusOrder[$index + 1] ?? null;
+            
+            $durations = $applications->map(function ($app) use ($status, $nextStatus) {
+                $timestamps = $app['status_timestamps'];
+                
+                $startTime = $timestamps[$status];
+                if (!$startTime) {
+                    return null;
+                }
+
+                // If there's a next status, calculate time to reach it
+                if ($nextStatus && isset($timestamps[$nextStatus]) && $timestamps[$nextStatus]) {
+                    $endTime = $timestamps[$nextStatus];
+                    return $startTime->diffInDays($endTime);
+                }
+
+                // If this is the last status the app reached, calculate time from start to now
+                if ($app['current_step'] === $status) {
+                    return $startTime->diffInDays(now());
+                }
+
+                return null;
+            })->filter()->values();
+
+            // Calculate average if we have data
+            if ($durations->isNotEmpty()) {
+                $daysPerStatus[$status] = round($durations->avg(), 1);
+            } else {
+                $daysPerStatus[$status] = 0;
+            }
+        }
+
+        return $daysPerStatus;
     }
 
     /**
