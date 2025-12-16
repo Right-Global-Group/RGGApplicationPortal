@@ -1417,7 +1417,7 @@ class DocuSignService
         $payload = [
             'iss' => $this->integrationKey,
             'sub' => $this->userId,
-            'aud' => 'account-d.docusign.com',
+            'aud' => 'account.docusign.com',
             'iat' => $now,
             'exp' => $now + 3600,
             'scope' => 'signature impersonation',
