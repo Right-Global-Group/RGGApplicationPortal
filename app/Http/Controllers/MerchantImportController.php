@@ -115,10 +115,11 @@ class MerchantImportController extends Controller
             $message .= ", {$results['failed']} failed";
         }
 
+        // Return with flash messages - use 'importErrors' instead of 'errors'
         if ($results['failed'] > 0) {
             return Redirect::back()
                 ->with('success', $message)
-                ->with('errors', $results['errors']);
+                ->with('importErrors', $results['errors']); // Use custom key
         }
 
         return Redirect::back()->with('success', $message);
