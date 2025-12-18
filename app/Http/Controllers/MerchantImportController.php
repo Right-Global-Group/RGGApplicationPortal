@@ -207,18 +207,18 @@ class MerchantImportController extends Controller
                 ]);
             }
 
-            // Create application
+            // Create application with extracted fee information
             $application = Application::create([
                 'account_id' => $account->id,
                 'user_id' => auth()->id(),
                 'name' => 'Imported Contract - ' . now()->format('Y-m-d H:i'),
                 'trading_name' => $merchantInfo['name'],
-                'scaling_fee' => 0,
-                'transaction_percentage' => 0,
-                'transaction_fixed_fee' => 0,
-                'monthly_fee' => 0,
-                'monthly_minimum' => 0,
-                'setup_fee' => 0,
+                'scaling_fee' => $merchantInfo['fees']['scaling_fee'] ?? 0,
+                'transaction_percentage' => $merchantInfo['fees']['transaction_percentage'] ?? 0,
+                'transaction_fixed_fee' => $merchantInfo['fees']['transaction_fixed_fee'] ?? 0,
+                'monthly_fee' => $merchantInfo['fees']['monthly_fee'] ?? 0,
+                'monthly_minimum' => $merchantInfo['fees']['monthly_minimum'] ?? 0,
+                'setup_fee' => 0, // Not extracted from contract currently
             ]);
 
             // Store all PDFs
@@ -259,338 +259,225 @@ class MerchantImportController extends Controller
         }
     }
     
-/**
- * Extract merchant information from Summary.pdf (DocuSign completion certificate)
- * AND from the actual contract PDF to get the company name
- */
-private function extractMerchantInfoFromSummary(string $summaryPath, string $contractPdf = null): array
-{
-    $parser = new PdfParser();
-    $pdf = $parser->parseFile($summaryPath);
-    $text = $pdf->getText();
+    /**
+     * Extract merchant information from Summary.pdf (DocuSign completion certificate)
+     * AND from the actual contract PDF to get the company name and fee information
+     */
+    private function extractMerchantInfoFromSummary(string $summaryPath, string $contractPdf = null): array
+    {
+        $parser = new PdfParser();
+        $pdf = $parser->parseFile($summaryPath);
+        $text = $pdf->getText();
 
-    Log::info('Summary PDF content (first 2000 chars)', [
-        'content' => substr($text, 0, 2000),
-    ]);
-
-    // Extract SIGNER email from Summary.pdf (person who signed)
-    $signerEmail = null;
-    $signerName = null;
-
-    Log::info('Starting email extraction from Summary PDF');
-
-    // Method 1: Find email in Signer Events section
-    if (preg_match('/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})[\s\n]+Security Level:/i', $text, $matches)) {
-        Log::info('Email Method 1: Found email with Security Level pattern', ['email' => $matches[1]]);
-        $signerEmail = trim($matches[1]);
-        
-        // Get the name that appears before this email
-        $emailPos = strpos($text, $signerEmail);
-        $beforeEmail = substr($text, max(0, $emailPos - 200), 200);
-        
-        Log::info('Looking for name before email', ['text_before_email' => $beforeEmail]);
-        
-        if (preg_match('/\n([A-Z][a-zA-Z\s\'-]+)\s*\n/i', $beforeEmail, $nameMatches)) {
-            $signerName = trim($nameMatches[1]);
-            Log::info('Email Method 1: Found signer name', ['name' => $signerName]);
-        } else {
-            Log::info('Email Method 1: Could not find signer name before email');
-        }
-    } else {
-        Log::info('Email Method 1: Pattern did not match');
-    }
-
-    // Method 2: Alternative pattern
-    if (!$signerEmail || !$signerName) {
-        Log::info('Email Method 2: Trying alternative pattern', [
-            'has_email' => $signerEmail !== null,
-            'has_name' => $signerName !== null
+        Log::info('Summary PDF content (first 2000 chars)', [
+            'content' => substr($text, 0, 2000),
         ]);
-        
-        if (preg_match('/([A-Z][a-zA-Z\s\'-]+)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s+Security Level:/i', $text, $matches)) {
-            $signerName = trim($matches[1]);
-            $signerEmail = trim($matches[2]);
-            Log::info('Email Method 2: Found both name and email', [
-                'name' => $signerName,
-                'email' => $signerEmail
-            ]);
-        } else {
-            Log::info('Email Method 2: Pattern did not match');
-        }
-    } else {
-        Log::info('Email Method 2: Skipped (already have email and name)');
-    }
 
-    // Method 3: Find any valid email that's not a system email
-    if (!$signerEmail) {
-        Log::info('Email Method 3: Looking for any valid email');
-        
-        if (preg_match_all('/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i', $text, $allEmails)) {
-            Log::info('Email Method 3: Found emails', ['count' => count($allEmails[1]), 'emails' => $allEmails[1]]);
+        // Extract SIGNER email from Summary.pdf (person who signed)
+        $signerEmail = null;
+        $signerName = null;
+
+        Log::info('Starting email extraction from Summary PDF');
+
+        // Method 1: Find email in Signer Events section
+        if (preg_match('/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})[\s\n]+Security Level:/i', $text, $matches)) {
+            Log::info('Email Method 1: Found email with Security Level pattern', ['email' => $matches[1]]);
+            $signerEmail = trim($matches[1]);
             
-            foreach ($allEmails[1] as $foundEmail) {
-                if (!str_contains(strtolower($foundEmail), 'docusign') && 
-                    !str_contains(strtolower($foundEmail), 'g2pay')) {
-                    $signerEmail = $foundEmail;
-                    Log::info('Email Method 3: Selected email', ['email' => $signerEmail]);
-                    break;
-                } else {
-                    Log::info('Email Method 3: Skipped system email', ['email' => $foundEmail]);
-                }
+            // Get the name that appears before this email
+            $emailPos = strpos($text, $signerEmail);
+            $beforeEmail = substr($text, max(0, $emailPos - 200), 200);
+            
+            Log::info('Looking for name before email', ['text_before_email' => $beforeEmail]);
+            
+            if (preg_match('/\n([A-Z][a-zA-Z\s\'-]+)\s*\n/i', $beforeEmail, $nameMatches)) {
+                $signerName = trim($nameMatches[1]);
+                Log::info('Email Method 1: Found signer name', ['name' => $signerName]);
+            } else {
+                Log::info('Email Method 1: Could not find signer name before email');
             }
         } else {
-            Log::info('Email Method 3: No emails found');
+            Log::info('Email Method 1: Pattern did not match');
         }
-    } else {
-        Log::info('Email Method 3: Skipped (already have email)');
-    }
 
-    // Method 1b: If we have email but no name, look for name directly before email
-    if ($signerEmail && !$signerName) {
-        Log::info('Email Method 1b: Looking for name on line directly before email');
-        
-        // Pattern: Name on one line, email on next line
-        if (preg_match('/\n([A-Z][a-zA-Z\s\'-]+)\s*\n\s*' . preg_quote($signerEmail, '/') . '/i', $text, $nameMatches)) {
-            $signerName = trim($nameMatches[1]);
-            Log::info('Email Method 1b: Found signer name directly before email', ['name' => $signerName]);
-        } else {
-            Log::info('Email Method 1b: Pattern did not match');
-        }
-    } else {
-        Log::info('Email Method 1b: Skipped', [
-            'has_email' => $signerEmail !== null,
-            'has_name' => $signerName !== null
-        ]);
-    }
-
-    Log::info('Email extraction complete', [
-        'signer_email' => $signerEmail,
-        'signer_name' => $signerName
-    ]);
-
-    $recipientName = $signerName;
-
-    // PRIORITY 1: Extract company name from Summary PDF first (most reliable)
-    $merchantCompanyName = null;
-    
-    Log::info('Starting company name extraction - PRIORITY 1: Summary PDF');
-
-    // Pattern 1: Look for company name after "Director" or job title in Summary
-    if ($signerEmail) {
-        Log::info('Summary Pattern 1: Looking for company after job title (with email anchor)', [
-            'signer_email' => $signerEmail
-        ]);
-        
-        // Try to find the structure: email, then job title, then company name
-        if (preg_match('/'.preg_quote($signerEmail, '/').'[\s\n]+(?:Director|Manager|CEO|Owner|Partner|Chief)[\s\n]+([A-Z][A-Za-z\s&\(\)\.,-Ltd]+?)[\s\n]+(?:Security Level|Signed)/i', $text, $matches)) {
-            $merchantCompanyName = trim($matches[1]);
-            $merchantCompanyName = preg_replace('/\s+/', ' ', $merchantCompanyName);
-            Log::info('Summary Pattern 1: MATCH FOUND', ['company' => $merchantCompanyName]);
-        } else {
-            Log::info('Summary Pattern 1: No match');
-        }
-    } else {
-        Log::info('Summary Pattern 1: Skipped (no signer email)');
-    }
-
-    // Pattern 2: Alternative pattern - job title followed by company name
-    if (!$merchantCompanyName) {
-        Log::info('Summary Pattern 2: Looking for job title followed by company');
-        
-        if (preg_match('/(?:Director|Manager|CEO|Owner|Partner|Chief)[^\n]*[\s\n]+([A-Z][A-Za-z\s&\(\)\.,-Ltd]+?)[\s\n]+Security Level/i', $text, $matches)) {
-            $merchantCompanyName = trim($matches[1]);
-            $merchantCompanyName = preg_replace('/\s+/', ' ', $merchantCompanyName);
-            Log::info('Summary Pattern 2: MATCH FOUND', ['company' => $merchantCompanyName]);
-        } else {
-            Log::info('Summary Pattern 2: No match');
-        }
-    } else {
-        Log::info('Summary Pattern 2: Skipped (already found company name)');
-    }
-
-    // Pattern 3: Look for lines between email and "Security Level"
-    if (!$merchantCompanyName && $signerEmail) {
-        Log::info('Summary Pattern 3: Parsing lines between email and Security Level');
-        
-        $emailPos = strpos($text, $signerEmail);
-        $securityPos = strpos($text, 'Security Level', $emailPos);
-        
-        Log::info('Summary Pattern 3: Position check', [
-            'email_pos' => $emailPos,
-            'security_pos' => $securityPos
-        ]);
-        
-        if ($emailPos !== false && $securityPos !== false) {
-            $between = substr($text, $emailPos + strlen($signerEmail), $securityPos - $emailPos - strlen($signerEmail));
-            
-            Log::info('Summary Pattern 3: Text between email and Security Level', [
-                'text' => $between
+        // Method 2: Alternative pattern
+        if (!$signerEmail || !$signerName) {
+            Log::info('Email Method 2: Trying alternative pattern', [
+                'has_email' => $signerEmail !== null,
+                'has_name' => $signerName !== null
             ]);
             
-            // Look for lines that look like company names
-            $lines = explode("\n", $between);
-            Log::info('Summary Pattern 3: Found lines', ['count' => count($lines), 'lines' => $lines]);
+            if (preg_match('/([A-Z][a-zA-Z\s\'-]+)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s+Security Level:/i', $text, $matches)) {
+                $signerName = trim($matches[1]);
+                $signerEmail = trim($matches[2]);
+                Log::info('Email Method 2: Found both name and email', [
+                    'name' => $signerName,
+                    'email' => $signerEmail
+                ]);
+            } else {
+                Log::info('Email Method 2: Pattern did not match');
+            }
+        } else {
+            Log::info('Email Method 2: Skipped (already have email and name)');
+        }
+
+        // Method 3: Find any valid email that's not a system email
+        if (!$signerEmail) {
+            Log::info('Email Method 3: Looking for any valid email');
             
-            foreach ($lines as $index => $line) {
-                $line = trim($line);
-                Log::info("Summary Pattern 3: Examining line {$index}", ['line' => $line, 'empty' => empty($line)]);
+            if (preg_match_all('/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i', $text, $allEmails)) {
+                Log::info('Email Method 3: Found emails', ['count' => count($allEmails[1]), 'emails' => $allEmails[1]]);
                 
-                // Skip empty lines and job titles
-                if (empty($line)) {
-                    Log::info("Summary Pattern 3: Skipping line {$index} (empty)");
-                    continue;
+                foreach ($allEmails[1] as $foundEmail) {
+                    if (!str_contains(strtolower($foundEmail), 'docusign') && 
+                        !str_contains(strtolower($foundEmail), 'g2pay')) {
+                        $signerEmail = $foundEmail;
+                        Log::info('Email Method 3: Selected email', ['email' => $signerEmail]);
+                        break;
+                    } else {
+                        Log::info('Email Method 3: Skipped system email', ['email' => $foundEmail]);
+                    }
                 }
-                
-                if (preg_match('/^(Director|Manager|CEO|Owner|Partner|Chief)$/i', $line)) {
-                    Log::info("Summary Pattern 3: Skipping line {$index} (job title)", ['line' => $line]);
-                    continue;
-                }
-                
-                // If line looks like a company name
-                if (preg_match('/^[A-Z][A-Za-z\s&\(\)\.,-]+(Ltd|Limited|Inc|LLC|LLP|PLC|plc)?\.?$/i', $line)) {
-                    $merchantCompanyName = $line;
-                    Log::info("Summary Pattern 3: MATCH FOUND on line {$index}", ['company' => $merchantCompanyName]);
-                    break;
-                } else {
-                    Log::info("Summary Pattern 3: Line {$index} does not match company pattern", ['line' => $line]);
-                }
-            }
-            
-            if (!$merchantCompanyName) {
-                Log::info('Summary Pattern 3: No matching line found');
+            } else {
+                Log::info('Email Method 3: No emails found');
             }
         } else {
-            Log::info('Summary Pattern 3: Could not find positions');
+            Log::info('Email Method 3: Skipped (already have email)');
         }
-    } else {
-        Log::info('Summary Pattern 3: Skipped', [
-            'has_company_name' => $merchantCompanyName !== null,
-            'has_signer_email' => $signerEmail !== null
-        ]);
-    }
 
-    // Pattern 4: Try the Summary "Signed for and on behalf of" field
-    if (!$merchantCompanyName) {
-        Log::info('Summary Pattern 4: Looking for "Signed for and on behalf of"');
-        
-        if (preg_match('/Signed for and on behalf of\s+([A-Z][^\n]+)/i', $text, $matches)) {
-            $merchantCompanyName = trim($matches[1]);
-            Log::info('Summary Pattern 4: MATCH FOUND', ['company' => $merchantCompanyName]);
+        // Method 1b: If we have email but no name, look for name directly before email
+        if ($signerEmail && !$signerName) {
+            Log::info('Email Method 1b: Looking for name on line directly before email');
+            
+            // Pattern: Name on one line, email on next line
+            if (preg_match('/\n([A-Z][a-zA-Z\s\'-]+)\s*\n\s*' . preg_quote($signerEmail, '/') . '/i', $text, $nameMatches)) {
+                $signerName = trim($nameMatches[1]);
+                Log::info('Email Method 1b: Found signer name directly before email', ['name' => $signerName]);
+            } else {
+                Log::info('Email Method 1b: Pattern did not match');
+            }
         } else {
-            Log::info('Summary Pattern 4: No match');
-        }
-    } else {
-        Log::info('Summary Pattern 4: Skipped (already found company name)');
-    }
-
-    // PRIORITY 2: Only if Summary didn't work, try contract PDF
-    Log::info('Starting company name extraction - PRIORITY 2: Contract PDF', [
-        'has_company_name' => $merchantCompanyName !== null,
-        'contract_pdf_exists' => $contractPdf && file_exists($contractPdf)
-    ]);
-    
-    if (!$merchantCompanyName && $contractPdf && file_exists($contractPdf)) {
-        try {
-            $contractPdfParsed = $parser->parseFile($contractPdf);
-            $contractText = $contractPdfParsed->getText();
-            
-            Log::info('Contract PDF content (first 2000 chars)', [
-                'content' => substr($contractText, 0, 2000),
-            ]);
-            
-            // Pattern 1: "REGISTERED COMPANY NAME" field (most reliable in contract)
-            Log::info('Contract Pattern 1: Looking for "REGISTERED COMPANY NAME"');
-            if (preg_match('/REGISTERED COMPANY NAME[*\s]*:?[\s\n]+([A-Z][A-Za-z\s&\(\)\.,-]+)/i', $contractText, $matches)) {
-                $merchantCompanyName = trim($matches[1]);
-                Log::info('Contract Pattern 1: MATCH FOUND', ['company' => $merchantCompanyName]);
-            } else {
-                Log::info('Contract Pattern 1: No match');
-            }
-            
-            // Pattern 2: Look in document metadata/form fields
-            if (!$merchantCompanyName) {
-                Log::info('Contract Pattern 2: Looking for "Company:" field');
-                if (preg_match('/Company[:\s]+([A-Z][A-Za-z\s&\(\)\.,-]+)/i', $contractText, $matches)) {
-                    $merchantCompanyName = trim($matches[1]);
-                    Log::info('Contract Pattern 2: MATCH FOUND', ['company' => $merchantCompanyName]);
-                } else {
-                    Log::info('Contract Pattern 2: No match');
-                }
-            } else {
-                Log::info('Contract Pattern 2: Skipped (already found company name)');
-            }
-            
-            // Pattern 3: "hereinafter referred to as" pattern (common in contracts)
-            if (!$merchantCompanyName) {
-                Log::info('Contract Pattern 3: Looking for "hereinafter referred to as"');
-                if (preg_match('/([A-Z][A-Za-z\s&\(\)\.,-]{3,50}?)\s+\(hereinafter referred to as/i', $contractText, $matches)) {
-                    $merchantCompanyName = trim($matches[1]);
-                    Log::info('Contract Pattern 3: MATCH FOUND', ['company' => $merchantCompanyName]);
-                } else {
-                    Log::info('Contract Pattern 3: No match');
-                }
-            } else {
-                Log::info('Contract Pattern 3: Skipped (already found company name)');
-            }
-
-            // Pattern 4: "incorporated in England and Wales" - LAST RESORT (least reliable)
-            if (!$merchantCompanyName) {
-                Log::info('Contract Pattern 4: Looking for "incorporated in England and Wales" (LAST RESORT)');
-                if (preg_match('/([A-Z][A-Za-z\s&\(\)\.,-]{4,}?)\s+incorporated in England and Wales/i', $contractText, $matches)) {
-                    $merchantCompanyName = trim($matches[1]);
-                    $merchantCompanyName = preg_replace('/\s+/', ' ', $merchantCompanyName);
-                    Log::info('Contract Pattern 4: MATCH FOUND', ['company' => $merchantCompanyName]);
-                    Log::warning('Using "incorporated in England and Wales" pattern - this may be unreliable');
-                } else {
-                    Log::info('Contract Pattern 4: No match');
-                }
-            } else {
-                Log::info('Contract Pattern 4: Skipped (already found company name)');
-            }
-            
-        } catch (\Exception $e) {
-            Log::warning('Could not parse contract PDF for merchant name', [
-                'error' => $e->getMessage(),
+            Log::info('Email Method 1b: Skipped', [
+                'has_email' => $signerEmail !== null,
+                'has_name' => $signerName !== null
             ]);
         }
-    } else {
-        Log::info('Skipping contract PDF parsing', [
-            'reason' => $merchantCompanyName ? 'Already found company name in Summary' : 'File not provided or does not exist'
-        ]);
-    }
 
-    // Final fallback: Use signer name if nothing else found (least preferred)
-    if (!$merchantCompanyName && $signerName) {
-        Log::warning('Final Fallback: Using signer name as merchant name - this may not be the company name', [
+        Log::info('Email extraction complete', [
+            'signer_email' => $signerEmail,
             'signer_name' => $signerName
         ]);
-        $merchantCompanyName = $signerName;
-    } else if (!$merchantCompanyName) {
-        Log::error('Final Fallback: No company name found and no signer name to fall back on');
-    } else {
-        Log::info('Final Fallback: Skipped (already found company name)');
+
+        $recipientName = $signerName;
+
+        // Initialize variables for contract data
+        $merchantCompanyName = null;
+        $fees = [
+            'transaction_fixed_fee' => 0,
+            'monthly_fee' => 0,
+            'monthly_minimum' => 0,
+            'scaling_fee' => 0,
+            'transaction_percentage' => 0,
+        ];
+
+        // Extract company name and fees from contract PDF (application form - document 2)
+        Log::info('Extracting company name and fees from contract PDF');
+        
+        if ($contractPdf && file_exists($contractPdf)) {
+            try {
+                $contractPdfParsed = $parser->parseFile($contractPdf);
+                $contractText = $contractPdfParsed->getText();
+                
+                Log::info('Contract PDF content (first 2000 chars)', [
+                    'content' => substr($contractText, 0, 2000),
+                ]);
+                
+                // Extract REGISTERED COMPANY NAME (most reliable)
+                Log::info('Looking for "REGISTERED COMPANY NAME"');
+                if (preg_match('/REGISTERED COMPANY NAME[*\s]*:?[\s\n]+([A-Z][A-Za-z\s&\(\)\.,-Ltd]+?)(?:\n|$)/i', $contractText, $matches)) {
+                    $merchantCompanyName = trim($matches[1]);
+                    $merchantCompanyName = preg_replace('/\s+/', ' ', $merchantCompanyName);
+                    Log::info('Found REGISTERED COMPANY NAME', ['company' => $merchantCompanyName]);
+                } else {
+                    Log::info('REGISTERED COMPANY NAME not found');
+                }
+                
+                // Extract fees from the contract PDF
+                // Based on DocuSignService tabs positioning, these fields are in the contract
+                
+                // All Request Types - Fixed fee (near "All request types")
+                if (preg_match('/All request types[^\n]*[\s\n]+.*?£\s*([0-9]+\.?[0-9]*)/i', $contractText, $matches)) {
+                    $fees['transaction_fixed_fee'] = floatval($matches[1]);
+                    Log::info('Found transaction_fixed_fee', ['value' => $fees['transaction_fixed_fee']]);
+                }
+                
+                // Monthly Fee (first occurrence - near "Monthly Fee")
+                if (preg_match('/Monthly Fee(?:\s*\(inc PCI\))?[^\n]*[\s\n]+.*?£\s*([0-9]+\.?[0-9]*)/i', $contractText, $matches)) {
+                    $fees['monthly_fee'] = floatval($matches[1]);
+                    Log::info('Found monthly_fee', ['value' => $fees['monthly_fee']]);
+                }
+                
+                // Service fee/monthly minimum
+                if (preg_match('/Service fee\/monthly minimum[^\n]*[\s\n]+.*?£\s*([0-9]+\.?[0-9]*)/i', $contractText, $matches)) {
+                    $fees['monthly_minimum'] = floatval($matches[1]);
+                    Log::info('Found monthly_minimum', ['value' => $fees['monthly_minimum']]);
+                    
+                    // Check if there's a scaling fee mentioned (e.g., "£X first month. £Y thereafter")
+                    if (preg_match('/£\s*[0-9]+\.?[0-9]*\s+first month\.\s*£\s*([0-9]+\.?[0-9]*)\s+thereafter/i', $contractText, $scalingMatches)) {
+                        $fees['scaling_fee'] = floatval($scalingMatches[1]);
+                        Log::info('Found scaling_fee', ['value' => $fees['scaling_fee']]);
+                    }
+                }
+                
+                // UK Consumer Debit/Credit - Percentage
+                if (preg_match('/UK Consumer (?:Debit|Credit)[^\n]*[\s\n]+.*?([0-9]+\.?[0-9]*)\s*%/i', $contractText, $matches)) {
+                    $fees['transaction_percentage'] = floatval($matches[1]);
+                    Log::info('Found transaction_percentage', ['value' => $fees['transaction_percentage']]);
+                }
+                
+                Log::info('Extracted fees from contract', $fees);
+                
+            } catch (\Exception $e) {
+                Log::warning('Could not parse contract PDF for merchant name and fees', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } else {
+            Log::warning('Contract PDF not provided or does not exist');
+        }
+
+        // Final fallback: Use signer name if no company name found
+        if (!$merchantCompanyName && $signerName) {
+            Log::warning('Final Fallback: Using signer name as merchant name - this may not be the company name', [
+                'signer_name' => $signerName
+            ]);
+            $merchantCompanyName = $signerName;
+        } else if (!$merchantCompanyName) {
+            Log::error('Final Fallback: No company name found and no signer name to fall back on');
+        }
+
+        Log::info('Extracted merchant info - FINAL RESULT', [
+            'merchant_company_name' => $merchantCompanyName,
+            'signer_name' => $signerName,
+            'signer_email' => $signerEmail,
+            'fees' => $fees,
+        ]);
+
+        if (!$merchantCompanyName || !$signerEmail) {
+            throw new \Exception(
+                'Could not extract merchant company name and signer email from contract documents. ' .
+                'Please ensure the ZIP file contains both Summary.pdf and the signed contract PDF. ' .
+                'Found: Company=' . ($merchantCompanyName ?? 'none') . ', Email=' . ($signerEmail ?? 'none')
+            );
+        }
+
+        return [
+            'name' => $merchantCompanyName,  // Company name for account
+            'email' => $signerEmail,         // Signer's email for account login
+            'recipient_name' => $recipientName,
+            'fees' => $fees,                 // Fee information from contract
+        ];
     }
-
-    Log::info('Extracted merchant info - FINAL RESULT', [
-        'merchant_company_name' => $merchantCompanyName,
-        'signer_name' => $signerName,
-        'signer_email' => $signerEmail,
-    ]);
-
-    if (!$merchantCompanyName || !$signerEmail) {
-        throw new \Exception(
-            'Could not extract merchant company name and signer email from contract documents. ' .
-            'Please ensure the ZIP file contains both Summary.pdf and the signed contract PDF. ' .
-            'Found: Company=' . ($merchantCompanyName ?? 'none') . ', Email=' . ($signerEmail ?? 'none')
-        );
-    }
-
-    return [
-        'name' => $merchantCompanyName,  // Company name for account
-        'email' => $signerEmail,         // Signer's email for account login
-        'recipient_name' => $recipientName,
-    ];
-}
 
     /**
      * Store a PDF document

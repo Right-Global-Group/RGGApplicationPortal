@@ -706,7 +706,7 @@ export default {
       const timestamps = this.application.status?.timestamps
       
       // Show sign button if contract sent but not yet signed
-      return !!timestamps?.contract_sent && !timestamps?.contract_submitted
+      return !!timestamps?.contract_sent && !timestamps?.contract_signed
     },
     canEnterWordPress() {
       // Both users and accounts can enter WordPress credentials
