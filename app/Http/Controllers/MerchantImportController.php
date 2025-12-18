@@ -58,7 +58,7 @@ class MerchantImportController extends Controller
     public function import(): JsonResponse|RedirectResponse
     {
         $validated = Request::validate([
-            'files' => ['required', 'array', 'min:1', 'max:10'], // Support up to 10 files
+            'files' => ['required', 'array', 'min:1', 'max:100'], // Support up to 100 files
             'files.*' => ['required', 'file', 'mimes:zip', 'max:51200'], // Only ZIP files
         ]);
 
