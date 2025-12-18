@@ -11,7 +11,7 @@ return new class extends Migration
     {
         // Add additional document fields to applications table
         Schema::table('applications', function (Blueprint $table) {
-            $table->boolean('requires_additional_document')->default(false)->after('service_fee');
+            $table->boolean('requires_additional_document')->default(false)->after('setup_fee');
             $table->string('additional_document_name')->nullable()->after('requires_additional_document');
             $table->text('additional_document_instructions')->nullable()->after('additional_document_name');
         });

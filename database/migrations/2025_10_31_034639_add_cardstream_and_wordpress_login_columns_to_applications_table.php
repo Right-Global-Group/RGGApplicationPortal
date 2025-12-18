@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('applications', function (Blueprint $table) {
             // CardStream credentials
             if (!Schema::hasColumn('applications', 'cardstream_username')) {
-                $table->string('cardstream_username')->nullable()->after('service_fee');
+                $table->string('cardstream_username')->nullable()->after('setup_fee');
             }
             if (!Schema::hasColumn('applications', 'cardstream_password')) {
                 $table->string('cardstream_password')->nullable()->after('cardstream_username');

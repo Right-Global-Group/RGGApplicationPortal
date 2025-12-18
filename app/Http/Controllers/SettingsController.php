@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MerchantImport;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
@@ -38,10 +39,34 @@ class SettingsController extends Controller
             'name' => $permission->name,
         ]);
 
+        // Get import history for Merchant Importer tab
+        $importHistory = MerchantImport::with(['user', 'account', 'application'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->through(fn ($import) => [
+                'id' => $import->id,
+                'merchant_name' => $import->merchant_name,
+                'account_id' => $import->account_id,
+                'application_id' => $import->application_id,
+                'uploaded_by' => $import->user->name ?? 'Unknown',
+                'status' => $import->status,
+                'error_message' => $import->error_message,
+                'created_at' => $import->created_at->format('Y-m-d H:i'),
+                'account' => $import->account ? [
+                    'id' => $import->account->id,
+                    'name' => $import->account->name,
+                ] : null,
+                'application' => $import->application ? [
+                    'id' => $import->application->id,
+                    'name' => $import->application->name,
+                ] : null,
+            ]);
+
         return Inertia::render('Settings/Index', [
             'users' => $users,
             'roles' => $roles,
             'permissions' => $permissions,
+            'importHistory' => $importHistory,
         ]);
     }
 

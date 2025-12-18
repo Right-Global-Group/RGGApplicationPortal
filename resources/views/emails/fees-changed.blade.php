@@ -119,7 +119,7 @@
             
             <div class="fee-item">
                 <span class="fee-label">Setup Fee:</span>
-                <span class="fee-value">£{{ number_format($service_fee ?? 0, 2) }}</span>
+                <span class="fee-value">£{{ number_format($setup_fee ?? 0, 2) }}</span>
             </div>
         </div>
         

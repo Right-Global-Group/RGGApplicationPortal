@@ -79,7 +79,8 @@
       <table class="w-full whitespace-nowrap">
         <thead>
           <tr class="text-left font-bold bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <th class="pb-4 pt-6 px-6 text-magenta-400">Name</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400">Merchant Account Name</th>
+            <th class="pb-4 pt-6 px-6 text-magenta-400">Recipient Name</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Created By</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Created At</th>
             <th class="pb-4 pt-6 px-6 text-magenta-400">Updated At</th>
@@ -105,6 +106,9 @@
                 {{ account.name }}
                 <icon v-if="account.deleted_at" name="trash" class="shrink-0 ml-2 w-3 h-3 fill-gray-500" />
               </Link>
+            </td>
+            <td class="px-6 py-4 text-gray-300">
+              {{ account.recipient_name || '—' }}
             </td>
             <td class="px-6 py-4 text-gray-300">
               {{ account.user_name || '—' }}

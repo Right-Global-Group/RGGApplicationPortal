@@ -56,6 +56,11 @@
       <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">Monthly Minimum</div>
+            <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.monthly_minimum).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Made up of transactional fees</div>
+          </div>
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
             <div class="text-gray-400 text-sm mb-1">Scaling Fee (+ VAT)</div>
             <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.scaling_fee).toFixed(2) }}</div>
             <div class="text-gray-500 text-xs mt-1">
@@ -66,23 +71,17 @@
             <div class="text-2xl font-bold text-magenta-400">{{ application.transaction_percentage }}% + £{{ parseFloat(application.transaction_fixed_fee).toFixed(2) }}</div>
             <div class="text-gray-500 text-xs mt-1">Per transaction</div>
           </div>
-          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Monthly Fee</div>
-            <div class="text-2xl font-bold text-magenta-400">£{{ parseFloat(application.monthly_fee).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Fixed monthly charge</div>
-          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-            <div class="text-gray-400 text-sm mb-1">Monthly Minimum</div>
-            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.monthly_minimum).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Made up of transactional fees</div>
+            <div class="text-gray-400 text-sm mb-1">Monthly Fee</div>
+            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.monthly_fee).toFixed(2) }}</div>
+            <div class="text-gray-500 text-xs mt-1">Fixed monthly charge</div>
           </div>
           <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
             <div class="text-gray-400 text-sm mb-1">Setup Fee</div>
             <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.setup_fee).toFixed(2) }}</div>
-            <div class="text-gray-500 text-xs mt-1">Additional service charge</div>
           </div>
         </div>
       </div>
@@ -1091,7 +1090,7 @@ export default {
     canSendContract() {
       // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
-      return !this.is_account && !timestamps?.application_approved
+      return !this.is_account && !timestamps?.contract_signed
     },
 
     accountMessageReminder() {

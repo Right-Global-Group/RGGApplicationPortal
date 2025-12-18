@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('transaction_fixed_fee', 10, 2)->default(0.20)->after('transaction_percentage');
             $table->decimal('monthly_fee', 10, 2)->default(18.00)->after('transaction_fixed_fee');
             $table->decimal('monthly_minimum', 10, 2)->default(100.00)->after('monthly_fee');
-            $table->decimal('service_fee', 10, 2)->default(10.00)->after('monthly_minimum');
+            $table->decimal('setup_fee', 10, 2)->default(10.00)->after('monthly_minimum');
         });
     }
 
@@ -32,7 +32,7 @@ return new class extends Migration
                 'transaction_fixed_fee',
                 'monthly_fee',
                 'monthly_minimum',
-                'service_fee',
+                'setup_fee',
             ]);
             
             // Add back location fields

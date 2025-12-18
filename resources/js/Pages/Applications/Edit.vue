@@ -111,6 +111,12 @@
           <div class="p-8">
             <div class="grid grid-cols-2 gap-4">
               <div>
+                <label class="block text-gray-300 font-medium mb-2">Monthly Minimum</label>
+                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+                  £{{ parseFloat(application.monthly_minimum).toFixed(2) }}
+                </div>
+              </div>
+              <div>
                 <label class="block text-gray-300 font-medium mb-2">Scaling Fee</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
                   £{{ parseFloat(application.scaling_fee).toFixed(2)}}
@@ -126,12 +132,6 @@
                 <label class="block text-gray-300 font-medium mb-2">Monthly Fee</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
                   £{{ parseFloat(application.monthly_fee).toFixed(2) }}
-                </div>
-              </div>
-              <div>
-                <label class="block text-gray-300 font-medium mb-2">Monthly Minimum</label>
-                <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                  £{{ parseFloat(application.monthly_minimum).toFixed(2) }}
                 </div>
               </div>
               <div>

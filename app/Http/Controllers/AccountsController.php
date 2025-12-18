@@ -72,6 +72,7 @@ class AccountsController extends Controller
             ->through(fn ($account) => [
                 'id' => $account->id,
                 'name' => $account->name,
+                'recipient_name' => $account->recipient_name,
                 'email' => $account->email,
                 'mobile' => $account->mobile,
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
@@ -109,6 +110,7 @@ class AccountsController extends Controller
     {
         $validated = Request::validate([
             'name' => ['required', 'max:50'],
+            'recipient_name' => ['nullable', 'max:100'],
             'email' => ['required', 'email', 'unique:accounts,email'],
             'mobile' => ['nullable', 'string', 'max:20'],
             'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
@@ -126,6 +128,7 @@ class AccountsController extends Controller
 
         $account = Account::create([
             'name' => $validated['name'],
+            'recipient_name' => $validated['recipient_name'] ?? null,
             'email' => $validated['email'],
             'mobile' => $validated['mobile'] ?? null,
             'password' => $plainPassword,
@@ -166,6 +169,7 @@ class AccountsController extends Controller
             'account' => [
                 'id' => $account->id,
                 'name' => $account->name,
+                'recipient_name' => $account->recipient_name,
                 'email' => $account->email,
                 'mobile' => $account->mobile,
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
@@ -221,6 +225,7 @@ class AccountsController extends Controller
     {
         $validated = Request::validate([
             'name' => ['required', 'max:50'],
+            'recipient_name' => ['nullable', 'max:100'],
             'email' => ['required', 'email', 'unique:accounts,email,' . $account->id],
             'mobile' => ['nullable', 'string', 'max:20'],
             'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
@@ -228,6 +233,7 @@ class AccountsController extends Controller
 
         $account->update([
             'name' => $validated['name'],
+            'recipient_name' => $validated['recipient_name'] ?? null,
             'email' => $validated['email'],
             'mobile' => $validated['mobile'] ?? null,
         ]);

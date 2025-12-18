@@ -117,7 +117,8 @@
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
           <form @submit.prevent="update">
             <div class="flex flex-wrap -mb-8 -mr-6 p-8">
-              <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Account Name" />
+              <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Merchant Account Name" />
+              <text-input v-model="form.recipient_name" :error="form.errors.recipient_name" class="pb-8 pr-6 w-full lg:w-1/2" label="Recipient Name" /> 
               <text-input v-model="form.email" :error="form.errors.email" class="pb-8 pr-6 w-full lg:w-1/2" label="Email" type="email" />
               <text-input v-model="form.mobile" :error="form.errors.mobile" class="pb-8 pr-6 w-full lg:w-1/2" label="Mobile" type="tel" />
               <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" label="Photo" accept="image/*" />
@@ -245,6 +246,7 @@ export default {
     return {
       form: this.$inertia.form({
         name: this.account.name,
+        recipient_name: this.account.recipient_name,
         email: this.account.email,
         mobile: this.account.mobile,
         photo: null,

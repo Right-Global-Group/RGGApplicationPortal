@@ -12,6 +12,7 @@ use App\Http\Controllers\ProgressTrackerController;
 use App\Http\Controllers\EmailTemplatesController;
 use App\Http\Controllers\DocumentLibraryController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\MerchantImportController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -224,5 +225,8 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::get('/', [SettingsController::class, 'index'])->name('settings');
         Route::post('/users/{user}/toggle-admin', [SettingsController::class, 'toggleUserAdmin']);
         Route::post('/users/{user}/permissions', [SettingsController::class, 'updateUserPermissions']);
+
+        // Merchant Importer Routes
+        Route::post('/merchant-importer/import', [MerchantImportController::class, 'import'])->name('settings.merchant-importer.import');
     });
 });
