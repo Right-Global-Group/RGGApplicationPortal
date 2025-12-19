@@ -26,13 +26,20 @@ class ProcessCardstreamImport implements ShouldQueue
 
     public function handle(): void
     {
+        \Log::info('=== JOB STARTED ===', ['import_id' => $this->importId]);
+        
         $import = CardstreamImport::find($this->importId);
         
         if (!$import) {
             \Log::error('Import not found', ['import_id' => $this->importId]);
             return;
         }
-
+    
+        \Log::info('Setting status to processing', ['import_id' => $import->id]);
+        $import->update(['status' => 'processing']);
+        
+        \Log::info('Status updated, current status:', ['status' => $import->fresh()->status]);
+        
         try {
             $spreadsheet = IOFactory::load($this->filePath);
             $worksheet = $spreadsheet->getActiveSheet();
@@ -80,7 +87,7 @@ class ProcessCardstreamImport implements ShouldQueue
 
                     // Aggregate by merchant
                     $key = $merchantName;
-                    
+
                     if (!isset($merchantStats[$key])) {
                         $merchantStats[$key] = [
                             'merchant_id' => $merchantId,
@@ -91,6 +98,20 @@ class ProcessCardstreamImport implements ShouldQueue
                             'declined' => 0,
                             'canceled' => 0,
                         ];
+                    }
+
+                    $merchantStats[$key]['total_transactions']++;
+
+                    // FIX: Only increment if the state key exists
+                    if (isset($merchantStats[$key][$state])) {
+                        $merchantStats[$key][$state]++;
+                    } else {
+                        // Log unexpected states
+                        \Log::warning('Unexpected state encountered', [
+                            'state' => $state,
+                            'merchant' => $merchantName,
+                            'transaction_id' => $transactionId,
+                        ]);
                     }
                     
                     $merchantStats[$key]['total_transactions']++;

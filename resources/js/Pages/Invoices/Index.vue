@@ -20,6 +20,15 @@
       </div>
     </div>
 
+        <!-- Debug panel -->
+        <div class="bg-yellow-900 text-white p-4 mb-4 text-xs">
+      <div>selectedImportId: {{ selectedImportId }}</div>
+      <div>selectedImport: {{ selectedImport }}</div>
+      <div>status: {{ selectedImport?.status }}</div>
+      <div>processing check: {{ selectedImport?.status === 'processing' }}</div>
+      <div>polling active: {{ polling !== null }}</div>
+    </div>
+
     <!-- Progress Bar -->
     <div v-if="selectedImport?.status === 'processing'" class="mb-6 p-4 bg-blue-900/30 rounded-xl border border-blue-800/30">
       <div class="flex items-center justify-between mb-2">
@@ -241,7 +250,7 @@
 import { Head, router } from '@inertiajs/vue3'
 import Icon from '@/Shared/Icon.vue'
 import Layout from '@/Shared/Layout.vue'
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 export default {
   components: {
@@ -384,6 +393,21 @@ export default {
       })
     }
 
+    watch(() => props.selectedImport, (newVal) => {
+    console.log('selectedImport changed:', newVal)
+    }, { deep: true, immediate: true })
+
+    watch(() => props.selectedImport?.status, (newStatus) => {
+      console.log('Status changed to:', newStatus)
+      if (newStatus === 'processing') {
+        console.log('Starting polling...')
+        startPolling()
+      } else {
+        console.log('Stopping polling...')
+        stopPolling()
+      }
+    })
+
     return {
       totals,
       progressPercentage,
@@ -392,5 +416,6 @@ export default {
       deleteImport,
     }
   },
+  
 }
 </script>
