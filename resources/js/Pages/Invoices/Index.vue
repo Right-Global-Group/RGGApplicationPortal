@@ -5,8 +5,17 @@
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold text-white">Transaction Invoices</h1>
       
-      <!-- Upload Button -->
+      <!-- Upload and Refresh Buttons -->
       <div v-if="$page.props.auth.user.isAdmin" class="flex gap-3">
+        <button
+          @click="refreshPage"
+          class="btn-secondary flex items-center gap-2"
+          title="Refresh page"
+        >
+          <span class="text-lg">↻</span>
+          <span>Refresh</span>
+        </button>
+        
         <label class="btn-primary flex items-center gap-2 cursor-pointer">
           <icon name="upload" class="w-5 h-5 fill-current" />
           <span>Upload Transaction List</span>
@@ -18,15 +27,6 @@
           />
         </label>
       </div>
-    </div>
-
-        <!-- Debug panel -->
-        <div class="bg-yellow-900 text-white p-4 mb-4 text-xs">
-      <div>selectedImportId: {{ selectedImportId }}</div>
-      <div>selectedImport: {{ selectedImport }}</div>
-      <div>status: {{ selectedImport?.status }}</div>
-      <div>processing check: {{ selectedImport?.status === 'processing' }}</div>
-      <div>polling active: {{ polling !== null }}</div>
     </div>
 
     <!-- Progress Bar -->
@@ -330,6 +330,10 @@
           polling.value = null
         }
       }
+
+      const refreshPage = () => {
+        window.location.reload()
+      }
   
       // Watch for status changes and manage polling
       watch(() => props.selectedImport?.status, (newStatus, oldStatus) => {
@@ -412,6 +416,7 @@
         selectImport,
         handleFileUpload,
         deleteImport,
+        refreshPage,
         polling,
       }
     },
