@@ -239,11 +239,6 @@ class MerchantImportController extends Controller
             }
         }
 
-        Log::info('Email and name extraction complete from Summary PDF', [
-            'signer_email' => $signerEmail,
-            'signer_name' => $signerName
-        ]);
-
         // Initialize variables
         $merchantCompanyName = null;
         $fees = [
@@ -260,21 +255,13 @@ class MerchantImportController extends Controller
                 $formPdfParsed = $parser->parseFile($formPdf);
                 $formText = $formPdfParsed->getText();
                 
-                Log::info('Form PDF FULL DUMP (first 2000 chars)', [
-                    'text' => substr($formText, 0, 2000)
-                ]);
-                
                 // Pattern 1: Look for text after "REGISTERED COMPANY NAME" field
                 $fieldPos = stripos($formText, '1. REGISTERED COMPANY NAME');
                 if ($fieldPos !== false) {
                     $afterField = substr($formText, $fieldPos, 500);
-                    Log::info('Text after REGISTERED COMPANY NAME field', [
-                        'text' => $afterField
-                    ]);
-                    
+
                     if (preg_match('/1\.\s*REGISTERED COMPANY NAME\*?\s*[\r\n]+([^\r\n]+(?:[\r\n]+[^\r\n]+)?)/', $afterField, $matches)) {
                         $potentialName = trim($matches[1]);
-                        Log::info('Extracted potential company name (raw)', ['name' => $potentialName]);
                         
                         // Clean up: remove newlines within the name and consolidate spaces
                         $potentialName = preg_replace('/[\r\n]+/', ' ', $potentialName);
@@ -283,7 +270,6 @@ class MerchantImportController extends Controller
                         // Skip if it's clearly a field label
                         if (!preg_match('/^(2\.|REGISTRATION|NUMBER|ADDRESS|TRADING)/i', $potentialName)) {
                             $merchantCompanyName = $potentialName;
-                            Log::info('Found company name (Pattern 1)', ['company' => $merchantCompanyName]);
                         }
                     }
                 }
@@ -306,9 +292,7 @@ class MerchantImportController extends Controller
                         // Envelope ID format: alphanumeric with hyphens, like "199F4FC8-A131-423B-BE8E-6C8020B72766"
                         if (preg_match('/Docusign Envelope ID:\s*([A-F0-9\-]+)\s*(.+)?/i', $firstLine, $match)) {
                             $textAfterEnvelopeId = isset($match[2]) ? trim($match[2]) : '';
-                            
-                            Log::info('Text after envelope ID on same line', ['text' => $textAfterEnvelopeId]);
-                            
+                                                        
                             // Get subsequent lines (skip the first line which is the envelope ID line)
                             $linesAfterEnvelope = [];
                             
@@ -338,9 +322,7 @@ class MerchantImportController extends Controller
                         if (count($linesAfterEnvelope) > 0) {
                             // FIX: Smart company name extraction with multi-line and postcode handling
                             $potentialName = null;
-                            
-                            Log::info('Lines after envelope ID for analysis', ['lines' => array_slice($linesAfterEnvelope, 0, 3)]);
-                            
+                                                        
                             // Helper function to check if a line is a UK postcode
                             $isPostcodeFn = function($line) {
                                 // UK postcode patterns: CR02LA, ME115BE, SM46EE, etc.
@@ -374,7 +356,6 @@ class MerchantImportController extends Controller
                                     if (strlen($secondLine) <= 30) {
                                         // Likely part of the company name (e.g., "Kink" + "Competitions")
                                         $nameParts[] = $secondLine;
-                                        Log::info('Adding second line to company name', ['part' => $secondLine]);
                                     }
                                 }
                             } elseif ($secondLine && $looksLikeCompanyName($secondLine) && !$isPostcodeFn($secondLine)) {
@@ -388,10 +369,6 @@ class MerchantImportController extends Controller
                                 // Final validation: company name should be 5-100 chars
                                 if (strlen($potentialName) >= 5 && strlen($potentialName) <= 100) {
                                     $merchantCompanyName = $potentialName;
-                                    Log::info('Found company name (Pattern 2 - multi-line aware)', [
-                                        'company' => $merchantCompanyName,
-                                        'parts' => $nameParts
-                                    ]);
                                 }
                             }
                         }
@@ -406,17 +383,13 @@ class MerchantImportController extends Controller
         // FIX 3: IMPROVED FEE EXTRACTION FROM CONTRACT PDF
         if ($formPdf) {
             $contractPdf = dirname($formPdf) . '/G2PAY_merchant_contract_.docx.pdf';
-            
-            Log::info('Looking for contract PDF', ['path' => $contractPdf, 'exists' => file_exists($contractPdf)]);
-            
+                        
             if (!file_exists($contractPdf)) {
                 $files = scandir(dirname($formPdf));
-                Log::info('Files in directory', ['files' => $files]);
                 
                 foreach ($files as $file) {
                     if (stripos($file, 'g2pay') !== false && stripos($file, 'contract') !== false) {
                         $contractPdf = dirname($formPdf) . '/' . $file;
-                        Log::info('Found contract PDF', ['path' => $contractPdf]);
                         break;
                     }
                 }
@@ -426,17 +399,11 @@ class MerchantImportController extends Controller
                 try {
                     $contractPdfParsed = $parser->parseFile($contractPdf);
                     $contractText = $contractPdfParsed->getText();
-                    
-                    Log::info('Contract PDF total length', ['length' => strlen($contractText)]);
-                    
+                                        
                     // Extract Schedule 3 section
                     $schedule3Pos = stripos($contractText, 'SCHEDULE 3');
                     if ($schedule3Pos !== false) {
                         $schedule3Section = substr($contractText, $schedule3Pos, 5000);
-                        
-                        Log::info('FULL Schedule 3 section', [
-                            'text' => $schedule3Section
-                        ]);
                         
                         // Get text after envelope ID - this contains the actual values
                         $envelopePos = stripos($schedule3Section, 'Docusign Envelope ID:');
@@ -451,9 +418,7 @@ class MerchantImportController extends Controller
                             } else {
                                 $valuesSection = $afterEnvelopeId;
                             }
-                            
-                            Log::info('Values section after envelope ID', ['text' => $valuesSection]);
-                            
+                                                        
                             // FIX 4B: IMPROVED VALUE EXTRACTION REGEX
                             // More flexible pattern that catches percentages with or without % symbol
                             preg_match_all('/(?:£\s*)?(\d+(?:\.\d+)?)\s*(%|p)?/i', $valuesSection, $allMatches, PREG_SET_ORDER);
@@ -491,12 +456,6 @@ class MerchantImportController extends Controller
                                 }
                             }
                             
-                            Log::info('Parsed fee values', [
-                                'all_values' => $allValues,
-                                'pounds' => $pounds,
-                                'percents' => $percents
-                            ]);
-                            
                             // Reset fees
                             $fees = [
                                 'transaction_fixed_fee' => 0,
@@ -518,7 +477,6 @@ class MerchantImportController extends Controller
                             if (count($explicitPercents) >= 1) {
                                 // Use the FIRST explicit percentage (UK Consumer Debit/Credit rate)
                                 $fees['transaction_percentage'] = $explicitPercents[0];
-                                Log::info('Using first explicit percentage', ['value' => $explicitPercents[0], 'all_percents' => $explicitPercents]);
                             } else {
                                 Log::warning('No explicit percentage values found with % symbol');
                             }
@@ -549,23 +507,14 @@ class MerchantImportController extends Controller
                             if (preg_match('/£(\d+)\s+first\s+month.*?£(\d+)\s+thereafter/i', $schedule3Section, $monthlyPattern)) {
                                 $fees['monthly_minimum'] = floatval($monthlyPattern[1]);
                                 $fees['scaling_fee'] = floatval($monthlyPattern[2]);
-                                Log::info('Found monthly pattern', [
-                                    'first_month' => $fees['monthly_minimum'],
-                                    'thereafter' => $fees['scaling_fee']
-                                ]);
                             }
                             
                             // Alternative: look for standalone "thereafter" for scaling fee
                             if ($fees['scaling_fee'] === 0 && preg_match('/thereafter.*?£(\d+(?:\.\d+)?)/i', $schedule3Section, $scalingMatch)) {
                                 $fees['scaling_fee'] = floatval($scalingMatch[1]);
                                 Log::info('Found scaling fee', ['value' => $fees['scaling_fee']]);
-                            }
-                            
-                            Log::info('Fee extraction complete', ['fees' => $fees]);
+                            }  
                         }
-                        
-                    } else {
-                        Log::warning('Could not find SCHEDULE 3 in contract PDF');
                     }
                     
                 } catch (\Exception $e) {
@@ -580,28 +529,14 @@ class MerchantImportController extends Controller
         if (!$merchantCompanyName) {
             // Only use signer name if it's valid and properly cleaned
             if ($signerName && $signerName !== null) {
-                Log::warning('No company name found - using cleaned signer name as fallback', [
-                    'signer_name' => $signerName,
-                ]);
                 $merchantCompanyName = $signerName;
             } elseif ($signerEmail) {
                 // Last resort: use email domain as company name
                 $emailParts = explode('@', $signerEmail);
                 $domain = $emailParts[1] ?? 'Unknown';
                 $merchantCompanyName = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domain)[0]));
-                Log::warning('Using email domain as company name fallback', [
-                    'company_name' => $merchantCompanyName,
-                    'email' => $signerEmail
-                ]);
             }
         }
-
-        Log::info('Extracted merchant info - FINAL', [
-            'company_name' => $merchantCompanyName,
-            'signer_name' => $signerName,
-            'signer_email' => $signerEmail,
-            'fees' => $fees,
-        ]);
 
         // Validate - only email is required
         if (!$signerEmail) {

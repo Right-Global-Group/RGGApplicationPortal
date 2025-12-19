@@ -86,115 +86,35 @@ class InvoicesController extends Controller
     public function upload(): RedirectResponse
     {
         Request::validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'], // 10MB max
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:102400'], // 100MB max
         ]);
-
+    
         $file = Request::file('file');
         $filename = $file->getClientOriginalName();
-
+    
         try {
-            DB::beginTransaction();
-
+            // Store the file temporarily
+            $path = $file->store('imports', 'local');
+            $fullPath = storage_path('app/' . $path);
+    
             // Create import record
             $import = CardstreamImport::create([
                 'user_id' => auth()->id(),
                 'filename' => $filename,
                 'total_rows' => 0,
                 'imported_at' => now(),
+                'status' => 'pending',
             ]);
-
-            // Process the file
-            $spreadsheet = IOFactory::load($file->getRealPath());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-
-            // Skip header row
-            $dataRows = array_slice($rows, 1);
-            $processedCount = 0;
-
-            foreach ($dataRows as $row) {
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-
-                // Map columns based on your CSV structure
-                // Adjust indices based on actual column positions
-                $transactionId = $row[0] ?? null;
-                $transactionDate = $row[1] ?? null;
-                $merchantId = $row[5] ?? null;
-                $merchantName = $row[6] ?? null;
-                $action = $row[9] ?? null;
-                $currency = $row[12] ?? null;
-                $amount = $row[14] ?? 0;
-                $customerName = $row[24] ?? null;
-                $customerEmail = $row[26] ?? null;
-                $cardType = $row[28] ?? null;
-                $stateFromCsv = $row[41] ?? null; // State column in CSV
-                $responseCode = $row[42] ?? null;
-                $responseMessage = $row[43] ?? null;
-
-                // Skip if essential data is missing
-                if (!$transactionId || !$merchantName) {
-                    continue;
-                }
-
-                // Determine state - use CSV state if available, otherwise calculate it
-                if (!empty($stateFromCsv)) {
-                    $state = strtolower($stateFromCsv);
-                } else {
-                    $state = CardstreamTransaction::determineState($responseMessage, $responseCode);
-                }
-
-                // Parse transaction date
-                try {
-                    // Check if it's a numeric Excel date or a string date
-                    if (is_numeric($transactionDate)) {
-                        // Excel numeric date format
-                        $transactionDateTime = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($transactionDate);
-                    } else {
-                        // String date format (CSV) - parse directly
-                        $transactionDateTime = new \DateTime($transactionDate);
-                    }
-                } catch (\Exception $e) {
-                    // If all parsing fails, use current time
-                    $transactionDateTime = new \DateTime();
-                }
-
-                CardstreamTransaction::create([
-                    'import_id' => $import->id,
-                    'transaction_id' => $transactionId,
-                    'transaction_date' => $transactionDateTime,
-                    'merchant_id' => $merchantId,
-                    'merchant_name' => $merchantName,
-                    'action' => $action,
-                    'currency' => $currency,
-                    'amount' => $amount,
-                    'customer_name' => $customerName,
-                    'customer_email' => $customerEmail,
-                    'card_type' => $cardType,
-                    'response_code' => $responseCode,
-                    'response_message' => $responseMessage,
-                    'state' => $state,
-                    'raw_data' => $row,
-                ]);
-
-                $processedCount++;
-            }
-
-            // Update import with total rows
-            $import->update(['total_rows' => $processedCount]);
-
-            DB::commit();
-
+    
+            // Dispatch job to process in background
+            ProcessCardstreamImport::dispatch($import, $fullPath);
+    
             return Redirect::route('invoices.index', ['import_id' => $import->id])
-                ->with('success', "Successfully imported {$processedCount} transactions from {$filename}");
-
+                ->with('success', "Import started for {$filename}. Processing in background...");
+    
         } catch (\Exception $e) {
-            DB::rollBack();
-            
             return Redirect::back()
-                ->with('error', 'Failed to import file: ' . $e->getMessage());
+                ->with('error', 'Failed to start import: ' . $e->getMessage());
         }
     }
 

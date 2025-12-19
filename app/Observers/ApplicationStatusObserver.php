@@ -9,6 +9,11 @@ class ApplicationStatusObserver
 {
     public function updated(ApplicationStatus $status)
     {
+        // Only trigger if current_step actually changed
+        if (!$status->wasChanged('current_step')) {
+            return;
+        }
+
         // Auto-trigger actions based on status changes
         match($status->current_step) {
             'application_sent' => $this->handleApplicationSent($status),
@@ -26,8 +31,10 @@ class ApplicationStatusObserver
 
     private function handleContractCompleted(ApplicationStatus $status)
     {
-        // Auto-submit the contract
-        $status->transitionTo('contract_submitted', 'Auto-submitted after signing');
+        // Prevent recursion by checking if already submitted
+        if ($status->current_step !== 'contract_submitted') {
+            $status->transitionTo('contract_submitted', 'Auto-submitted after signing');
+        }
     }
 
     private function handleApplicationApproved(ApplicationStatus $status)
