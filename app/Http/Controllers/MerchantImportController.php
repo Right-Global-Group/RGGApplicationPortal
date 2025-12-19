@@ -370,13 +370,24 @@ class MerchantImportController extends Controller
                             // Get subsequent lines (skip the first line which is the envelope ID line)
                             $linesAfterEnvelope = [];
                             
-                            // If there's text after the envelope ID, add it as the first line
-                            if (!empty($textAfterEnvelopeId) && strlen($textAfterEnvelopeId) > 0) {
+                            // FIX: Check if text after envelope ID looks like business type
+                            $isBusinessType = false;
+                            if (!empty($textAfterEnvelopeId)) {
+                                if (preg_match('/(prize|competition|products|services|offered|marketed|website|ecom|moto)/i', $textAfterEnvelopeId)) {
+                                    $isBusinessType = true;
+                                    Log::info('Text after envelope ID looks like business type, will skip it', [
+                                        'text' => $textAfterEnvelopeId
+                                    ]);
+                                }
+                            }
+                            
+                            // Only add text after envelope ID if it doesn't look like business type
+                            if (!$isBusinessType && !empty($textAfterEnvelopeId) && strlen($textAfterEnvelopeId) > 0) {
                                 $linesAfterEnvelope[] = $textAfterEnvelopeId;
                             }
                             
                             // Add the rest of the lines
-                            for ($i = 1; $i < min(count($lines), 6); $i++) {
+                            for ($i = 1; $i < min(count($lines), 10); $i++) {
                                 $line = trim($lines[$i]);
                                 if (strlen($line) > 0) {
                                     $linesAfterEnvelope[] = $line;
