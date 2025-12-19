@@ -718,7 +718,7 @@ class MerchantImportController extends Controller
             }
 
             // Extract merchant info
-            $merchantInfo = $this->extractMerchantInfoFromSummary($summaryPath, $formPdf);
+            $merchantInfo = $this->extractMerchantInfoFromSummary($summaryPdf, $formPdf);
 
             // Check if account exists
             $account = Account::where('email', $merchantInfo['email'])->first();
