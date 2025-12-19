@@ -144,6 +144,9 @@
                       <div class="text-sm text-gray-400">
                         {{ selectedImport.processed_rows.toLocaleString() }} / {{ selectedImport.estimated_total.toLocaleString() }} rows processed
                       </div>
+                      <div class="text-xs text-gray-500 mt-2">
+                        This may take a few minutes for large files
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -357,11 +360,11 @@ export default {
       formData.append('file', file)
 
       router.post('/invoices/upload', formData, {
-        preserveState: true,
+        preserveState: false, // Changed from true - this will reload the page
         preserveScroll: false,
-        onSuccess: () => {
+        onSuccess: (page) => {
           event.target.value = ''
-          checkStatus() // Start polling for new import
+          // The redirect already happens from controller
         },
         onError: (errors) => {
           console.error('Upload error:', errors)
