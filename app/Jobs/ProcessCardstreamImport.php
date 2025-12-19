@@ -11,7 +11,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Reader\Csv;
 
 class ProcessCardstreamImport implements ShouldQueue
 {
@@ -28,19 +27,28 @@ class ProcessCardstreamImport implements ShouldQueue
     public function handle(): void
     {
         try {
-            // Use CSV reader with chunking for better memory usage
-            $reader = new Csv();
-            $reader->setReadDataOnly(true);
-            $spreadsheet = $reader->load($this->filePath);
+            // Use IOFactory to automatically detect file type (CSV, XLSX, XLS)
+            $spreadsheet = IOFactory::load($this->filePath);
             $worksheet = $spreadsheet->getActiveSheet();
             
             $highestRow = $worksheet->getHighestRow();
             $processedCount = 0;
             $chunkSize = 1000; // Process 1000 rows at a time
             
+            \Log::info('Starting import processing', [
+                'import_id' => $this->import->id,
+                'filename' => $this->import->filename,
+                'total_rows' => $highestRow,
+            ]);
+            
             // Skip header row (start from row 2)
             for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
                 $endRow = min($startRow + $chunkSize - 1, $highestRow);
+                
+                \Log::info('Processing chunk', [
+                    'start_row' => $startRow,
+                    'end_row' => $endRow,
+                ]);
                 
                 DB::beginTransaction();
                 
@@ -48,6 +56,7 @@ class ProcessCardstreamImport implements ShouldQueue
                     $transactions = [];
                     
                     for ($row = $startRow; $row <= $endRow; $row++) {
+                        // Get entire row - adjust range if you have more columns
                         $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
                         
                         // Skip empty rows
@@ -84,8 +93,10 @@ class ProcessCardstreamImport implements ShouldQueue
                         // Parse transaction date
                         try {
                             if (is_numeric($transactionDate)) {
+                                // Excel numeric date format
                                 $transactionDateTime = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($transactionDate);
                             } else {
+                                // String date format (CSV)
                                 $transactionDateTime = new \DateTime($transactionDate);
                             }
                         } catch (\Exception $e) {
@@ -118,12 +129,21 @@ class ProcessCardstreamImport implements ShouldQueue
                     // Bulk insert for better performance
                     if (!empty($transactions)) {
                         CardstreamTransaction::insert($transactions);
+                        \Log::info('Inserted chunk', [
+                            'count' => count($transactions),
+                            'total_processed' => $processedCount,
+                        ]);
                     }
                     
                     DB::commit();
                     
                 } catch (\Exception $e) {
                     DB::rollBack();
+                    \Log::error('Chunk processing failed', [
+                        'start_row' => $startRow,
+                        'end_row' => $endRow,
+                        'error' => $e->getMessage(),
+                    ]);
                     throw $e;
                 }
                 
@@ -143,10 +163,21 @@ class ProcessCardstreamImport implements ShouldQueue
                 'status' => 'completed',
             ]);
             
+            \Log::info('Import completed successfully', [
+                'import_id' => $this->import->id,
+                'total_rows' => $processedCount,
+            ]);
+            
             // Clean up file
             @unlink($this->filePath);
             
         } catch (\Exception $e) {
+            \Log::error('Import failed', [
+                'import_id' => $this->import->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
             $this->import->update([
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
