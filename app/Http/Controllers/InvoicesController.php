@@ -115,7 +115,7 @@ class InvoicesController extends Controller
                 'status' => 'pending',
             ]);
 
-            ProcessCardstreamImport::dispatch($import, $fullPath);
+            ProcessCardstreamImport::dispatch($import->id, $fullPath);
             
             return Redirect::route('invoices.index', ['import_id' => $import->id])
                 ->with('success', "Import started for {$filename}. Processing in background...");
