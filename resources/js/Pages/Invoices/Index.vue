@@ -109,14 +109,14 @@
       <div class="lg:col-span-2">
         <div v-if="!selectedImportId" class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-primary-800/30 p-12 text-center">
           <icon name="invoices" class="w-16 h-16 fill-gray-600 mx-auto mb-4" />
-          <p class="text-gray-400 text-lg">Select an import to view merchant statistics</p>
+          <p class="text-gray-400 text-lg">Select an import to view filtered merchant transaction list.</p>
         </div>
 
         <div v-else class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-primary-800/30">
           <div class="bg-gradient-to-r from-primary-900/50 to-magenta-900/50 px-6 py-4 border-b border-primary-800/30">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-xl font-bold text-magenta-400">Merchant Statistics</h2>
+                <h2 class="text-xl font-bold text-magenta-400">Merchant Transactions</h2>
                 <p class="text-sm text-gray-400 mt-1">{{ selectedImport?.filename }}</p>
               </div>
               <div class="text-sm text-gray-400">
