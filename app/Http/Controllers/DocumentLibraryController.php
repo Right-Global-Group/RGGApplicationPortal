@@ -24,16 +24,27 @@ class DocumentLibraryController extends Controller
         // Get applications based on user type
         if ($isAccount) {
             $applications = Application::where('account_id', auth()->guard('account')->id())
-                ->with(['documents', 'status'])
+                ->with(['documents' => function ($query) {
+                    $query->orderBy('created_at', 'desc');
+                }, 'status'])
+                ->orderBy('created_at', 'desc')
                 ->get();
         } else {
             $user = auth()->guard('web')->user();
             if ($user->isAdmin()) {
-                $applications = Application::with(['documents', 'status'])->get();
+                $applications = Application::with(['documents' => function ($query) {
+                    $query->orderBy('created_at', 'desc');
+                }, 'status'])
+                ->orderBy('created_at', 'desc')
+                ->get();
             } else {
                 $applications = Application::whereHas('account', function ($query) use ($user) {
                     $query->where('user_id', $user->id);
-                })->with(['documents', 'status'])->get();
+                })->with(['documents' => function ($query) {
+                    $query->orderBy('created_at', 'desc');
+                }, 'status'])
+                ->orderBy('created_at', 'desc')
+                ->get();
             }
         }
 
