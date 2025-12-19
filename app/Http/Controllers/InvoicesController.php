@@ -42,17 +42,15 @@ class InvoicesController extends Controller
             $selectedImport = CardstreamImport::find($selectedImportId);
             
             if ($selectedImport) {
-                // Get merchant statistics
+                // Get merchant statistics from dedicated table
                 $stats = $selectedImport->getMerchantStats();
                 
-                // Get all accounts with their first application to match merchant names with monthly fees
+                // Get all accounts with their first application
                 $accounts = Account::with('applications')->get()->keyBy('name');
                 
                 $merchantStats = $stats->map(function ($stat) use ($accounts) {
-                    // Try to find matching account by name
                     $account = $accounts->get($stat->merchant_name);
                     
-                    // Get monthly_fee from first application if account exists
                     $monthlyFee = null;
                     if ($account && $account->applications->isNotEmpty()) {
                         $monthlyFee = $account->applications->first()->monthly_fee;
@@ -61,11 +59,11 @@ class InvoicesController extends Controller
                     return [
                         'merchant_name' => $stat->merchant_name,
                         'merchant_id' => $stat->merchant_id,
-                        'accepted' => (int) $stat->accepted,
-                        'received' => (int) $stat->received,
-                        'declined' => (int) $stat->declined,
-                        'canceled' => (int) $stat->canceled,
-                        'total_transactions' => (int) $stat->total_transactions,
+                        'accepted' => $stat->accepted,
+                        'received' => $stat->received,
+                        'declined' => $stat->declined,
+                        'canceled' => $stat->canceled,
+                        'total_transactions' => $stat->total_transactions,
                         'monthly_fee' => $monthlyFee,
                     ];
                 })->toArray();

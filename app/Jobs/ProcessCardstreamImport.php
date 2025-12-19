@@ -3,24 +3,22 @@
 namespace App\Jobs;
 
 use App\Models\CardstreamImport;
+use App\Models\CardstreamMerchantTransactionList;
 use App\Models\CardstreamTransaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-// REMOVE SerializesModels - it's causing the foreign key issue
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ProcessCardstreamImport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
-    // Removed SerializesModels
 
     public $timeout = 600;
     public $tries = 1;
 
-    // Store import ID instead of the model
     public function __construct(
         public int $importId,
         public string $filePath
@@ -28,7 +26,6 @@ class ProcessCardstreamImport implements ShouldQueue
 
     public function handle(): void
     {
-        // Load the import fresh from database
         $import = CardstreamImport::find($this->importId);
         
         if (!$import) {
@@ -44,6 +41,9 @@ class ProcessCardstreamImport implements ShouldQueue
             $processedCount = 0;
             $chunkSize = 1000;
             
+            // Track merchant stats in memory
+            $merchantStats = [];
+            
             \Log::info('Starting import processing', [
                 'import_id' => $import->id,
                 'filename' => $import->filename,
@@ -53,100 +53,88 @@ class ProcessCardstreamImport implements ShouldQueue
             for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
                 $endRow = min($startRow + $chunkSize - 1, $highestRow);
                 
-                DB::beginTransaction();
-                
-                try {
-                    $transactions = [];
+                for ($row = $startRow; $row <= $endRow; $row++) {
+                    $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
                     
-                    for ($row = $startRow; $row <= $endRow; $row++) {
-                        $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
-                        
-                        if (empty(array_filter($rowData))) {
-                            continue;
-                        }
+                    if (empty(array_filter($rowData))) {
+                        continue;
+                    }
 
-                        $transactionId = $rowData[0] ?? null;
-                        $transactionDate = $rowData[1] ?? null;
-                        $merchantId = $rowData[5] ?? null;
-                        $merchantName = $rowData[6] ?? null;
-                        $action = $rowData[9] ?? null;
-                        $currency = $rowData[12] ?? null;
-                        $amount = $rowData[14] ?? 0;
-                        $customerName = $rowData[24] ?? null;
-                        $customerEmail = $rowData[26] ?? null;
-                        $cardType = $rowData[28] ?? null;
-                        $stateFromCsv = $rowData[41] ?? null;
-                        $responseCode = $rowData[42] ?? null;
-                        $responseMessage = $rowData[43] ?? null;
+                    $transactionId = $rowData[0] ?? null;
+                    $merchantId = $rowData[5] ?? null;
+                    $merchantName = $rowData[6] ?? null;
+                    $stateFromCsv = $rowData[41] ?? null;
+                    $responseCode = $rowData[42] ?? null;
+                    $responseMessage = $rowData[43] ?? null;
 
-                        if (!$transactionId || !$merchantName) {
-                            continue;
-                        }
+                    if (!$transactionId || !$merchantName) {
+                        continue;
+                    }
 
-                        if (!empty($stateFromCsv)) {
-                            $state = strtolower($stateFromCsv);
-                        } else {
-                            $state = CardstreamTransaction::determineState($responseMessage, $responseCode);
-                        }
+                    // Determine state
+                    if (!empty($stateFromCsv)) {
+                        $state = strtolower($stateFromCsv);
+                    } else {
+                        $state = CardstreamTransaction::determineState($responseMessage, $responseCode);
+                    }
 
-                        try {
-                            if (is_numeric($transactionDate)) {
-                                $transactionDateTime = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($transactionDate);
-                            } else {
-                                $transactionDateTime = new \DateTime($transactionDate);
-                            }
-                        } catch (\Exception $e) {
-                            $transactionDateTime = new \DateTime();
-                        }
-
-                        $transactions[] = [
-                            'import_id' => $import->id,
-                            'transaction_id' => $transactionId,
-                            'transaction_date' => $transactionDateTime->format('Y-m-d H:i:s'),
+                    // Aggregate by merchant
+                    $key = $merchantName;
+                    
+                    if (!isset($merchantStats[$key])) {
+                        $merchantStats[$key] = [
                             'merchant_id' => $merchantId,
                             'merchant_name' => $merchantName,
-                            'action' => $action,
-                            'currency' => $currency,
-                            'amount' => $amount,
-                            'customer_name' => $customerName,
-                            'customer_email' => $customerEmail,
-                            'card_type' => $cardType,
-                            'response_code' => $responseCode,
-                            'response_message' => $responseMessage,
-                            'state' => $state,
-                            'raw_data' => json_encode($rowData),
-                            'created_at' => now(),
-                            'updated_at' => now(),
+                            'total_transactions' => 0,
+                            'accepted' => 0,
+                            'received' => 0,
+                            'declined' => 0,
+                            'canceled' => 0,
                         ];
-                        
-                        $processedCount++;
                     }
                     
-                    if (!empty($transactions)) {
-                        CardstreamTransaction::insert($transactions);
-                    }
+                    $merchantStats[$key]['total_transactions']++;
+                    $merchantStats[$key][$state] = ($merchantStats[$key][$state] ?? 0) + 1;
                     
-                    DB::commit();
-                    
-                } catch (\Exception $e) {
-                    DB::rollBack();
-                    \Log::error('Chunk processing failed', [
-                        'start_row' => $startRow,
-                        'end_row' => $endRow,
-                        'error' => $e->getMessage(),
-                    ]);
-                    throw $e;
+                    $processedCount++;
                 }
                 
-                unset($transactions);
-                
-                // Refresh import from database and update
+                // Update progress every chunk
                 $import = $import->fresh();
                 $import->update([
                     'processed_rows' => $processedCount,
                     'estimated_total' => $highestRow - 1,
                     'status' => 'processing',
                 ]);
+                
+                \Log::info('Processed chunk', [
+                    'end_row' => $endRow,
+                    'total_processed' => $processedCount,
+                ]);
+            }
+            
+            // Save aggregated stats to database
+            DB::beginTransaction();
+            
+            try {
+                foreach ($merchantStats as $stats) {
+                    CardstreamMerchantTransactionList::create([
+                        'import_id' => $import->id,
+                        'merchant_id' => $stats['merchant_id'],
+                        'merchant_name' => $stats['merchant_name'],
+                        'total_transactions' => $stats['total_transactions'],
+                        'accepted' => $stats['accepted'],
+                        'received' => $stats['received'],
+                        'declined' => $stats['declined'],
+                        'canceled' => $stats['canceled'],
+                    ]);
+                }
+                
+                DB::commit();
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
             
             $import->update([
@@ -157,6 +145,7 @@ class ProcessCardstreamImport implements ShouldQueue
             \Log::info('Import completed successfully', [
                 'import_id' => $import->id,
                 'total_rows' => $processedCount,
+                'merchants_count' => count($merchantStats),
             ]);
             
             @unlink($this->filePath);

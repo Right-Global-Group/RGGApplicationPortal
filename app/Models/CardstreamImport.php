@@ -15,11 +15,18 @@ class CardstreamImport extends Model
         'user_id',
         'filename',
         'total_rows',
+        'processed_rows',
+        'estimated_total',
+        'status',
+        'error_message',
         'imported_at',
     ];
 
     protected $casts = [
         'imported_at' => 'datetime',
+        'total_rows' => 'integer',
+        'processed_rows' => 'integer',
+        'estimated_total' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -27,27 +34,17 @@ class CardstreamImport extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function transactions(): HasMany
+    public function merchantTransactions(): HasMany
     {
-        return $this->hasMany(CardstreamTransaction::class, 'import_id');
+        return $this->hasMany(CardstreamMerchantTransactionList::class, 'import_id');
     }
 
     /**
-     * Get aggregated merchant statistics for this import
+     * Get merchant statistics (now from dedicated table)
      */
     public function getMerchantStats()
     {
-        return $this->transactions()
-            ->selectRaw('
-                merchant_name,
-                merchant_id,
-                COUNT(*) as total_transactions,
-                SUM(CASE WHEN state = "accepted" THEN 1 ELSE 0 END) as accepted,
-                SUM(CASE WHEN state = "received" THEN 1 ELSE 0 END) as received,
-                SUM(CASE WHEN state = "declined" THEN 1 ELSE 0 END) as declined,
-                SUM(CASE WHEN state = "canceled" THEN 1 ELSE 0 END) as canceled
-            ')
-            ->groupBy('merchant_name', 'merchant_id')
+        return $this->merchantTransactions()
             ->orderBy('merchant_name')
             ->get();
     }
