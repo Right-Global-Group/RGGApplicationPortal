@@ -247,175 +247,172 @@
 </template>
 
 <script>
-import { Head, router } from '@inertiajs/vue3'
-import Icon from '@/Shared/Icon.vue'
-import Layout from '@/Shared/Layout.vue'
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-
-export default {
-  components: {
-    Head,
-    Icon,
-  },
-  layout: Layout,
-  props: {
-    imports: Array,
-    selectedImportId: Number,
-    merchantStats: Array,
-    selectedImport: Object,
-  },
-  setup(props) {
-    const polling = ref(null)
-
-    const progressPercentage = computed(() => {
-      if (!props.selectedImport?.estimated_total || props.selectedImport.estimated_total === 0) {
-        return 0
-      }
-      return Math.min(
-        100,
-        Math.round((props.selectedImport.processed_rows / props.selectedImport.estimated_total) * 100)
-      )
-    })
-
-    const totals = computed(() => {
-      if (!props.merchantStats || props.merchantStats.length === 0) {
-        return {
+  import { Head, router } from '@inertiajs/vue3'
+  import Icon from '@/Shared/Icon.vue'
+  import Layout from '@/Shared/Layout.vue'
+  import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+  
+  export default {
+    components: {
+      Head,
+      Icon,
+    },
+    layout: Layout,
+    props: {
+      imports: Array,
+      selectedImportId: Number,
+      merchantStats: Array,
+      selectedImport: Object,
+    },
+    setup(props) {
+      const polling = ref(null)
+  
+      const progressPercentage = computed(() => {
+        if (!props.selectedImport?.estimated_total || props.selectedImport.estimated_total === 0) {
+          return 0
+        }
+        return Math.min(
+          100,
+          Math.round((props.selectedImport.processed_rows / props.selectedImport.estimated_total) * 100)
+        )
+      })
+  
+      const totals = computed(() => {
+        if (!props.merchantStats || props.merchantStats.length === 0) {
+          return {
+            total_transactions: 0,
+            accepted: 0,
+            received: 0,
+            declined: 0,
+            canceled: 0,
+            monthly_fee: 0,
+          }
+        }
+  
+        return props.merchantStats.reduce((acc, stat) => {
+          acc.total_transactions += stat.total_transactions
+          acc.accepted += stat.accepted
+          acc.received += stat.received
+          acc.declined += stat.declined
+          acc.canceled += stat.canceled
+          if (stat.monthly_fee) {
+            acc.monthly_fee += parseFloat(stat.monthly_fee)
+          }
+          return acc
+        }, {
           total_transactions: 0,
           accepted: 0,
           received: 0,
           declined: 0,
           canceled: 0,
           monthly_fee: 0,
+        })
+      })
+  
+      const startPolling = () => {
+        if (polling.value) return
+        
+        console.log('🟢 Polling started')
+        polling.value = setInterval(() => {
+          console.log('🔄 Polling refresh...')
+          router.reload({ 
+            only: ['selectedImport', 'merchantStats'],
+            preserveState: true,
+            preserveScroll: true,
+          })
+        }, 2000)
+      }
+  
+      const stopPolling = () => {
+        if (polling.value) {
+          console.log('🔴 Polling stopped')
+          clearInterval(polling.value)
+          polling.value = null
         }
       }
-
-      return props.merchantStats.reduce((acc, stat) => {
-        acc.total_transactions += stat.total_transactions
-        acc.accepted += stat.accepted
-        acc.received += stat.received
-        acc.declined += stat.declined
-        acc.canceled += stat.canceled
-        if (stat.monthly_fee) {
-          acc.monthly_fee += parseFloat(stat.monthly_fee)
+  
+      // Watch for status changes and manage polling
+      watch(() => props.selectedImport?.status, (newStatus, oldStatus) => {
+        console.log('📊 Status change:', { from: oldStatus, to: newStatus })
+        
+        if (newStatus === 'processing') {
+          startPolling()
+        } else if (oldStatus === 'processing' && newStatus === 'completed') {
+          stopPolling()
+          // Final refresh to get complete data
+          setTimeout(() => {
+            router.reload({ 
+              only: ['selectedImport', 'merchantStats'],
+              preserveState: true,
+              preserveScroll: true,
+            })
+          }, 500)
+        } else {
+          stopPolling()
         }
-        return acc
-      }, {
-        total_transactions: 0,
-        accepted: 0,
-        received: 0,
-        declined: 0,
-        canceled: 0,
-        monthly_fee: 0,
+      }, { immediate: true })
+  
+      // Start polling on mount if already processing
+      onMounted(() => {
+        console.log('🚀 Component mounted, selectedImport:', props.selectedImport)
+        if (props.selectedImport?.status === 'processing') {
+          startPolling()
+        }
       })
-    })
-
-    const startPolling = () => {
-      if (polling.value) return
-      
-      polling.value = setInterval(() => {
-        router.reload({ 
-          only: ['selectedImport', 'merchantStats'],
+  
+      // Clean up polling on unmount
+      onBeforeUnmount(() => {
+        stopPolling()
+      })
+  
+      const selectImport = (importId) => {
+        stopPolling()
+        router.get('/invoices', { import_id: importId }, {
           preserveState: true,
           preserveScroll: true,
         })
-      }, 2000) // Poll every 2 seconds
-    }
-
-    const stopPolling = () => {
-      if (polling.value) {
-        clearInterval(polling.value)
-        polling.value = null
       }
-    }
-
-    // Start polling if import is processing
-    onMounted(() => {
-      if (props.selectedImport?.status === 'processing') {
-        startPolling()
-      }
-    })
-
-    // Stop polling when component unmounts
-    onBeforeUnmount(() => {
-      stopPolling()
-    })
-
-    // Watch for status changes
-    const checkStatus = () => {
-      if (props.selectedImport?.status === 'processing') {
-        startPolling()
-      } else {
-        stopPolling()
-      }
-    }
-
-    // Check status whenever selectedImport changes
-    const selectImport = (importId) => {
-      stopPolling() // Stop any existing polling
-      router.get('/invoices', { import_id: importId }, {
-        preserveState: true,
-        preserveScroll: true,
-        onSuccess: () => {
-          checkStatus()
-        }
-      })
-    }
-
-    const handleFileUpload = (event) => {
-      const file = event.target.files[0]
-      if (!file) return
-
-      const formData = new FormData()
-      formData.append('file', file)
-
-      router.post('/invoices/upload', formData, {
-        preserveState: false, // Changed from true - this will reload the page
-        preserveScroll: false,
-        onSuccess: (page) => {
-          event.target.value = ''
-          // The redirect already happens from controller
-        },
-        onError: (errors) => {
-          console.error('Upload error:', errors)
-          event.target.value = ''
-        },
-      })
-    }
-
-    const deleteImport = (importId) => {
-      if (!confirm('Are you sure you want to delete this import? All associated transaction data will be permanently removed.')) {
-        return
-      }
-
-      router.delete(`/invoices/${importId}`, {
-        preserveState: true,
-        preserveScroll: true,
-      })
-    }
-
-    watch(() => props.selectedImport, (newVal) => {
-    console.log('selectedImport changed:', newVal)
-    }, { deep: true, immediate: true })
-
-    watch(() => props.selectedImport?.status, (newStatus) => {
-      console.log('Status changed to:', newStatus)
-      if (newStatus === 'processing') {
-        console.log('Starting polling...')
-        startPolling()
-      } else {
-        console.log('Stopping polling...')
-        stopPolling()
-      }
-    })
-
-    return {
-      totals,
-      progressPercentage,
-      selectImport,
-      handleFileUpload,
-      deleteImport,
-    }
-  },
   
-}
-</script>
+      const handleFileUpload = (event) => {
+        const file = event.target.files[0]
+        if (!file) return
+  
+        const formData = new FormData()
+        formData.append('file', file)
+  
+        router.post('/invoices/upload', formData, {
+          preserveState: false,
+          preserveScroll: false,
+          onSuccess: () => {
+            event.target.value = ''
+            // Polling will auto-start via the watch when status becomes 'processing'
+          },
+          onError: (errors) => {
+            console.error('Upload error:', errors)
+            event.target.value = ''
+          },
+        })
+      }
+  
+      const deleteImport = (importId) => {
+        if (!confirm('Are you sure you want to delete this import? All associated transaction data will be permanently removed.')) {
+          return
+        }
+  
+        router.delete(`/invoices/${importId}`, {
+          preserveState: true,
+          preserveScroll: true,
+        })
+      }
+  
+      return {
+        totals,
+        progressPercentage,
+        selectImport,
+        handleFileUpload,
+        deleteImport,
+        polling,
+      }
+    },
+  }
+  </script>

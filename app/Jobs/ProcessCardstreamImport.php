@@ -36,7 +36,9 @@ class ProcessCardstreamImport implements ShouldQueue
         }
     
         \Log::info('Setting status to processing', ['import_id' => $import->id]);
-        $import->update(['status' => 'processing']);
+        $import->status = 'processing';
+        $import->processed_rows = 0;
+        $import->save();
         
         \Log::info('Status updated, current status:', ['status' => $import->fresh()->status]);
         
@@ -50,6 +52,10 @@ class ProcessCardstreamImport implements ShouldQueue
             
             // Track merchant stats in memory
             $merchantStats = [];
+            
+            // Set estimated total immediately
+            $import->estimated_total = $highestRow - 1;
+            $import->save();
             
             \Log::info('Starting import processing', [
                 'import_id' => $import->id,
@@ -100,13 +106,13 @@ class ProcessCardstreamImport implements ShouldQueue
                         ];
                     }
 
+                    // Increment total transactions ONCE
                     $merchantStats[$key]['total_transactions']++;
 
-                    // FIX: Only increment if the state key exists
+                    // Increment the specific state counter if valid
                     if (isset($merchantStats[$key][$state])) {
                         $merchantStats[$key][$state]++;
                     } else {
-                        // Log unexpected states
                         \Log::warning('Unexpected state encountered', [
                             'state' => $state,
                             'merchant' => $merchantName,
@@ -114,19 +120,12 @@ class ProcessCardstreamImport implements ShouldQueue
                         ]);
                     }
                     
-                    $merchantStats[$key]['total_transactions']++;
-                    $merchantStats[$key][$state] = ($merchantStats[$key][$state] ?? 0) + 1;
-                    
                     $processedCount++;
                 }
                 
                 // Update progress every chunk
-                $import = $import->fresh();
-                $import->update([
-                    'processed_rows' => $processedCount,
-                    'estimated_total' => $highestRow - 1,
-                    'status' => 'processing',
-                ]);
+                $import->processed_rows = $processedCount;
+                $import->save();
                 
                 \Log::info('Processed chunk', [
                     'end_row' => $endRow,
@@ -158,10 +157,9 @@ class ProcessCardstreamImport implements ShouldQueue
                 throw $e;
             }
             
-            $import->update([
-                'total_rows' => $processedCount,
-                'status' => 'completed',
-            ]);
+            $import->total_rows = $processedCount;
+            $import->status = 'completed';
+            $import->save();
             
             \Log::info('Import completed successfully', [
                 'import_id' => $import->id,
@@ -177,10 +175,9 @@ class ProcessCardstreamImport implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
             
-            $import->update([
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-            ]);
+            $import->status = 'failed';
+            $import->error_message = $e->getMessage();
+            $import->save();
             
             @unlink($this->filePath);
             
