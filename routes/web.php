@@ -13,6 +13,7 @@ use App\Http\Controllers\EmailTemplatesController;
 use App\Http\Controllers\DocumentLibraryController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\MerchantImportController;
+use App\Http\Controllers\InvoicesController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -204,6 +205,10 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::get('/{application}/docusign/download', [DocumentLibraryController::class, 'downloadDocuSignContract'])
         ->name('applications.docusign.download');
     });
+
+    Route::get('/invoices', [InvoicesController::class, 'index'])->name('invoices.index');
+    Route::post('/invoices/upload', [InvoicesController::class, 'upload'])->name('invoices.upload');
+    Route::delete('/invoices/{import}', [InvoicesController::class, 'destroy'])->name('invoices.destroy');
 
     // Progress Tracker
     Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');

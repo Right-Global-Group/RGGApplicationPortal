@@ -109,7 +109,7 @@
 
     <!-- Import History Table -->
     <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 shadow-2xl overflow-hidden">
-      <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
+      <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
         <h2 class="text-xl font-bold text-magenta-400">Import History</h2>
       </div>
 
@@ -117,8 +117,7 @@
         <table class="w-full">
           <thead>
             <tr class="text-magenta-400 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-              <th class="px-6 py-3 text-left">Merchant Name</th>
-              <th class="px-6 py-3 text-left">Account</th>
+              <th class="px-6 py-3 text-left">Merchant Account</th>
               <th class="px-6 py-3 text-left">Application</th>
               <th class="px-6 py-3 text-left">Uploaded By</th>
               <th class="px-6 py-3 text-left">Status</th>
@@ -132,9 +131,6 @@
               :key="importRecord.id"
               class="border-b border-primary-800/20 hover:bg-primary-900/30 transition-colors"
             >
-              <td class="px-6 py-4 text-white font-medium">
-                {{ importRecord.merchant_name }}
-              </td>
               <td class="px-6 py-4">
                 <Link
                   v-if="importRecord.account"
@@ -197,17 +193,20 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="imports.links.length > 3" class="px-6 py-4 border-t border-primary-800/30">
+      <div v-if="imports.links && imports.links.length > 3" class="px-6 py-4 border-t border-primary-800/30">
         <div class="flex flex-wrap gap-1">
-          <Link
+          <component
+            :is="link.url ? Link : 'span'"
             v-for="(link, index) in imports.links"
             :key="index"
-            :href="link.url"
+            :href="link.url || undefined"
             :class="[
               'px-3 py-1 rounded text-sm',
               link.active
                 ? 'bg-magenta-600 text-white'
-                : 'bg-dark-900/50 text-gray-400 hover:bg-primary-900/50'
+                : link.url 
+                  ? 'bg-dark-900/50 text-gray-400 hover:bg-primary-900/50 cursor-pointer'
+                  : 'bg-dark-900/50 text-gray-500 cursor-not-allowed opacity-50'
             ]"
             v-html="link.label"
           />
@@ -250,7 +249,10 @@ export default {
     Link,
   },
   props: {
-    imports: Object,
+    imports: {
+      type: Object,
+      default: () => ({ data: [], links: [] }) // Add default value
+    },
   },
   data() {
     return {

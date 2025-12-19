@@ -151,34 +151,37 @@
 </template>
 
 <script>
-import { Head } from '@inertiajs/vue3'
-import Layout from '@/Shared/Layout.vue'
-import MerchantImporter from '@/Pages/Settings/MerchantImporter.vue'
-
-export default {
-  components: {
-    Head,
-    MerchantImporter,
-  },
-  layout: Layout,
-  props: {
-    users: Array,
-    roles: Array,
-    permissions: Array,
-    importHistory: Object,
-  },
-  data() {
-    return {
-      activeTab: 'general',
-    }
-  },
-  methods: {
-    toggleAdmin(user) {
-      const action = user.is_admin ? 'remove admin from' : 'make admin'
-      if (confirm(`Are you sure you want to ${action} ${user.name}?`)) {
-        this.$inertia.post(`/settings/users/${user.id}/toggle-admin`)
+  import { Head } from '@inertiajs/vue3'
+  import Layout from '@/Shared/Layout.vue'
+  import MerchantImporter from '@/Pages/Settings/MerchantImporter.vue'
+  
+  export default {
+    components: {
+      Head,
+      MerchantImporter,
+    },
+    layout: Layout,
+    props: {
+      users: Array,
+      roles: Array,
+      permissions: Array,
+      importHistory: {
+        type: Object,
+        default: () => ({ data: [], links: [] }) // Add default value
+      },
+    },
+    data() {
+      return {
+        activeTab: 'general',
       }
     },
-  },
-}
-</script>
+    methods: {
+      toggleAdmin(user) {
+        const action = user.is_admin ? 'remove admin from' : 'make admin'
+        if (confirm(`Are you sure you want to ${action} ${user.name}?`)) {
+          this.$inertia.post(`/settings/users/${user.id}/toggle-admin`)
+        }
+      },
+    },
+  }
+  </script>

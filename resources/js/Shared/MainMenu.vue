@@ -106,6 +106,13 @@ export default {
           match: 'applications',
           adminOnly: false 
         },
+        { 
+          name: 'invoices', 
+          label: 'Invoices', 
+          href: '/invoices', 
+          match: 'invoices',
+          adminOnly: false 
+        },
       ],
       secondaryMenu: [
         { 
