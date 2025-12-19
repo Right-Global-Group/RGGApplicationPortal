@@ -26,12 +26,6 @@ class ProcessCardstreamImport implements ShouldQueue
 
     public function handle(): void
     {
-        \Log::info('=== JOB STARTED ===', [
-            'import_id' => $this->importId,
-            'memory_limit' => ini_get('memory_limit'),
-            'time_limit' => ini_get('max_execution_time'),
-        ]);
-        
         $import = CardstreamImport::find($this->importId);
         
         if (!$import) {
@@ -39,15 +33,13 @@ class ProcessCardstreamImport implements ShouldQueue
             return;
         }
     
-        \Log::info('Setting status to processing', ['import_id' => $import->id]);
         $import->status = 'processing';
         $import->processed_rows = 0;
         $import->save();
-        
+
         \Log::info('Status updated, current status:', ['status' => $import->fresh()->status]);
         
         try {
-            \Log::info('Loading spreadsheet file');
             $spreadsheet = IOFactory::load($this->filePath);
             $worksheet = $spreadsheet->getActiveSheet();
             
@@ -61,13 +53,6 @@ class ProcessCardstreamImport implements ShouldQueue
             // Set estimated total immediately
             $import->estimated_total = $highestRow - 1;
             $import->save();
-            
-            \Log::info('Starting import processing', [
-                'import_id' => $import->id,
-                'filename' => $import->filename,
-                'total_rows' => $highestRow,
-                'chunk_size' => $chunkSize,
-            ]);
             
             for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
                 $endRow = min($startRow + $chunkSize - 1, $highestRow);
@@ -97,7 +82,7 @@ class ProcessCardstreamImport implements ShouldQueue
                         if (!empty($stateFromCsv)) {
                             $state = strtolower(trim($stateFromCsv));
                         } else {
-                            $state = CardstreamTransaction::determineState($responseMessage, $responseCode);
+                            $state = CardstreamTransactionSummary::determineState($responseMessage, $responseCode);
                         }
 
                         // Normalize state names
@@ -150,26 +135,12 @@ class ProcessCardstreamImport implements ShouldQueue
                 gc_collect_cycles();
                 
                 $memoryAfter = memory_get_usage(true);
-                
-                \Log::info('Processed chunk', [
-                    'chunk' => ceil($startRow / $chunkSize),
-                    'start_row' => $startRow,
-                    'end_row' => $endRow,
-                    'total_processed' => $processedCount,
-                    'memory_before' => round($memoryBefore / 1024 / 1024, 2) . 'MB',
-                    'memory_after' => round($memoryAfter / 1024 / 1024, 2) . 'MB',
-                    'memory_peak' => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . 'MB',
-                ]);
             }
             
             // Free up spreadsheet memory
             $spreadsheet->disconnectWorksheets();
             unset($spreadsheet, $worksheet);
             gc_collect_cycles();
-            
-            \Log::info('Saving merchant statistics to database', [
-                'merchant_count' => count($merchantStats),
-            ]);
             
             // Save aggregated stats to database in batches
             DB::beginTransaction();
@@ -205,9 +176,7 @@ class ProcessCardstreamImport implements ShouldQueue
                 }
                 
                 DB::commit();
-                
-                \Log::info('Merchant statistics saved successfully');
-                
+                                
             } catch (\Exception $e) {
                 DB::rollBack();
                 \Log::error('Failed to save merchant statistics', [
@@ -220,13 +189,6 @@ class ProcessCardstreamImport implements ShouldQueue
             $import->total_rows = $processedCount;
             $import->status = 'completed';
             $import->save();
-            
-            \Log::info('Import completed successfully', [
-                'import_id' => $import->id,
-                'total_rows' => $processedCount,
-                'merchants_count' => count($merchantStats),
-                'peak_memory' => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . 'MB',
-            ]);
             
             @unlink($this->filePath);
             
