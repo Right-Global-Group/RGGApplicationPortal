@@ -14,9 +14,8 @@
           <div>
             <p class="text-blue-300 font-medium mb-2">How to download contracts from DocuSign:</p>
             <ol class="text-sm text-gray-300 space-y-2 list-decimal list-inside">
-              <li>Go to your DocuSign account and find the completed envelope</li>
-              <li>Click on the envelope to open it</li>
-              <li>Click the <strong>"Download"</strong> button</li>
+              <li>Go to DocuSign Agreements and find the sent envelope</li>
+              <li>Click on the envelope to open it to download it, or download it directly from the Sent Agreements list</li>
               <li><strong class="text-yellow-300">Important:</strong> Select <strong>"Include Certificate of Completion"</strong> option</li>
               <li>Download as <strong>ZIP file</strong> (NOT combined PDF)</li>
               <li>The ZIP should contain: Contract PDF, Application Form PDF, and <strong>Summary.pdf</strong></li>
@@ -37,7 +36,7 @@
               <li>Only ZIP files are accepted (not combined PDFs)</li>
               <li>Each ZIP must contain <strong>Summary.pdf</strong> to extract merchant details</li>
               <li>Merchant name and email are automatically extracted from Summary.pdf</li>
-              <li>You can upload up to 10 ZIP files at once</li>
+              <li>You can upload up to 100 ZIP files at once</li>
             </ul>
           </div>
         </div>
