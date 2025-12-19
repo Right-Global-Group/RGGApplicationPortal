@@ -55,6 +55,7 @@ class DocumentLibraryController extends Controller
             return [
                 'id' => $application->id,
                 'name' => $application->name,
+                'account_name' => $application->account->name ?? 'Unknown',
                 'trading_name' => $application->trading_name,
                 'created_at' => $application->created_at->format('Y-m-d'),
                 'docusign_envelope_id' => $envelopeId,

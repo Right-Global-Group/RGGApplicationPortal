@@ -17,7 +17,7 @@
         <div class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
           <div class="flex justify-between items-center">
             <div>
-              <h2 class="text-xl font-bold text-white">{{ app.name }}</h2>
+              <h2 class="text-xl font-bold text-white">{{ app.name }} - {{ app.account_name }}</h2>
               <p class="text-sm text-gray-400 mt-1">Created {{ app.created_at }}</p>
             </div>
             <Link 
