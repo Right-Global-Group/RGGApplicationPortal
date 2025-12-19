@@ -37,7 +37,7 @@ class AccountsController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $query->orderBy('name');
+        $query->orderBy('created_at', 'desc');
 
         // Filters (same as before)
         if ($search = Request::input('search')) {

@@ -274,6 +274,18 @@ class MerchantImportController extends Controller
                     }
                 }
                 
+                // Just validate it's not business type keywords before accepting
+                if ($merchantCompanyName) {
+                    $lowerName = strtolower($merchantCompanyName);
+                    // If it contains typical business description words, it's probably from field 5, not field 1
+                    if (preg_match('/(prize|competition|products|services|offered|marketed|website|ecom|moto)/i', $merchantCompanyName)) {
+                        Log::warning('Field 1 extraction looks like business type, trying Pattern 2', [
+                            'extracted' => $merchantCompanyName,
+                        ]);
+                        $merchantCompanyName = null; // Clear and try Pattern 2
+                    }
+                }
+                
                 // Pattern 2: Look at bottom of page after "Docusign Envelope ID:"
                 if (!$merchantCompanyName) {
                     // First, extract the text after "Docusign Envelope ID:"
@@ -625,8 +637,6 @@ class MerchantImportController extends Controller
                     'user_id' => auth()->id(),
                     'status' => Account::STATUS_CONFIRMED,
                 ]);
-
-                event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
             }
 
             // Create application with extracted fees
