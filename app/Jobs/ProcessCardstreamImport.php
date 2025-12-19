@@ -152,7 +152,8 @@ class ProcessCardstreamImport implements ShouldQueue
                 
                 // Update progress
                 $this->import->update([
-                    'total_rows' => $processedCount,
+                    'processed_rows' => $processedCount,
+                    'estimated_total' => $highestRow - 1, // Set once at the start
                     'status' => 'processing',
                 ]);
             }

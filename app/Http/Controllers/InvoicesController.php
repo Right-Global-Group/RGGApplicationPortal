@@ -80,32 +80,33 @@ class InvoicesController extends Controller
                 'id' => $selectedImport->id,
                 'filename' => $selectedImport->filename,
                 'imported_at' => $selectedImport->imported_at->format('Y-m-d H:i'),
+                'status' => $selectedImport->status,
+                'processed_rows' => $selectedImport->processed_rows ?? 0,
+                'estimated_total' => $selectedImport->estimated_total ?? 0,
             ] : null,
         ]);
     }
 
     public function upload(): RedirectResponse
-    {
+    {        
         Request::validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:102400'],
         ]);
-    
+
         $file = Request::file('file');
         $filename = $file->getClientOriginalName();
-    
+
         try {
-            // Create temp directory if it doesn't exist
             $tempDir = storage_path('app/temp/imports');
             if (!is_dir($tempDir)) {
                 mkdir($tempDir, 0755, true);
             }
-    
-            // Generate unique filename and move file
+
             $uniqueFilename = uniqid() . '_' . $filename;
             $fullPath = $tempDir . '/' . $uniqueFilename;
+            
             $file->move($tempDir, $uniqueFilename);
-    
-            // Create import record
+
             $import = CardstreamImport::create([
                 'user_id' => auth()->id(),
                 'filename' => $filename,
@@ -113,14 +114,18 @@ class InvoicesController extends Controller
                 'imported_at' => now(),
                 'status' => 'pending',
             ]);
-    
-            // Dispatch job
+
             ProcessCardstreamImport::dispatch($import, $fullPath);
-    
+            
             return Redirect::route('invoices.index', ['import_id' => $import->id])
                 ->with('success', "Import started for {$filename}. Processing in background...");
-    
+
         } catch (\Exception $e) {
+            \Log::error('Upload error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
             return Redirect::back()
                 ->with('error', 'Failed to start import: ' . $e->getMessage());
         }
