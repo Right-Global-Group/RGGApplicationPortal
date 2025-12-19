@@ -26,7 +26,11 @@ class ProcessCardstreamImport implements ShouldQueue
 
     public function handle(): void
     {
-        \Log::info('=== JOB STARTED ===', ['import_id' => $this->importId]);
+        \Log::info('=== JOB STARTED ===', [
+            'import_id' => $this->importId,
+            'memory_limit' => ini_get('memory_limit'),
+            'time_limit' => ini_get('max_execution_time'),
+        ]);
         
         $import = CardstreamImport::find($this->importId);
         
@@ -43,12 +47,13 @@ class ProcessCardstreamImport implements ShouldQueue
         \Log::info('Status updated, current status:', ['status' => $import->fresh()->status]);
         
         try {
+            \Log::info('Loading spreadsheet file');
             $spreadsheet = IOFactory::load($this->filePath);
             $worksheet = $spreadsheet->getActiveSheet();
             
             $highestRow = $worksheet->getHighestRow();
             $processedCount = 0;
-            $chunkSize = 1000;
+            $chunkSize = 500; // Reduced from 1000 to 500 for better memory management
             
             // Track merchant stats in memory
             $merchantStats = [];
@@ -61,84 +66,120 @@ class ProcessCardstreamImport implements ShouldQueue
                 'import_id' => $import->id,
                 'filename' => $import->filename,
                 'total_rows' => $highestRow,
+                'chunk_size' => $chunkSize,
             ]);
             
             for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
                 $endRow = min($startRow + $chunkSize - 1, $highestRow);
                 
+                $memoryBefore = memory_get_usage(true);
+                
                 for ($row = $startRow; $row <= $endRow; $row++) {
-                    $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
-                    
-                    if (empty(array_filter($rowData))) {
-                        continue;
-                    }
+                    try {
+                        $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
+                        
+                        if (empty(array_filter($rowData))) {
+                            continue;
+                        }
 
-                    $transactionId = $rowData[0] ?? null;
-                    $merchantId = $rowData[5] ?? null;
-                    $merchantName = $rowData[6] ?? null;
-                    $stateFromCsv = $rowData[41] ?? null;
-                    $responseCode = $rowData[42] ?? null;
-                    $responseMessage = $rowData[43] ?? null;
+                        $transactionId = $rowData[0] ?? null;
+                        $merchantId = $rowData[5] ?? null;
+                        $merchantName = $rowData[6] ?? null;
+                        $stateFromCsv = $rowData[41] ?? null;
+                        $responseCode = $rowData[42] ?? null;
+                        $responseMessage = $rowData[43] ?? null;
 
-                    if (!$transactionId || !$merchantName) {
-                        continue;
-                    }
+                        if (!$transactionId || !$merchantName) {
+                            continue;
+                        }
 
-                    // Determine state
-                    if (!empty($stateFromCsv)) {
-                        $state = strtolower($stateFromCsv);
-                    } else {
-                        $state = CardstreamTransaction::determineState($responseMessage, $responseCode);
-                    }
+                        // Determine state
+                        if (!empty($stateFromCsv)) {
+                            $state = strtolower(trim($stateFromCsv));
+                        } else {
+                            $state = CardstreamTransaction::determineState($responseMessage, $responseCode);
+                        }
 
-                    // Aggregate by merchant
-                    $key = $merchantName;
+                        // Normalize state names
+                        $validStates = ['accepted', 'received', 'declined', 'canceled'];
+                        if (!in_array($state, $validStates)) {
+                            \Log::warning('Invalid state, defaulting to received', [
+                                'state' => $state,
+                                'merchant' => $merchantName,
+                                'transaction_id' => $transactionId,
+                            ]);
+                            $state = 'received';
+                        }
 
-                    if (!isset($merchantStats[$key])) {
-                        $merchantStats[$key] = [
-                            'merchant_id' => $merchantId,
-                            'merchant_name' => $merchantName,
-                            'total_transactions' => 0,
-                            'accepted' => 0,
-                            'received' => 0,
-                            'declined' => 0,
-                            'canceled' => 0,
-                        ];
-                    }
+                        // Aggregate by merchant
+                        $key = $merchantName;
 
-                    // Increment total transactions ONCE
-                    $merchantStats[$key]['total_transactions']++;
+                        if (!isset($merchantStats[$key])) {
+                            $merchantStats[$key] = [
+                                'merchant_id' => $merchantId,
+                                'merchant_name' => $merchantName,
+                                'total_transactions' => 0,
+                                'accepted' => 0,
+                                'received' => 0,
+                                'declined' => 0,
+                                'canceled' => 0,
+                            ];
+                        }
 
-                    // Increment the specific state counter if valid
-                    if (isset($merchantStats[$key][$state])) {
+                        // Increment counters
+                        $merchantStats[$key]['total_transactions']++;
                         $merchantStats[$key][$state]++;
-                    } else {
-                        \Log::warning('Unexpected state encountered', [
-                            'state' => $state,
-                            'merchant' => $merchantName,
-                            'transaction_id' => $transactionId,
+                        
+                        $processedCount++;
+                        
+                    } catch (\Exception $e) {
+                        \Log::error('Error processing row', [
+                            'row' => $row,
+                            'error' => $e->getMessage(),
                         ]);
+                        continue;
                     }
-                    
-                    $processedCount++;
                 }
                 
                 // Update progress every chunk
                 $import->processed_rows = $processedCount;
                 $import->save();
                 
+                // Clear memory
+                unset($rowData);
+                gc_collect_cycles();
+                
+                $memoryAfter = memory_get_usage(true);
+                
                 \Log::info('Processed chunk', [
+                    'chunk' => ceil($startRow / $chunkSize),
+                    'start_row' => $startRow,
                     'end_row' => $endRow,
                     'total_processed' => $processedCount,
+                    'memory_before' => round($memoryBefore / 1024 / 1024, 2) . 'MB',
+                    'memory_after' => round($memoryAfter / 1024 / 1024, 2) . 'MB',
+                    'memory_peak' => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . 'MB',
                 ]);
             }
             
-            // Save aggregated stats to database
+            // Free up spreadsheet memory
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet, $worksheet);
+            gc_collect_cycles();
+            
+            \Log::info('Saving merchant statistics to database', [
+                'merchant_count' => count($merchantStats),
+            ]);
+            
+            // Save aggregated stats to database in batches
             DB::beginTransaction();
             
             try {
+                $batchSize = 50;
+                $batch = [];
+                
                 foreach ($merchantStats as $stats) {
-                    CardstreamTransactionSummary::create([
+                    $batch[] = [
                         'import_id' => $import->id,
                         'merchant_id' => $stats['merchant_id'],
                         'merchant_name' => $stats['merchant_name'],
@@ -147,13 +188,32 @@ class ProcessCardstreamImport implements ShouldQueue
                         'received' => $stats['received'],
                         'declined' => $stats['declined'],
                         'canceled' => $stats['canceled'],
-                    ]);
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                    
+                    if (count($batch) >= $batchSize) {
+                        CardstreamTransactionSummary::insert($batch);
+                        $batch = [];
+                        gc_collect_cycles();
+                    }
+                }
+                
+                // Insert remaining batch
+                if (!empty($batch)) {
+                    CardstreamTransactionSummary::insert($batch);
                 }
                 
                 DB::commit();
                 
+                \Log::info('Merchant statistics saved successfully');
+                
             } catch (\Exception $e) {
                 DB::rollBack();
+                \Log::error('Failed to save merchant statistics', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
                 throw $e;
             }
             
@@ -165,6 +225,7 @@ class ProcessCardstreamImport implements ShouldQueue
                 'import_id' => $import->id,
                 'total_rows' => $processedCount,
                 'merchants_count' => count($merchantStats),
+                'peak_memory' => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . 'MB',
             ]);
             
             @unlink($this->filePath);
@@ -173,6 +234,8 @@ class ProcessCardstreamImport implements ShouldQueue
             \Log::error('Import failed', [
                 'import_id' => $import->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2) . 'MB',
             ]);
             
             $import->status = 'failed';
@@ -182,6 +245,22 @@ class ProcessCardstreamImport implements ShouldQueue
             @unlink($this->filePath);
             
             throw $e;
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        \Log::error('Job failed permanently', [
+            'import_id' => $this->importId,
+            'error' => $exception->getMessage(),
+            'trace' => $exception->getTraceAsString(),
+        ]);
+        
+        $import = CardstreamImport::find($this->importId);
+        if ($import) {
+            $import->status = 'failed';
+            $import->error_message = $exception->getMessage();
+            $import->save();
         }
     }
 }

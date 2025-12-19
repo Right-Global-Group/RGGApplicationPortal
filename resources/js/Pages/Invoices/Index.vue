@@ -386,6 +386,7 @@
           onSuccess: () => {
             event.target.value = ''
             // Polling will auto-start via the watch when status becomes 'processing'
+            window.location.href = response.props.url || window.location.href
           },
           onError: (errors) => {
             console.error('Upload error:', errors)
