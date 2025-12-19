@@ -255,46 +255,103 @@ class MerchantImportController extends Controller
                 $formPdfParsed = $parser->parseFile($formPdf);
                 $formText = $formPdfParsed->getText();
                 
+                Log::info('=== STARTING COMPANY NAME EXTRACTION ===');
+                
+                // LOG: Show first 1000 characters to see structure
+                Log::info('Form PDF first 1000 chars:', [
+                    'text' => substr($formText, 0, 1000)
+                ]);
+                
                 // Pattern 1: Look for text after "REGISTERED COMPANY NAME" field
                 $fieldPos = stripos($formText, '1. REGISTERED COMPANY NAME');
+                Log::info('Field 1 position search:', [
+                    'found' => $fieldPos !== false,
+                    'position' => $fieldPos
+                ]);
+                
                 if ($fieldPos !== false) {
                     $afterField = substr($formText, $fieldPos, 500);
+                    
+                    Log::info('Text after field 1 (500 chars):', [
+                        'text' => $afterField
+                    ]);
 
                     if (preg_match('/1\.\s*REGISTERED COMPANY NAME\*?\s*[\r\n]+([^\r\n]+(?:[\r\n]+[^\r\n]+)?)/', $afterField, $matches)) {
                         $potentialName = trim($matches[1]);
+                        
+                        Log::info('Pattern 1 MATCH found:', [
+                            'raw_match' => $matches[1],
+                            'trimmed' => $potentialName
+                        ]);
                         
                         // Clean up: remove newlines within the name and consolidate spaces
                         $potentialName = preg_replace('/[\r\n]+/', ' ', $potentialName);
                         $potentialName = preg_replace('/\s+/', ' ', $potentialName);
                         
+                        Log::info('After cleanup:', [
+                            'cleaned' => $potentialName
+                        ]);
+                        
                         // Skip if it's clearly a field label
                         if (!preg_match('/^(2\.|REGISTRATION|NUMBER|ADDRESS|TRADING)/i', $potentialName)) {
                             $merchantCompanyName = $potentialName;
+                            Log::info('✓ Pattern 1 SUCCESS - Set as merchantCompanyName:', [
+                                'value' => $merchantCompanyName
+                            ]);
+                        } else {
+                            Log::info('✗ Pattern 1 REJECTED - looks like field label:', [
+                                'value' => $potentialName
+                            ]);
                         }
+                    } else {
+                        Log::info('✗ Pattern 1 NO MATCH - regex did not match');
                     }
                 }
                 
-                // Just validate it's not business type keywords before accepting
+                // VALIDATION CHECK
                 if ($merchantCompanyName) {
+                    Log::info('Validating extracted name for business type keywords:', [
+                        'name' => $merchantCompanyName
+                    ]);
+                    
                     $lowerName = strtolower($merchantCompanyName);
                     // If it contains typical business description words, it's probably from field 5, not field 1
                     if (preg_match('/(prize|competition|products|services|offered|marketed|website|ecom|moto)/i', $merchantCompanyName)) {
-                        Log::warning('Field 1 extraction looks like business type, trying Pattern 2', [
+                        Log::warning('✗ VALIDATION FAILED - looks like business type, will try Pattern 2', [
                             'extracted' => $merchantCompanyName,
+                            'matched_keywords' => true
                         ]);
                         $merchantCompanyName = null; // Clear and try Pattern 2
+                    } else {
+                        Log::info('✓ VALIDATION PASSED - does not look like business type');
                     }
                 }
                 
                 // Pattern 2: Look at bottom of page after "Docusign Envelope ID:"
                 if (!$merchantCompanyName) {
+                    Log::info('=== TRYING PATTERN 2 (Bottom of page) ===');
+                    
                     // First, extract the text after "Docusign Envelope ID:"
                     $envelopeIdPos = stripos($formText, 'Docusign Envelope ID:');
+                    Log::info('Envelope ID position search:', [
+                        'found' => $envelopeIdPos !== false,
+                        'position' => $envelopeIdPos
+                    ]);
+                    
                     if ($envelopeIdPos !== false) {
                         $afterEnvelope = substr($formText, $envelopeIdPos);
                         
+                        Log::info('Text after Envelope ID (first 500 chars):', [
+                            'text' => substr($afterEnvelope, 0, 500)
+                        ]);
+                        
                         // Split into lines
                         $lines = preg_split('/[\r\n]+/', $afterEnvelope);
+                        
+                        Log::info('Lines after envelope ID:', [
+                            'line_count' => count($lines),
+                            'first_10_lines' => array_slice($lines, 0, 10)
+                        ]);
                         
                         // The first line will be "Docusign Envelope ID: XXXXX" potentially with text after it
                         // We need to extract any text after the envelope ID on the same line
@@ -304,6 +361,11 @@ class MerchantImportController extends Controller
                         // Envelope ID format: alphanumeric with hyphens, like "199F4FC8-A131-423B-BE8E-6C8020B72766"
                         if (preg_match('/Docusign Envelope ID:\s*([A-F0-9\-]+)\s*(.+)?/i', $firstLine, $match)) {
                             $textAfterEnvelopeId = isset($match[2]) ? trim($match[2]) : '';
+                            
+                            Log::info('Envelope ID line parsed:', [
+                                'envelope_id' => $match[1],
+                                'text_after' => $textAfterEnvelopeId
+                            ]);
                                                         
                             // Get subsequent lines (skip the first line which is the envelope ID line)
                             $linesAfterEnvelope = [];
@@ -330,6 +392,10 @@ class MerchantImportController extends Controller
                                 }
                             }
                         }
+                        
+                        Log::info('Lines to analyze for company name:', [
+                            'lines' => $linesAfterEnvelope
+                        ]);
                     
                         if (count($linesAfterEnvelope) > 0) {
                             // FIX: Smart company name extraction with multi-line and postcode handling
@@ -354,6 +420,15 @@ class MerchantImportController extends Controller
                             $firstLine = $linesAfterEnvelope[0];
                             $secondLine = isset($linesAfterEnvelope[1]) ? $linesAfterEnvelope[1] : null;
                             
+                            Log::info('Analyzing lines:', [
+                                'first_line' => $firstLine,
+                                'second_line' => $secondLine,
+                                'first_looks_like_company' => $looksLikeCompanyName($firstLine),
+                                'first_is_postcode' => $isPostcodeFn($firstLine),
+                                'second_looks_like_company' => $secondLine ? $looksLikeCompanyName($secondLine) : null,
+                                'second_is_postcode' => $secondLine ? $isPostcodeFn($secondLine) : null,
+                            ]);
+                            
                             // Strategy: Build company name from consecutive valid lines until we hit a postcode
                             $nameParts = [];
                             
@@ -375,17 +450,35 @@ class MerchantImportController extends Controller
                                 $nameParts[] = $secondLine;
                             }
                             
+                            Log::info('Name parts collected:', [
+                                'parts' => $nameParts
+                            ]);
+                            
                             if (count($nameParts) > 0) {
                                 $potentialName = trim(implode(' ', $nameParts));
+                                
+                                Log::info('Potential name built:', [
+                                    'name' => $potentialName,
+                                    'length' => strlen($potentialName)
+                                ]);
                                 
                                 // Final validation: company name should be 5-100 chars
                                 if (strlen($potentialName) >= 5 && strlen($potentialName) <= 100) {
                                     $merchantCompanyName = $potentialName;
+                                    Log::info('✓ Pattern 2 SUCCESS - Set as merchantCompanyName:', [
+                                        'value' => $merchantCompanyName
+                                    ]);
+                                } else {
+                                    Log::info('✗ Pattern 2 REJECTED - length validation failed');
                                 }
                             }
                         }
                     }
                 }
+                
+                Log::info('=== COMPANY NAME EXTRACTION COMPLETE ===', [
+                    'final_result' => $merchantCompanyName
+                ]);
                 
             } catch (\Exception $e) {
                 Log::warning('Could not parse form PDF', ['error' => $e->getMessage()]);
@@ -539,14 +632,17 @@ class MerchantImportController extends Controller
 
         // FIX 7: IMPROVED FALLBACK CHAIN
         if (!$merchantCompanyName) {
+            Log::info('No company name found, using fallbacks');
             // Only use signer name if it's valid and properly cleaned
             if ($signerName && $signerName !== null) {
                 $merchantCompanyName = $signerName;
+                Log::info('Using signer name as fallback', ['name' => $merchantCompanyName]);
             } elseif ($signerEmail) {
                 // Last resort: use email domain as company name
                 $emailParts = explode('@', $signerEmail);
                 $domain = $emailParts[1] ?? 'Unknown';
                 $merchantCompanyName = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domain)[0]));
+                Log::info('Using email domain as fallback', ['name' => $merchantCompanyName]);
             }
         }
 
@@ -622,7 +718,7 @@ class MerchantImportController extends Controller
             }
 
             // Extract merchant info
-            $merchantInfo = $this->extractMerchantInfoFromSummary($summaryPdf, $formPdf);
+            $merchantInfo = $this->extractMerchantInfoFromSummary($summaryPath, $formPdf);
 
             // Check if account exists
             $account = Account::where('email', $merchantInfo['email'])->first();
@@ -637,6 +733,9 @@ class MerchantImportController extends Controller
                     'user_id' => auth()->id(),
                     'status' => Account::STATUS_CONFIRMED,
                 ]);
+
+                // COMMENTED OUT TO PREVENT EMAILS DURING IMPORT
+                // event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
             }
 
             // Create application with extracted fees
