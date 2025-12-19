@@ -131,7 +131,26 @@
               </thead>
 
               <tbody>
+                <!-- Loading State -->
+                <tr v-if="selectedImport?.status === 'processing'">
+                  <td colspan="7" class="px-6 py-12 text-center">
+                    <div class="flex flex-col items-center gap-4">
+                      <div class="relative">
+                        <div class="w-16 h-16 border-4 border-blue-900/30 border-t-blue-500 rounded-full animate-spin"></div>
+                      </div>
+                      <div class="text-blue-300 font-medium">
+                        Processing transactions...
+                      </div>
+                      <div class="text-sm text-gray-400">
+                        {{ selectedImport.processed_rows.toLocaleString() }} / {{ selectedImport.estimated_total.toLocaleString() }} rows processed
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Merchant Stats Rows -->
                 <tr
+                  v-else
                   v-for="(stat, index) in merchantStats"
                   :key="index"
                   class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
@@ -172,7 +191,8 @@
                   </td>
                 </tr>
 
-                <tr v-if="merchantStats.length === 0">
+                <!-- Empty State (only show if completed and no data) -->
+                <tr v-if="merchantStats.length === 0 && selectedImport?.status === 'completed'">
                   <td colspan="7" class="px-6 py-8 text-gray-400 text-center">
                     No merchant data found for this import.
                   </td>
