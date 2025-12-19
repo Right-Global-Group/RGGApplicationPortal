@@ -87,16 +87,23 @@ class InvoicesController extends Controller
     public function upload(): RedirectResponse
     {
         Request::validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:102400'], // 100MB max
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:102400'],
         ]);
     
         $file = Request::file('file');
         $filename = $file->getClientOriginalName();
     
         try {
-            // Store the file temporarily
-            $path = $file->store('imports', 'local');
-            $fullPath = storage_path('app/' . $path);
+            // Create temp directory if it doesn't exist
+            $tempDir = storage_path('app/temp/imports');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+    
+            // Generate unique filename and move file
+            $uniqueFilename = uniqid() . '_' . $filename;
+            $fullPath = $tempDir . '/' . $uniqueFilename;
+            $file->move($tempDir, $uniqueFilename);
     
             // Create import record
             $import = CardstreamImport::create([
@@ -107,7 +114,7 @@ class InvoicesController extends Controller
                 'status' => 'pending',
             ]);
     
-            // Dispatch job to process in background
+            // Dispatch job
             ProcessCardstreamImport::dispatch($import, $fullPath);
     
             return Redirect::route('invoices.index', ['import_id' => $import->id])
