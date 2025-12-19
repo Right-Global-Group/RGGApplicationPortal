@@ -359,7 +359,7 @@ class MerchantImportController extends Controller
                         
                         // Extract text that comes after the envelope ID on the same line
                         // Envelope ID format: alphanumeric with hyphens, like "199F4FC8-A131-423B-BE8E-6C8020B72766"
-                        if (preg_match('/Docusign Envelope ID:\s*([A-F0-9\-]+)\s*(.+)?/i', $firstLine, $match)) {
+                        if (preg_match('/Docusign Envelope ID:\s*([A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12})(.*)$/i', $firstLine, $match)) {
                             $textAfterEnvelopeId = isset($match[2]) ? trim($match[2]) : '';
                             
                             Log::info('Envelope ID line parsed:', [
