@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('cardstream_merchant_transactions_list', function (Blueprint $table) {
+        Schema::create('cardstream_transaction_summaries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('import_id')->constrained('cardstream_imports')->onDelete('cascade');
             $table->string('merchant_id');
@@ -20,13 +20,12 @@ return new class extends Migration
             $table->integer('canceled')->default(0);
             $table->timestamps();
             
-            // Index for faster lookups
             $table->index(['import_id', 'merchant_name']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('cardstream_merchant_transactions_list');
+        Schema::dropIfExists('cardstream_transaction_summaries');
     }
 };

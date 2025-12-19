@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\CardstreamImport;
-use App\Models\CardstreamMerchantTransactionList;
+use App\Models\CardstreamTransactionSummary;
 use App\Models\CardstreamTransaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -118,7 +118,7 @@ class ProcessCardstreamImport implements ShouldQueue
             
             try {
                 foreach ($merchantStats as $stats) {
-                    CardstreamMerchantTransactionList::create([
+                    CardstreamTransactionSummary::create([
                         'import_id' => $import->id,
                         'merchant_id' => $stats['merchant_id'],
                         'merchant_name' => $stats['merchant_name'],

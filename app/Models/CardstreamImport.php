@@ -36,7 +36,7 @@ class CardstreamImport extends Model
 
     public function merchantTransactions(): HasMany
     {
-        return $this->hasMany(CardstreamMerchantTransactionList::class, 'import_id');
+        return $this->hasMany(CardstreamTransactionSummary::class, 'import_id');
     }
 
     /**
