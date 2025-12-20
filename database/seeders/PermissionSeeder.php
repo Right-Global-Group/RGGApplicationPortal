@@ -37,7 +37,9 @@ class PermissionSeeder extends Seeder
         ];
 
         foreach ($userPermissions as $permission) {
-            Permission::create(['name' => $permission, 'guard_name' => 'web']);
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'web']
+            );
         }
 
         // Create permissions for account guard (Accounts)
@@ -50,29 +52,33 @@ class PermissionSeeder extends Seeder
         ];
 
         foreach ($accountPermissions as $permission) {
-            Permission::create(['name' => $permission, 'guard_name' => 'account']);
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'account']
+            );
         }
 
         // Create roles for web guard
-        $adminRole = Role::create(['name' => 'admin', 'guard_name' => 'web']);
-        $userRole = Role::create(['name' => 'user', 'guard_name' => 'web']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $userRole = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
 
-        // Assign all permissions to admin
-        $adminRole->givePermissionTo(Permission::where('guard_name', 'web')->get());
+        // Sync all permissions to admin (this will update existing role)
+        $adminRole->syncPermissions(Permission::where('guard_name', 'web')->get());
 
-        // Assign limited permissions to regular users
-        $userRole->givePermissionTo([
+        // Sync limited permissions to regular users (this will update existing role)
+        $userRole->syncPermissions([
             'view accounts',
             'view applications',
             'create applications',
             'edit applications',
+            // NOTE: 'view invoices' is intentionally excluded for regular users
         ]);
 
         // Create role for account guard
-        $accountRole = Role::create(['name' => 'account', 'guard_name' => 'account']);
-        $accountRole->givePermissionTo(Permission::where('guard_name', 'account')->get());
+        $accountRole = Role::firstOrCreate(['name' => 'account', 'guard_name' => 'account']);
+        $accountRole->syncPermissions(Permission::where('guard_name', 'account')->get());
 
-        $this->command->info('Permissions and roles created successfully!');
-        $this->command->info('Note: Roles will be assigned during user/account creation.');
+        $this->command->info('Permissions and roles created/updated successfully!');
+        $this->command->info('Regular users do NOT have "view invoices" permission.');
+        $this->command->info('Only admin users can view invoices.');
     }
 }
