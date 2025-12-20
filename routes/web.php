@@ -206,12 +206,14 @@ Route::middleware(['auth:web,account'])->group(function () {
         ->name('applications.docusign.download');
     });
 
-    Route::get('/invoices', [InvoicesController::class, 'index'])->name('invoices.index');
-    Route::post('/invoices/upload', [InvoicesController::class, 'upload'])->name('invoices.upload');
-    Route::delete('/invoices/{import}', [InvoicesController::class, 'destroy'])->name('invoices.destroy');
-
     // Progress Tracker
     Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/invoices', [InvoicesController::class, 'index'])->name('invoices.index');
+        Route::post('/invoices/upload', [InvoicesController::class, 'upload'])->name('invoices.upload');
+        Route::delete('/invoices/{import}', [InvoicesController::class, 'destroy'])->name('invoices.destroy');
+    });
 
     // Users Routes (Admin Only)
     Route::middleware('role:admin')->prefix('users')->group(function () {

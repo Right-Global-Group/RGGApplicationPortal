@@ -14,7 +14,8 @@ class CheckRole
         if (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
             
-            if ($role === 'admin' && !$user->isAdmin()) {
+            // Use Spatie's hasRole instead of isAdmin()
+            if (!$user->hasRole($role)) {
                 abort(403, 'Unauthorized action.');
             }
         }
@@ -24,6 +25,11 @@ class CheckRole
             
             // Accounts can never access admin routes
             if ($role === 'admin') {
+                abort(403, 'Unauthorized action.');
+            }
+            
+            // Check if account has the required role
+            if (!$account->hasRole($role)) {
                 abort(403, 'Unauthorized action.');
             }
         }

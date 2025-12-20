@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,6 +22,11 @@ class AccountAuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
+
+        // Ensure no web guard session exists (prevent guard conflicts)
+        if (Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+        }
 
         if (Auth::guard('account')->attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();

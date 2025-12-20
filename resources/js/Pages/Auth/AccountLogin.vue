@@ -3,9 +3,10 @@
       <Head title="Account Login" />
       
       <div class="w-full max-w-md">
-        <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
+        <logo class="block mx-auto w-full max-w-xs fill-magenta-400" height="50" />
+        <div class="mt-10 bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
           <div class="px-8 py-6 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30">
-            <h1 class="text-2xl font-bold text-white text-center">Account Login</h1>
+            <h1 class="text-2xl font-bold text-white text-center">Merchant Login</h1>
           </div>
           
           <form @submit.prevent="submit" class="p-8 space-y-6">
@@ -58,6 +59,7 @@
   <script>
   import { Head, Link } from '@inertiajs/vue3'
   import TextInput from '@/Shared/TextInput.vue'
+  import Logo from '@/Shared/Logo.vue'
   import LoadingButton from '@/Shared/LoadingButton.vue'
   
   export default {
@@ -66,6 +68,7 @@
       Link,
       TextInput,
       LoadingButton,
+      Logo,
     },
     data() {
       return {

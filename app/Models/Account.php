@@ -20,6 +20,7 @@ class Account extends Authenticatable
     const STATUS_CONFIRMED = 1;
 
     protected $guard = 'account';
+    protected $guard_name = 'account';
 
     protected $fillable = [
         'name',

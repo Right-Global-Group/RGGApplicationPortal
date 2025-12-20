@@ -20,31 +20,36 @@
           </loading-button>
         </div>
       </form>
+      <div class="mt-6 text-center">
+        <Link href="/account/login" class="text-magenta-400 hover:text-magenta-300 text-sm">
+          Merchant Login Instead
+        </Link>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { Head } from '@inertiajs/vue3'
-import Logo from '@/Shared/Logo.vue'
-import TextInput from '@/Shared/TextInput.vue'
-import LoadingButton from '@/Shared/LoadingButton.vue'
-
-export default {
-  components: { Head, LoadingButton, Logo, TextInput },
-  data() {
-    return {
-      form: this.$inertia.form({
-        email: 'max.behrens@rightglobalgroup.com',
-        password: 'secret',
-        remember: false,
-      }),
-    }
-  },
-  methods: {
-    login() {
-      this.form.post('/login')
+  import { Head, Link } from '@inertiajs/vue3'
+  import Logo from '@/Shared/Logo.vue'
+  import TextInput from '@/Shared/TextInput.vue'
+  import LoadingButton from '@/Shared/LoadingButton.vue'
+  
+  export default {
+    components: { Head, Link, LoadingButton, Logo, TextInput },
+    data() {
+      return {
+        form: this.$inertia.form({
+          email: '',
+          password: '',
+          remember: false,
+        }),
+      }
     },
-  },
-}
+    methods: {
+      login() {
+        this.form.post('/login')
+      },
+    },
+  }
 </script>

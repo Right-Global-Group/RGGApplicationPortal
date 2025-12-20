@@ -111,7 +111,7 @@ export default {
           label: 'Invoices', 
           href: '/invoices', 
           match: 'invoices',
-          adminOnly: false 
+          adminOnly: true 
         },
       ],
       secondaryMenu: [

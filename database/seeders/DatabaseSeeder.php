@@ -20,8 +20,8 @@ class DatabaseSeeder extends Seeder
 
         // Create the main user (YOU) as admin
         $mainUser = User::factory()->create([
-            'first_name' => 'Max',
-            'last_name' => 'Behrens',
+            'first_name' => 'G2Pay',
+            'last_name' => 'Admin',
             'email' => 'max.behrens@rightglobalgroup.com',
             'password' => 'secret',
         ]);

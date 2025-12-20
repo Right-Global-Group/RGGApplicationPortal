@@ -33,6 +33,7 @@ class PermissionSeeder extends Seeder
             'edit users',
             'delete users',
             'manage settings',
+            'view invoices',
         ];
 
         foreach ($userPermissions as $permission) {
