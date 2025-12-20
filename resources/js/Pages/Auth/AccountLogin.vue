@@ -46,12 +46,6 @@
             </loading-button>
           </form>
         </div>
-        
-        <div class="mt-6 text-center">
-          <Link href="/login" class="text-magenta-400 hover:text-magenta-300 text-sm">
-            User Login Instead
-          </Link>
-        </div>
       </div>
     </div>
   </template>

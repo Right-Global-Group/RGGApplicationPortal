@@ -9,7 +9,7 @@
         <div class="md:flex md:shrink-0">
           <div class="flex items-center justify-between px-6 py-2 bg-dark-800 border-b border-primary-700">
             <Link class="mt-1" href="/">
-              <Logo class="fill-magenta-400 p-2 ml-1" width="120" height="30" />
+              <Logo class="fill-magenta-400 p-2 ml-1" />
             </Link>
             <Dropdown class="md:hidden" placement="bottom-end">
               <template #default>
@@ -40,19 +40,24 @@
 
               <template #dropdown>
                 <div class="mt-2 py-2 text-sm bg-dark-800 rounded-xl shadow-xl border border-primary-700 w-48">
+                  <!-- My Profile - Different link for accounts vs users -->
                   <Link 
                     class="block px-6 py-2 text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
-                    :href="`/users/${auth.user.id}/edit`"
+                    :href="profileUrl"
                   >
                     My Profile
                   </Link>
+                  
+                  <!-- Settings - Only for admin users -->
                   <Link 
-                    v-if="auth.user.isAdmin"
+                    v-if="auth.user.isAdmin && auth.guard === 'web'"
                     class="block px-6 py-2 text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
                     href="/settings"
                   >
                     Settings
                   </Link>
+                  
+                  <!-- Logout -->
                   <Link 
                     class="block px-6 py-2 w-full text-left text-gray-300 hover:text-white hover:bg-magenta-500 rounded transition-all duration-200" 
                     :href="logoutUrl" 
@@ -103,13 +108,21 @@ export default {
   },
   setup(props) {
     const logoutUrl = computed(() => {
-      // Check if the user is an account (you can add a guard property to auth)
-      // or check if they have an 'isAccount' property
       return props.auth.guard === 'account' ? '/account/logout' : '/logout'
     })
 
+    const profileUrl = computed(() => {
+      // If logged in as account, go to their account edit page
+      if (props.auth.guard === 'account' && props.auth.user?.account?.id) {
+        return `/accounts/${props.auth.user.account.id}/edit`
+      }
+      // If logged in as user, go to their user profile
+      return `/users/${props.auth.user.id}/edit`
+    })
+
     return {
-      logoutUrl
+      logoutUrl,
+      profileUrl
     }
   }
 }
