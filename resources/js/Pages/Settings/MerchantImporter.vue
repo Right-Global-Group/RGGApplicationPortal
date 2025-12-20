@@ -190,25 +190,31 @@
           </tbody>
         </table>
       </div>
-
+      
       <!-- Pagination -->
-      <div v-if="imports.links && imports.links.length > 3" class="px-6 py-4 border-t border-primary-800/30">
-        <div class="flex flex-wrap gap-1">
-          <component
-            :is="link.url ? Link : 'span'"
-            v-for="(link, index) in imports.links"
-            :key="index"
-            :href="link.url || undefined"
-            :class="[
-              'px-3 py-1 rounded text-sm',
-              link.active
-                ? 'bg-magenta-600 text-white'
-                : link.url 
-                  ? 'bg-dark-900/50 text-gray-400 hover:bg-primary-900/50 cursor-pointer'
-                  : 'bg-dark-900/50 text-gray-500 cursor-not-allowed opacity-50'
-            ]"
-            v-html="link.label"
-          />
+      <div v-if="imports.links && imports.links.length > 3" class="px-6 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-t border-primary-800/30">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-gray-400">
+            Showing {{ imports.from }} to {{ imports.to }} of {{ imports.total }} results
+          </div>
+          <div class="flex gap-2">
+            <Link
+              v-for="(link, index) in imports.links"
+              :key="index"
+              :href="link.url || '#'"
+              preserve-state
+              v-html="link.label"
+              :class="[
+                'px-3 py-2 text-sm rounded-lg transition-colors',
+                link.active
+                  ? 'bg-magenta-600 text-white'
+                  : link.url
+                  ? 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  : 'bg-dark-800 text-gray-600 cursor-not-allowed'
+              ]"
+              @click.prevent="!link.url && $event.preventDefault()"
+            />
+          </div>
         </div>
       </div>
     </div>
