@@ -1006,20 +1006,6 @@ class ApplicationStatusController extends Controller
             return false;
         }
         
-        \Log::info('Timestamps check', [
-            'has_status' => $application->status !== null,
-            'contract_sent' => $timestamps['contract_sent'] ?? 'not set',
-            'contract_signed' => $timestamps['contract_signed'] ?? 'not set',
-        ]);
-        
-        // First check: contract must be sent but not signed
-        if (!$timestamps || 
-            !isset($timestamps['contract_sent']) || 
-            !empty($timestamps['contract_signed'])) {
-            \Log::info('Failed initial timestamp check');
-            return false;
-        }
-        
         // Second check: verify routing order using DocuSign
         $envelopeId = $application->status->docusign_envelope_id;
         
