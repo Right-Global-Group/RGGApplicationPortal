@@ -747,12 +747,8 @@ public function sendCardStreamCredentials(Application $application): RedirectRes
 
     private function canMerchantSignContract(Application $application): bool
     {
-        $timestamps = $application->status?->timestamps;
-        
-        // First check: contract must be sent but not signed
-        if (!$timestamps || 
-            !isset($timestamps['contract_sent']) || 
-            !empty($timestamps['contract_signed'])) {
+        $status = $application->status;
+        if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
             return false;
         }
         

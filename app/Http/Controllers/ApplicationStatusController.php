@@ -1001,12 +1001,8 @@ class ApplicationStatusController extends Controller
 
     private function canMerchantSignContract(\App\Models\Application $application): bool
     {
-        \Log::info('=== CHECKING MERCHANT SIGN ELIGIBILITY ===', [
-            'application_id' => $application->id,
-            'account_email' => $application->account->email,
-        ]);
-    
-        $timestamps = $application->status?->timestamps;
+        $status = $application->status;
+        if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
         
         \Log::info('Timestamps check', [
             'has_status' => $application->status !== null,
