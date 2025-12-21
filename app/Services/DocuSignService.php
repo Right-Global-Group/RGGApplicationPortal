@@ -1511,7 +1511,7 @@ class DocuSignService
         }
     }
 
-    private function getAccessToken(): string
+    public function getAccessToken(): string
     {
         try {
             if (!file_exists($this->privateKey)) {
