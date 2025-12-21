@@ -38,10 +38,14 @@ class DocuSignService
     {
         // Does this application already have an active envelope?
         $existingEnvelopeId = $application->status->docusign_envelope_id;
-
+        
         if ($existingEnvelopeId) {
             // Envelope already exists
             Log::info('Using existing envelope', ['envelope_id' => $existingEnvelopeId]);
+            
+            // Is this an imported envelope?
+            $importMetadata = $application->status->import_metadata ?? null;
+            $isImported = $importMetadata['is_imported'] ?? false;
             
             // Determine who is currently logged in
             $isAccount = auth()->guard('account')->check();
@@ -51,7 +55,7 @@ class DocuSignService
                 try {
                     $accessToken = $this->getAccessToken();
                     
-                    // Get envelope details including current routing order
+                    // Get envelope details
                     $envelopeResponse = Http::withToken($accessToken)
                         ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$existingEnvelopeId}/recipients");
                     
@@ -64,52 +68,38 @@ class DocuSignService
                     
                     Log::info('Checking merchant signing eligibility', [
                         'current_routing_order' => $currentRoutingOrder,
-                        'envelope_data' => $envelopeData,
+                        'is_imported' => $isImported,
                     ]);
                     
-                    // Try to find merchant by current account email first
                     $account = $application->account;
                     $merchantSigner = null;
                     $merchantRoutingOrder = null;
                     
-                    // First attempt: Match by current account email
-                    foreach ($envelopeData['signers'] ?? [] as $signer) {
-                        if (strtolower($signer['email']) === strtolower($account->email)) {
-                            $merchantSigner = $signer;
-                            $merchantRoutingOrder = (int)$signer['routingOrder'];
-                            break;
-                        }
-                    }
-                    
-                    // If not found, this might be an imported envelope
-                    // Find the NON-G2PAY signer (the merchant)
-                    if (!$merchantSigner) {
-                        Log::info('Merchant email not found in envelope - checking for imported envelope', [
+                    // For IMPORTED envelopes, use the merchant email from import metadata
+                    if ($isImported && isset($importMetadata['original_signers']['merchant_email'])) {
+                        $merchantEmail = $importMetadata['original_signers']['merchant_email'];
+                        
+                        Log::info('Using merchant email from import metadata', [
+                            'merchant_email' => $merchantEmail,
                             'account_email' => $account->email,
-                            'envelope_id' => $existingEnvelopeId,
                         ]);
                         
+                        // Find signer by import email
                         foreach ($envelopeData['signers'] ?? [] as $signer) {
-                            $signerEmail = strtolower($signer['email']);
-                            
-                            // Skip G2Pay/internal signers
-                            if (stripos($signerEmail, 'g2pay.co.uk') !== false || 
-                                stripos($signerEmail, 'management@') !== false ||
-                                stripos($signer['roleName'] ?? '', 'Director') !== false ||
-                                stripos($signer['roleName'] ?? '', 'Product Manager') !== false) {
-                                continue;
+                            if (strtolower($signer['email']) === strtolower($merchantEmail)) {
+                                $merchantSigner = $signer;
+                                $merchantRoutingOrder = (int)$signer['routingOrder'];
+                                break;
                             }
-                            
-                            // This must be the merchant
-                            $merchantSigner = $signer;
-                            $merchantRoutingOrder = (int)$signer['routingOrder'];
-                            
-                            Log::info('Found merchant signer in imported envelope', [
-                                'envelope_merchant_email' => $signer['email'],
-                                'account_email' => $account->email,
-                                'routing_order' => $merchantRoutingOrder,
-                            ]);
-                            break;
+                        }
+                    } else {
+                        // Normal flow: match by current account email
+                        foreach ($envelopeData['signers'] ?? [] as $signer) {
+                            if (strtolower($signer['email']) === strtolower($account->email)) {
+                                $merchantSigner = $signer;
+                                $merchantRoutingOrder = (int)$signer['routingOrder'];
+                                break;
+                            }
                         }
                     }
                     
@@ -127,14 +117,15 @@ class DocuSignService
                         throw new \Exception('You have already signed this contract.');
                     }
                     
-                    // Use the ORIGINAL email from the envelope (not current account email)
+                    // Use the email from the envelope (handles both imported and normal cases)
                     $recipientEmail = $merchantSigner['email'];
                     $recipientName = $merchantSigner['name'];
                     $clientUserId = 'merchant-' . $application->id;
                     
-                    Log::info('Using envelope recipient email for signing', [
-                        'recipient_email' => $recipientEmail,
-                        'recipient_name' => $recipientName,
+                    Log::info('Found merchant signer', [
+                        'email' => $recipientEmail,
+                        'name' => $recipientName,
+                        'is_imported' => $isImported,
                     ]);
                     
                 } catch (\Exception $e) {
@@ -148,64 +139,11 @@ class DocuSignService
                 // USER is opening
                 $accessToken = $this->getAccessToken();
                 $user = auth()->guard('web')->user();
-                
-                // For imported envelopes, find the director signer
-                try {
-                    $envelopeResponse = Http::withToken($accessToken)
-                        ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$existingEnvelopeId}/recipients");
-                    
-                    if ($envelopeResponse->succeeded()) {
-                        $envelopeData = $envelopeResponse->json();
-                        
-                        // Try to find director/G2Pay signer
-                        $directorSigner = null;
-                        foreach ($envelopeData['signers'] ?? [] as $signer) {
-                            $signerEmail = strtolower($signer['email']);
-                            
-                            if (stripos($signerEmail, 'g2pay.co.uk') !== false || 
-                                stripos($signerEmail, 'management@') !== false ||
-                                stripos($signer['roleName'] ?? '', 'Director') !== false ||
-                                stripos($signer['roleName'] ?? '', 'Product Manager') !== false) {
-                                $directorSigner = $signer;
-                                break;
-                            }
-                        }
-                        
-                        if ($directorSigner) {
-                            Log::info('Found director signer in imported envelope', [
-                                'director_email' => $directorSigner['email'],
-                                'current_user_email' => $user->email,
-                            ]);
-                            
-                            // Use the original director email from envelope
-                            $recipientEmail = $directorSigner['email'];
-                            $recipientName = $directorSigner['name'];
-                            $clientUserId = 'user-' . $application->id;
-                        } else {
-                            // Fall back to current user email
-                            $recipientEmail = $user->email;
-                            $recipientName = $user->name ?? $user->email;
-                            $clientUserId = 'user-' . $application->id;
-                        }
-                    } else {
-                        // Fall back to current user email if API call fails
-                        $recipientEmail = $user->email;
-                        $recipientName = $user->name ?? $user->email;
-                        $clientUserId = 'user-' . $application->id;
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to check for imported envelope director', [
-                        'error' => $e->getMessage(),
-                    ]);
-                    
-                    // Fall back to current user email
-                    $recipientEmail = $user->email;
-                    $recipientName = $user->name ?? $user->email;
-                    $clientUserId = 'user-' . $application->id;
-                }
+                $recipientEmail = $user->email;
+                $recipientName = $user->name ?? $user->email;
+                $clientUserId = 'user-' . $application->id;
             }
             
-            // Rest of the code stays exactly the same...
             try {
                 if (!isset($accessToken)) {
                     $accessToken = $this->getAccessToken();
