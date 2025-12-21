@@ -75,10 +75,17 @@
           <div class="p-8 space-y-4">
             <div>
               <label class="block text-gray-300 font-medium mb-2">Created By</label>
-              <Link v-if="account.user_id" :href="`/users/${account.user_id}/edit`" class="inline-block px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-magenta-400 hover:text-magenta-300 hover:border-magenta-500/50 transition-colors">
+              <Link 
+                v-if="account.user_id && !$page.props.auth.account" 
+                :href="`/users/${account.user_id}/edit`" 
+                class="inline-block px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-magenta-400 hover:text-magenta-300 hover:border-magenta-500/50 transition-colors"
+              >
                 {{ account.user_name || '—' }}
               </Link>
-              <div v-else class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
+              <div 
+                v-else 
+                class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300"
+              >
                 {{ account.user_name || '—' }}
               </div>
             </div>

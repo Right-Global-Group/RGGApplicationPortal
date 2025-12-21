@@ -391,12 +391,14 @@ class AccountsController extends Controller
     private function canMerchantSignContract(Application $application): bool
     {
         $status = $application->status;
+        
+        // First check: contract must be sent but not signed
         if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
             return false;
         }
         
         // Second check: verify routing order using DocuSign
-        $envelopeId = $application->status->docusign_envelope_id;
+        $envelopeId = $status->docusign_envelope_id;
         if (!$envelopeId) {
             return false;
         }
@@ -426,7 +428,7 @@ class AccountsController extends Controller
             }
             
             // If merchant not found by exact email (imported envelope), try elimination
-            if ($merchantRoutingOrder === null && $application->status->current_step === 'contract_sent') {
+            if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
                 foreach ($envelopeData['signers'] ?? [] as $signer) {
                     $signerEmail = strtolower($signer['email']);
                     

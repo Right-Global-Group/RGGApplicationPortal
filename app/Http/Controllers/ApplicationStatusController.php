@@ -999,23 +999,18 @@ class ApplicationStatusController extends Controller
         return Redirect::back()->with('success', 'Message reminder cancelled.');
     }
 
-    private function canMerchantSignContract(\App\Models\Application $application): bool
+    private function canMerchantSignContract(Application $application): bool
     {
         $status = $application->status;
+        
+        // First check: contract must be sent but not signed
         if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
             return false;
         }
         
         // Second check: verify routing order using DocuSign
-        $envelopeId = $application->status->docusign_envelope_id;
-        
-        \Log::info('Envelope ID check', [
-            'envelope_id' => $envelopeId,
-            'has_envelope' => !empty($envelopeId),
-        ]);
-        
+        $envelopeId = $status->docusign_envelope_id;
         if (!$envelopeId) {
-            \Log::info('No envelope ID found');
             return false;
         }
         
@@ -1026,45 +1021,25 @@ class ApplicationStatusController extends Controller
                 ->get(config('services.docusign.base_url') . "/v2.1/accounts/" . config('services.docusign.account_id') . "/envelopes/{$envelopeId}/recipients");
             
             if ($envelopeResponse->failed()) {
-                \Log::error('DocuSign API call failed', [
-                    'status' => $envelopeResponse->status(),
-                    'body' => $envelopeResponse->body(),
-                ]);
                 return false;
             }
             
             $envelopeData = $envelopeResponse->json();
             $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
             
-            \Log::info('DocuSign envelope data', [
-                'current_routing_order' => $currentRoutingOrder,
-                'signers_count' => count($envelopeData['signers'] ?? []),
-            ]);
-            
             // Find merchant's routing order
             $merchantEmail = strtolower($application->account->email);
             $merchantRoutingOrder = null;
             
             foreach ($envelopeData['signers'] ?? [] as $signer) {
-                \Log::info('Checking signer', [
-                    'email' => $signer['email'],
-                    'routing_order' => $signer['routingOrder'],
-                    'status' => $signer['status'],
-                ]);
-                
                 if (strtolower($signer['email']) === $merchantEmail) {
                     $merchantRoutingOrder = (int)$signer['routingOrder'];
-                    \Log::info('Found merchant by exact email', [
-                        'merchant_routing_order' => $merchantRoutingOrder,
-                    ]);
                     break;
                 }
             }
             
             // If merchant not found by exact email (imported envelope), try elimination
-            if ($merchantRoutingOrder === null && $application->status->current_step === 'contract_sent') {
-                \Log::info('Trying elimination method for imported envelope');
-                
+            if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
                 foreach ($envelopeData['signers'] ?? [] as $signer) {
                     $signerEmail = strtolower($signer['email']);
                     
@@ -1075,20 +1050,10 @@ class ApplicationStatusController extends Controller
                         stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
                         
                         $merchantRoutingOrder = (int)$signer['routingOrder'];
-                        \Log::info('Found merchant by elimination', [
-                            'email' => $signerEmail,
-                            'merchant_routing_order' => $merchantRoutingOrder,
-                        ]);
                         break;
                     }
                 }
             }
-            
-            \Log::info('Final routing order check', [
-                'merchant_routing_order' => $merchantRoutingOrder,
-                'current_routing_order' => $currentRoutingOrder,
-                'can_sign' => $merchantRoutingOrder !== null && $merchantRoutingOrder <= $currentRoutingOrder,
-            ]);
             
             // Merchant can only sign if it's their turn
             return $merchantRoutingOrder !== null && $merchantRoutingOrder <= $currentRoutingOrder;
@@ -1097,7 +1062,6 @@ class ApplicationStatusController extends Controller
             \Log::error('Failed to check merchant signing eligibility', [
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
