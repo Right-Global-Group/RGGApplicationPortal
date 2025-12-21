@@ -473,8 +473,21 @@
       <div class="flex flex-wrap gap-3">
 
         <!-- Sign Contract Button - generates fresh signing URL -->
+        <a      
+          v-if="canAccountSignContract && application.is_imported && application.docusign_envelope_url"
+          :href="application.docusign_envelope_url"
+          target="_blank"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          View Contract in DocuSign
+        </a>
+
+        <!-- G2Pay-created contracts: generate signing URL -->
         <button
-          v-if="canAccountSignContract"
+          v-else-if="canAccountSignContract && !application.is_imported"
           @click="openContractForAccount"
           :disabled="isLoadingContract"
           class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2"

@@ -99,6 +99,10 @@ class ApplicationStatusController extends Controller
                 'wordpress_admin_username' => $application->wordpress_admin_username,
                 'has_wordpress_credentials' => $application->hasWordPressCredentials(),
                 'can_merchant_sign' => $this->canMerchantSignContract($application),
+                'is_imported' => $merchantImport !== null,
+                'docusign_envelope_url' => $merchantImport && $application->status->docusign_envelope_id
+                ? "https://app.docusign.com/documents/details/{$application->status->docusign_envelope_id}"
+                : null,
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
