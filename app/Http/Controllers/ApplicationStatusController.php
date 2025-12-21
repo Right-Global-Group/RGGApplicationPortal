@@ -98,6 +98,7 @@ class ApplicationStatusController extends Controller
                 'wordpress_admin_email' => $application->wordpress_admin_email,
                 'wordpress_admin_username' => $application->wordpress_admin_username,
                 'has_wordpress_credentials' => $application->hasWordPressCredentials(),
+                'can_merchant_sign' => $this->canMerchantSignContract($application),
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
@@ -996,5 +997,76 @@ class ApplicationStatusController extends Controller
             ->update(['is_active' => false]);
 
         return Redirect::back()->with('success', 'Message reminder cancelled.');
+    }
+
+    private function canMerchantSignContract(Application $application): bool
+    {
+        $timestamps = $application->status?->timestamps;
+        
+        // First check: contract must be sent but not signed
+        if (!$timestamps || 
+            !isset($timestamps['contract_sent']) || 
+            !empty($timestamps['contract_signed'])) {
+            return false;
+        }
+        
+        // Second check: verify routing order using DocuSign
+        $envelopeId = $application->status->docusign_envelope_id;
+        if (!$envelopeId) {
+            return false;
+        }
+        
+        try {
+            // Use the injected DocuSignService (from constructor)
+            $accessToken = $this->docuSignService->getAccessToken();
+            
+            $envelopeResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)
+                ->get(config('services.docusign.base_url') . "/v2.1/accounts/" . config('services.docusign.account_id') . "/envelopes/{$envelopeId}/recipients");
+            
+            if ($envelopeResponse->failed()) {
+                return false;
+            }
+            
+            $envelopeData = $envelopeResponse->json();
+            $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
+            
+            // Find merchant's routing order
+            $merchantEmail = strtolower($application->account->email);
+            $merchantRoutingOrder = null;
+            
+            foreach ($envelopeData['signers'] ?? [] as $signer) {
+                if (strtolower($signer['email']) === $merchantEmail) {
+                    $merchantRoutingOrder = (int)$signer['routingOrder'];
+                    break;
+                }
+            }
+            
+            // If merchant not found by exact email (imported envelope), try elimination
+            if ($merchantRoutingOrder === null && $application->status->current_step === 'contract_sent') {
+                foreach ($envelopeData['signers'] ?? [] as $signer) {
+                    $signerEmail = strtolower($signer['email']);
+                    
+                    // Skip G2Pay/internal signers
+                    if (stripos($signerEmail, 'g2pay.co.uk') === false && 
+                        stripos($signerEmail, 'management@') === false &&
+                        stripos($signer['roleName'] ?? '', 'Director') === false &&
+                        stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
+                        
+                        $merchantRoutingOrder = (int)$signer['routingOrder'];
+                        break;
+                    }
+                }
+            }
+            
+            // Merchant can only sign if it's their turn
+            return $merchantRoutingOrder !== null && $merchantRoutingOrder <= $currentRoutingOrder;
+            
+        } catch (\Exception $e) {
+            \Log::error('Failed to check merchant signing eligibility', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 }

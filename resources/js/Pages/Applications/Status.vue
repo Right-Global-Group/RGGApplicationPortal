@@ -1102,12 +1102,8 @@ export default {
     canAccountSignContract() {
       if (!this.is_account) return false;
       
-      const timestamps = this.application.status?.timestamps;
-      
-      return (
-        !!timestamps?.contract_sent && 
-        !timestamps?.contract_signed
-      );
+      // Use the backend-provided flag (already checks routing order AND contract_signed)
+      return this.application.can_merchant_sign === true
     },
     
     canSubmitToCardStream() {

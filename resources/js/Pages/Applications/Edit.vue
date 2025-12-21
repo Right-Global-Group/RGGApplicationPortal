@@ -648,236 +648,221 @@
 </style>
 
 <script>
-import { Head, Link } from '@inertiajs/vue3'
-import Layout from '@/Shared/Layout.vue'
-import TextInput from '@/Shared/TextInput.vue'
-import SelectInput from '@/Shared/SelectInput.vue'
-import LoadingButton from '@/Shared/LoadingButton.vue'
-import ChangeFeesModal from '@/Shared/ChangeFeesModal.vue'
-import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
-import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
-import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
-
-export default {
-  components: { Head, Link, LoadingButton, SelectInput, TextInput, ChangeFeesModal, DocumentUploadModal, WordPressCredentialsModal, CardStreamCredentialsModal },
-  layout: Layout,
-  remember: 'form',
-  props: {
-    application: Object,
-    accounts: Array,
-    documents: Array,
-    documentCategories: Object,
-    categoryDescriptions: Object,
-    canChangeFees: {
-      type: Boolean,
-      default: false,
+  import { Head, Link } from '@inertiajs/vue3'
+  import Layout from '@/Shared/Layout.vue'
+  import TextInput from '@/Shared/TextInput.vue'
+  import SelectInput from '@/Shared/SelectInput.vue'
+  import LoadingButton from '@/Shared/LoadingButton.vue'
+  import ChangeFeesModal from '@/Shared/ChangeFeesModal.vue'
+  import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
+  import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
+  import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
+  
+  export default {
+    components: { 
+      Head, 
+      Link, 
+      LoadingButton, 
+      SelectInput, 
+      TextInput, 
+      ChangeFeesModal, 
+      DocumentUploadModal, 
+      WordPressCredentialsModal, 
+      CardStreamCredentialsModal 
     },
-    canEditWordPress: { type: Boolean, default: true },
-    canEditCardstream: { type: Boolean, default: true },
-  },
-  data() {
-    return {
-      showChangeFeesModal: false,
-      showDocumentUploadModal: false,
-      showWordPressModal: false,
-      showWordPressPassword: false,
-      showCardStreamPassword: false,
-      showCardStreamModal: false,
-      form: this.$inertia.form({
-        account_id: this.application.account_id,
-        name: this.application.name,
-      }),
-    }
-  },
-  computed: {
-    shouldShowDocuments() {
-      return true
+    layout: Layout,
+    remember: 'form',
+    props: {
+      application: Object,
+      accounts: Array,
+      documents: Array,
+      documentCategories: Object,
+      categoryDescriptions: Object,
+      canChangeFees: {
+        type: Boolean,
+        default: false,
+      },
+      canEditWordPress: { type: Boolean, default: true },
+      canEditCardstream: { type: Boolean, default: true },
     },
-
-    showAccountActions() {
-      return this.canUploadDocs || this.canSignContract
-    },
-    
-    canUploadDocs() {
-      return true
-    },
-    
-    canSignContract() {
-      const timestamps = this.application.status?.timestamps
-      
-      // Show sign button if contract sent but not yet signed
-      return !!timestamps?.contract_sent && !timestamps?.contract_signed
-    },
-    canEnterWordPress() {
-      // Both users and accounts can enter WordPress credentials
-      return true
-    },
-    
-    nextStep() {
-      const timestamps = this.application.status?.timestamps
-      
-      // Build array of pending actions
-      const pendingActions = []
-      
-      // Check if documents need approval
-      if (!timestamps?.documents_approved) {
-        if (!timestamps?.documents_uploaded) {
-          pendingActions.push('Upload documents')
-        } else {
-          pendingActions.push('Waiting for document approval')
-        }
+    data() {
+      return {
+        showChangeFeesModal: false,
+        showDocumentUploadModal: false,
+        showWordPressModal: false,
+        showWordPressPassword: false,
+        showCardStreamPassword: false,
+        showCardStreamModal: false,
+        form: this.$inertia.form({
+          account_id: this.application.account_id,
+          name: this.application.name,
+        }),
       }
+    },
+    computed: {
+      shouldShowDocuments() {
+        return true
+      },
+  
+      showAccountActions() {
+        return this.canUploadDocs || this.canSignContract
+      },
       
-      // Check if contract needs to be sent/signed
-      if (!timestamps?.contract_signed) {
-        if (!timestamps?.contract_sent) {
-          // Documents approved but contract not sent yet
-          if (timestamps?.documents_approved) {
-            pendingActions.push('Waiting for contract to be sent')
+      canUploadDocs() {
+        return true
+      },
+      
+      canSignContract() {
+        // ✅ Use the backend-provided flag (already checks routing order AND contract_signed)
+        return this.application.can_merchant_sign === true
+      },
+      
+      canEnterWordPress() {
+        return true
+      },
+      
+      nextStep() {
+        const timestamps = this.application.status?.timestamps
+        
+        // Build array of pending actions
+        const pendingActions = []
+        
+        // Check if documents need approval
+        if (!timestamps?.documents_approved) {
+          if (!timestamps?.documents_uploaded) {
+            pendingActions.push('Upload documents')
+          } else {
+            pendingActions.push('Waiting for document approval')
           }
-        } else {
-          // Contract sent but not signed
-          pendingActions.push('Waiting for all parties to sign contract')
         }
-      }
-      
-      // If we have pending actions, show them
-      if (pendingActions.length > 0) {
-        return pendingActions.join(' & ')
-      }
-      
-      // All initial steps complete, check submission & beyond
-      if (timestamps?.contract_signed && !timestamps?.contract_submitted) {
-        return 'Contract signed by a recipient'
-      }
-      
-      if (timestamps?.contract_submitted && !timestamps?.application_approved) {
-        return 'Under review by CardStream'
-      }
-      
-      if (timestamps?.application_approved && !timestamps?.invoice_sent) {
-        return 'Approved - Ready to create invoice'
-      }
-      
-      if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
-        return 'Waiting for invoice payment'
-      }
-      
-      if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {
-        return 'Payment received - Ready for gateway integration'
-      }
-      
-      if (timestamps?.gateway_integrated && !timestamps?.account_live) {
-        return 'Gateway integrated - Final setup'
-      }
-      
-      if (timestamps?.account_live) {
-        return 'Account is Live ✓'
-      }
-      
-      // Fallback - shouldn't reach here if logic is correct
-      return 'Processing...'
-    },
-
-    pendingAdditionalDocuments() {
-      return this.application.additional_documents?.filter(doc => !doc.is_uploaded) || []
-    },
-
-    documentCategoriesWithAdditional() {
-      const categories = { ...this.documentCategories }
-      
-      if (this.application.requires_additional_document) {
-        categories.additional_requested = this.application.additional_document_name || 'Additional Requested Document'
-      }
-      
-      return categories
-    },
-    
-    categoryDescriptionsWithAdditional() {
-      const descriptions = { ...this.categoryDescriptions }
-      
-      if (this.application.requires_additional_document) {
-        descriptions.additional_requested = this.application.additional_document_instructions || 'Additional document requested by administrator'
-      }
-      
-      return descriptions
-    },
-    allAdditionalInfoRequests() {
-      return this.application.additional_documents || []
-    },
-    
-    uploadedAdditionalDocuments() {
-      return this.application.additional_documents?.filter(doc => doc.is_uploaded) || []
-    },
-  },
-  methods: {
-    update() {
-      this.form.put(`/applications/${this.application.id}`)
-    },
-    getDocumentsByCategory(category) {
-      return this.documents.filter(doc => doc.document_category === category)
-    },
-    getCategoryDescription(category) {
-      return this.categoryDescriptions[category] || ''
-    },
-    deleteDocument(documentId) {
-      if (confirm('Are you sure you want to delete this document?')) {
-        this.$inertia.delete(`/applications/${this.application.id}/documents/${documentId}`)
-      }
-    },
-    scrollToDocuments() {
-      this.$nextTick(() => {
-        const documentsSection = document.querySelector('.documents-section')
-        if (documentsSection) {
-          documentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        
+        // Check if contract needs to be sent/signed
+        if (!timestamps?.contract_signed) {
+          if (!timestamps?.contract_sent) {
+            if (timestamps?.documents_approved) {
+              pendingActions.push('Waiting for contract to be sent')
+            }
+          } else {
+            pendingActions.push('Waiting for all parties to sign contract')
+          }
         }
-      })
+        
+        // If we have pending actions, show them
+        if (pendingActions.length > 0) {
+          return pendingActions.join(' & ')
+        }
+        
+        // All initial steps complete, check submission & beyond
+        if (timestamps?.contract_signed && !timestamps?.contract_submitted) {
+          return 'Contract signed by a recipient'
+        }
+        
+        if (timestamps?.contract_submitted && !timestamps?.application_approved) {
+          return 'Under review by CardStream'
+        }
+        
+        if (timestamps?.application_approved && !timestamps?.invoice_sent) {
+          return 'Approved - Ready to create invoice'
+        }
+        
+        if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
+          return 'Waiting for invoice payment'
+        }
+        
+        if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {
+          return 'Payment received - Ready for gateway integration'
+        }
+        
+        if (timestamps?.gateway_integrated && !timestamps?.account_live) {
+          return 'Gateway integrated - Final setup'
+        }
+        
+        if (timestamps?.account_live) {
+          return 'Account is Live ✓'
+        }
+        
+        return 'Processing...'
+      },
+  
+      pendingAdditionalDocuments() {
+        return this.application.additional_documents?.filter(doc => !doc.is_uploaded) || []
+      },
+  
+      allAdditionalInfoRequests() {
+        return this.application.additional_documents || []
+      },
+      
+      uploadedAdditionalDocuments() {
+        return this.application.additional_documents?.filter(doc => doc.is_uploaded) || []
+      },
     },
-    formatDate(date) {
-      if (!date) return '—'
-      const d = new Date(date)
-      return d.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    },
-    formatStatus(status) {
-      if (!status) return 'Created'
-      return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    },
-    isAdditionalDocumentCategory(category) {
-      return category.startsWith('additional_requested_')
-    },
-    
-    getCategoryDescriptionWithAdditional(category) {
-      if (this.isAdditionalDocumentCategory(category)) {
-        const docId = category.replace('additional_requested_', '')
+    methods: {
+      update() {
+        this.form.put(`/applications/${this.application.id}`)
+      },
+      getDocumentsByCategory(category) {
+        return this.documents.filter(doc => doc.document_category === category)
+      },
+      getCategoryDescription(category) {
+        return this.categoryDescriptions[category] || ''
+      },
+      deleteDocument(documentId) {
+        if (confirm('Are you sure you want to delete this document?')) {
+          this.$inertia.delete(`/applications/${this.application.id}/documents/${documentId}`)
+        }
+      },
+      scrollToDocuments() {
+        this.$nextTick(() => {
+          const documentsSection = document.querySelector('.documents-section')
+          if (documentsSection) {
+            documentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        })
+      },
+      formatDate(date) {
+        if (!date) return '—'
+        const d = new Date(date)
+        return d.toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      },
+      formatStatus(status) {
+        if (!status) return 'Created'
+        return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      },
+      isAdditionalDocumentCategory(category) {
+        return category.startsWith('additional_requested_')
+      },
+      
+      getCategoryDescriptionWithAdditional(category) {
+        if (this.isAdditionalDocumentCategory(category)) {
+          const docId = category.replace('additional_requested_', '')
+          const doc = this.pendingAdditionalDocuments.find(d => d.id === parseInt(docId))
+          return doc?.instructions || 'Additional document requested by administrator'
+        }
+        return this.categoryDescriptions[category] || ''
+      },
+      
+      removeDocumentRequirement(docId) {
         const doc = this.pendingAdditionalDocuments.find(d => d.id === parseInt(docId))
-        return doc?.instructions || 'Additional document requested by administrator'
-      }
-      return this.categoryDescriptions[category] || ''
+        
+        if (confirm(`Remove the requirement for "${doc?.document_name}"? Any uploaded files will be deleted.`)) {
+          this.$inertia.delete(`/applications/${this.application.id}/additional-documents/${docId}/requirement`)
+        }
+      },
     },
-    
-    removeDocumentRequirement(docId) {
-      const doc = this.pendingAdditionalDocuments.find(d => d.id === parseInt(docId))
-      
-      if (confirm(`Remove the requirement for "${doc?.document_name}"? Any uploaded files will be deleted.`)) {
-        this.$inertia.delete(`/applications/${this.application.id}/additional-documents/${docId}/requirement`)
+    mounted() {
+      if (window.location.hash === '#documents') {
+        this.$nextTick(() => {
+          setTimeout(() => {
+            this.scrollToDocuments()
+          }, 100)
+        })
       }
     },
-  },
-  mounted() {
-    // Check for hash in URL to scroll to documents section
-    if (window.location.hash === '#documents') {
-      this.$nextTick(() => {
-        setTimeout(() => {
-          this.scrollToDocuments()
-        }, 100)
-      })
-    }
-  },
-}
-</script>
+  }
+  </script>

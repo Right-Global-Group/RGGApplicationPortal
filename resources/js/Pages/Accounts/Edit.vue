@@ -226,152 +226,150 @@
 </template>
 
 <script>
-import { Head, Link } from '@inertiajs/vue3'
-import Layout from '@/Shared/Layout.vue'
-import TextInput from '@/Shared/TextInput.vue'
-import FileInput from '@/Shared/FileInput.vue'
-import LoadingButton from '@/Shared/LoadingButton.vue'
-import Icon from '@/Shared/Icon.vue'
-
-export default {
-  components: { Head, Link, LoadingButton, TextInput, FileInput, Icon },
-  layout: Layout,
-  remember: 'form',
-  props: {
-    account: Object,
-    applications: Array,
-    emailLogs: Array,
-  },
-  data() {
-    return {
-      form: this.$inertia.form({
-        name: this.account.name,
-        recipient_name: this.account.recipient_name,
-        email: this.account.email,
-        mobile: this.account.mobile,
-        photo: null,
-      }),
-    }
-  },
-  computed: {
-    // Get the most recent active application
-    activeApplication() {
-      if (!this.applications || this.applications.length === 0) return null
-      
-      // Find first application that's not account_live
-      return this.applications.find(app => app.status?.current_step !== 'account_live') || null
+  import { Head, Link } from '@inertiajs/vue3'
+  import Layout from '@/Shared/Layout.vue'
+  import TextInput from '@/Shared/TextInput.vue'
+  import FileInput from '@/Shared/FileInput.vue'
+  import LoadingButton from '@/Shared/LoadingButton.vue'
+  import Icon from '@/Shared/Icon.vue'
+  
+  export default {
+    components: { Head, Link, LoadingButton, TextInput, FileInput, Icon },
+    layout: Layout,
+    remember: 'form',
+    props: {
+      account: Object,
+      applications: Array,
+      emailLogs: Array,
     },
-    
-    showAccountActions() {
-      if (!this.activeApplication) return false
-      return this.canUploadDocs || this.canSignContract
-    },
-    
-    canUploadDocs() {
-      if (!this.activeApplication) return false
-      const timestamps = this.activeApplication.status?.timestamps
-      
-      // Show upload button until documents are approved
-      return !timestamps?.documents_approved
-    },
-    
-    canSignContract() {
-      if (!this.activeApplication) return false
-      const timestamps = this.activeApplication.status?.timestamps
-      
-      // Show sign button if contract sent but not yet signed
-      return !!timestamps?.contract_sent && !timestamps?.contract_signed
-    },
-  },
-  methods: {
-    update() {
-      // Add _method to the form data
-      const formData = {
-        ...this.form.data(),
-        _method: 'put',
+    data() {
+      return {
+        form: this.$inertia.form({
+          name: this.account.name,
+          recipient_name: this.account.recipient_name,
+          email: this.account.email,
+          mobile: this.account.mobile,
+          photo: null,
+        }),
       }
-      
-      this.form
-        .transform(() => formData)
-        .post(`/accounts/${this.account.id}`, {
-          forceFormData: true,
-          onSuccess: () => this.form.reset('photo'),
-        })
     },
-    getNextStep(application) {
-      const timestamps = application.status?.timestamps
+    computed: {
+      // Get the most recent active application
+      activeApplication() {
+        if (!this.applications || this.applications.length === 0) return null
+        
+        // Find first application that's not account_live
+        return this.applications.find(app => app.status?.current_step !== 'account_live') || null
+      },
       
-      // Build array of pending actions
-      const pendingActions = []
+      showAccountActions() {
+        if (!this.activeApplication) return false
+        return this.canUploadDocs || this.canSignContract
+      },
       
-      // Check if documents need to be uploaded/approved
-      if (!timestamps?.documents_approved) {
-        if (!timestamps?.documents_uploaded) {
-          pendingActions.push('Upload documents')
-        } else {
-          pendingActions.push('Waiting for document approval')
+      canUploadDocs() {
+        if (!this.activeApplication) return false
+        const timestamps = this.activeApplication.status?.timestamps
+        
+        // Show upload button until documents are approved
+        return !timestamps?.documents_approved
+      },
+      
+      canSignContract() {
+        if (!this.activeApplication) return false
+        
+        // ✅ Use the backend-provided flag (already checks routing order AND contract_signed)
+        return this.activeApplication.can_merchant_sign === true
+      },
+    },
+    methods: {
+      update() {
+        const formData = {
+          ...this.form.data(),
+          _method: 'put',
         }
-      }
-      
-      // Check if contract needs to be sent/signed
-      if (!timestamps?.contract_signed) {
-        if (!timestamps?.contract_sent) {
-          // Documents approved but contract not sent yet
-          if (timestamps?.documents_approved) {
-            pendingActions.push('Waiting for contract to be sent')
+        
+        this.form
+          .transform(() => formData)
+          .post(`/accounts/${this.account.id}`, {
+            forceFormData: true,
+            onSuccess: () => this.form.reset('photo'),
+          })
+      },
+      getNextStep(application) {
+        const timestamps = application.status?.timestamps
+        
+        // Build array of pending actions
+        const pendingActions = []
+        
+        // Check if documents need to be uploaded/approved
+        if (!timestamps?.documents_approved) {
+          if (!timestamps?.documents_uploaded) {
+            pendingActions.push('Upload documents')
+          } else {
+            pendingActions.push('Waiting for document approval')
           }
-        } else {
-          // Contract sent but not signed
-          pendingActions.push('Sign contract')
         }
-      }
-      
-      // If we have pending actions, show them
-      if (pendingActions.length > 0) {
-        return pendingActions.join(' & ')
-      }
-      
-      // All initial steps complete, check submission & beyond
-      if (timestamps?.contract_signed && !timestamps?.contract_submitted) {
-        return 'Wait for contract submission'
-      }
-      
-      if (timestamps?.contract_submitted && !timestamps?.application_approved) {
-        return 'Wait for application approval'
-      }
-      
-      if (timestamps?.application_approved && !timestamps?.invoice_sent) {
-        return 'Wait for invoice'
-      }
-      
-      if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
-        return 'Pay the scaling fee invoice'
-      }
-      
-      if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {
-        return 'Wait for gateway integration'
-      }
-      
-      if (timestamps?.gateway_integrated && !timestamps?.account_live) {
-        return 'Your account is being set up'
-      }
-      
-      if (timestamps?.account_live) {
-        return null // Account is live
-      }
-
-      // Fallback - shouldn't reach here if logic is correct
-      return 'Processing...'
+        
+        // Check if contract needs to be sent/signed
+        if (!timestamps?.contract_signed) {
+          if (!timestamps?.contract_sent) {
+            // Documents approved but contract not sent yet
+            if (timestamps?.documents_approved) {
+              pendingActions.push('Waiting for contract to be sent')
+            }
+          } else {
+            // Contract sent but not signed
+            pendingActions.push('Sign contract')
+          }
+        }
+        
+        // If we have pending actions, show them
+        if (pendingActions.length > 0) {
+          return pendingActions.join(' & ')
+        }
+        
+        // All initial steps complete, check submission & beyond
+        if (timestamps?.contract_signed && !timestamps?.contract_submitted) {
+          return 'Wait for contract submission'
+        }
+        
+        if (timestamps?.contract_submitted && !timestamps?.application_approved) {
+          return 'Wait for application approval'
+        }
+        
+        if (timestamps?.application_approved && !timestamps?.invoice_sent) {
+          return 'Wait for invoice'
+        }
+        
+        if (timestamps?.invoice_sent && !timestamps?.invoice_paid) {
+          return 'Pay the scaling fee invoice'
+        }
+        
+        if (timestamps?.invoice_paid && !timestamps?.gateway_integrated) {
+          return 'Wait for gateway integration'
+        }
+        
+        if (timestamps?.gateway_integrated && !timestamps?.account_live) {
+          return 'Your account is being set up'
+        }
+        
+        if (timestamps?.account_live) {
+          return null // Account is live
+        }
+  
+        // Fallback - shouldn't reach here if logic is correct
+        return 'Processing...'
+      },
+      formatDate(date) {
+        if (!date) return '—'
+        const d = new Date(date)
+        return d.toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      },
     },
-    formatDate(date) {
-      if (!date) return '—'
-      const d = new Date(date)
-      return d.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    },
-  },
-}
-</script>
+  }
+  </script>
