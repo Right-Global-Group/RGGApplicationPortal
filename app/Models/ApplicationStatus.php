@@ -207,7 +207,6 @@ class ApplicationStatus extends Model
             'application_id' => $this->application_id,
             'action' => 'status_changed',
             'description' => "Status changed from {$oldStep} to {$newStep}",
-            'metadata' => ['notes' => $notes],
         ]);
     
         // Fire event for real-time updates

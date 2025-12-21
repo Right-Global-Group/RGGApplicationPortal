@@ -713,26 +713,6 @@ class MerchantImportController extends Controller
                     'has_completed_status' => $signatureStatus['has_completed_status'],
                     'envelope_id' => $envelopeId,
                 ]);
-                
-                // Store import metadata for later use by DocuSignService
-                if ($envelopeId) {
-                    $application->status->update([
-                        'import_metadata' => [
-                            'is_imported' => true,
-                            'envelope_id' => $envelopeId,
-                            'original_signers' => [
-                                'director_email' => null, // Will be populated from envelope API
-                                'merchant_email' => $merchantInfo['email'],
-                            ],
-                        ],
-                    ]);
-                    
-                    Log::info('Stored import metadata for partial signing', [
-                        'application_id' => $application->id,
-                        'envelope_id' => $envelopeId,
-                        'merchant_email' => $merchantInfo['email'],
-                    ]);
-                }
             }
 
             // Create import record
