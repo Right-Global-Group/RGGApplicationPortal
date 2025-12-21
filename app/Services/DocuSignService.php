@@ -96,6 +96,7 @@ class DocuSignService
                                 'name' => $s['name'],
                                 'status' => $s['status'],
                                 'routing_order' => $s['routingOrder'],
+                                'client_user_id' => $s['clientUserId'] ?? null,
                             ];
                         })->toArray(),
                     ]);
@@ -114,13 +115,14 @@ class DocuSignService
                                 'account_email' => $account->email,
                                 'signer_email' => $signer['email'],
                                 'routing_order' => $merchantRoutingOrder,
+                                'has_client_user_id' => isset($signer['clientUserId']), // ✅ Check this
+                                'client_user_id' => $signer['clientUserId'] ?? null,
                             ]);
                             break;
                         }
                     }
                     
                     // If not found AND this looks like an import, try to find the merchant signer
-                    // (the one who is NOT from g2pay.co.uk)
                     if (!$merchantSigner && $isImported) {
                         Log::info('No exact match found - checking for imported merchant signer', [
                             'account_email' => $account->email,
@@ -151,16 +153,9 @@ class DocuSignService
                                 'account_email' => $account->email,
                                 'routing_order' => $merchantRoutingOrder,
                                 'role' => $signer['roleName'] ?? 'N/A',
+                                'has_client_user_id' => isset($signer['clientUserId']),
+                                'client_user_id' => $signer['clientUserId'] ?? null,
                             ]);
-                            
-                            // ⚠️ IMPORTANT: Check if emails match
-                            if (strtolower($signer['email']) !== strtolower($account->email)) {
-                                Log::warning('⚠️ EMAIL MISMATCH DETECTED', [
-                                    'envelope_email' => $signer['email'],
-                                    'account_email' => $account->email,
-                                    'explanation' => 'Account email differs from envelope. This might cause issues.',
-                                ]);
-                            }
                             
                             break;
                         }
@@ -192,14 +187,19 @@ class DocuSignService
                         throw new \Exception('You have already signed this contract.');
                     }
                     
-                    // Use the email from the envelope (the ORIGINAL signer's email)
+                    // Use the original email and check if envelope has clientUserId
                     $recipientEmail = $merchantSigner['email'];
                     $recipientName = $merchantSigner['name'];
-                    $clientUserId = 'merchant-' . $application->id;
+                    
+                    // Only use clientUserId if the envelope recipient actually has one
+                    // Imported envelopes won't have clientUserId, so we need to generate URL without it
+                    $hasClientUserId = !empty($merchantSigner['clientUserId']);
+                    $clientUserId = $hasClientUserId ? $merchantSigner['clientUserId'] : null;
                     
                     Log::info('=== MERCHANT SIGNING FLOW - READY TO GENERATE URL ===', [
                         'recipient_email' => $recipientEmail,
                         'recipient_name' => $recipientName,
+                        'has_client_user_id' => $hasClientUserId,
                         'client_user_id' => $clientUserId,
                         'merchant_routing_order' => $merchantRoutingOrder,
                         'merchant_status' => $merchantSigner['status'],
@@ -224,58 +224,13 @@ class DocuSignService
                 $user = auth()->guard('web')->user();
                 $recipientEmail = $user->email;
                 $recipientName = $user->name ?? $user->email;
-                $clientUserId = 'user-' . $application->id;
+                $clientUserId = null; // Also set to null for users on imported envelopes
                 
                 Log::info('User signing details', [
                     'user_email' => $recipientEmail,
                     'user_name' => $recipientName,
                 ]);
             }
-            
-            try {
-                if (!isset($accessToken)) {
-                    $accessToken = $this->getAccessToken();
-                }
-                
-                Log::info('=== GENERATING SIGNING URL ===', [
-                    'envelope_id' => $existingEnvelopeId,
-                    'recipient_email' => $recipientEmail,
-                    'recipient_name' => $recipientName,
-                    'client_user_id' => $clientUserId,
-                ]);
-                
-                // Generate new signing URL for existing envelope
-                $viewUrl = $this->getRecipientView(
-                    $accessToken,
-                    $existingEnvelopeId,
-                    $recipientEmail,
-                    $recipientName,
-                    $clientUserId,
-                    route('applications.docusign-callback', ['application' => $application->id])
-                );
-                
-                Log::info('✅ Successfully generated signing URL', [
-                    'envelope_id' => $existingEnvelopeId,
-                    'recipient_email' => $recipientEmail,
-                    'url_length' => strlen($viewUrl),
-                ]);
-                
-                return [
-                    'envelope_id' => $existingEnvelopeId,
-                    'signing_url' => $viewUrl,
-                    'embedded_signing' => true,
-                ];
-            } catch (\Exception $e) {
-                Log::error('❌ Failed to get signing URL for existing envelope', [
-                    'envelope_id' => $existingEnvelopeId,
-                    'recipient_email' => $recipientEmail ?? 'unknown',
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                
-                throw $e;
-            }
-        
         }
         
         // CREATE NEW ENVELOPE
@@ -1326,7 +1281,7 @@ class DocuSignService
         string $envelopeId, 
         string $email,
         string $userName,
-        string $clientUserId,
+        ?string $clientUserId,
         string $returnUrl
     ): string {
         $viewRequest = [
@@ -1334,24 +1289,36 @@ class DocuSignService
             'authenticationMethod' => 'none',
             'email' => $email,
             'userName' => $userName,
-            'clientUserId' => $clientUserId,
         ];
-
+        
+        // Only add clientUserId if it's provided (not null)
+        if ($clientUserId !== null) {
+            $viewRequest['clientUserId'] = $clientUserId;
+        }
+    
+        Log::info('getRecipientView request', [
+            'envelope_id' => $envelopeId,
+            'email' => $email,
+            'has_client_user_id' => $clientUserId !== null,
+            'request' => $viewRequest,
+        ]);
+    
         $response = Http::withToken($accessToken)
             ->withHeaders(['Content-Type' => 'application/json'])
             ->post(
                 "{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$envelopeId}/views/recipient",
                 $viewRequest
             );
-
+    
         if ($response->failed()) {
             Log::error('DocuSign Get Recipient View Error', [
                 'status' => $response->status(),
                 'body' => $response->body(),
+                'request' => $viewRequest,
             ]);
             throw new \Exception('Failed to get signing URL: ' . $response->body());
         }
-
+    
         return $response->json('url');
     }
 
