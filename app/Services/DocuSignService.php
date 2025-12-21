@@ -40,14 +40,12 @@ class DocuSignService
         $existingEnvelopeId = $application->status->docusign_envelope_id;
         
         if ($existingEnvelopeId) {
-            // Envelope already exists
+            // EXISTING ENVELOPE - both users and merchants can access
             Log::info('Using existing envelope', ['envelope_id' => $existingEnvelopeId]);
             
-            // Is this from an imported merchant who hasn't signed yet?
+            // Check if this is an imported envelope
             $isImported = false;
             if ($application->status->current_step === 'contract_sent') {
-                // Check if this application was imported (has envelope but was created recently)
-                // Or check if account was created by import
                 $isImported = true;
                 
                 Log::info('Detected potential imported envelope scenario', [
@@ -115,7 +113,7 @@ class DocuSignService
                                 'account_email' => $account->email,
                                 'signer_email' => $signer['email'],
                                 'routing_order' => $merchantRoutingOrder,
-                                'has_client_user_id' => isset($signer['clientUserId']), // ✅ Check this
+                                'has_client_user_id' => isset($signer['clientUserId']),
                                 'client_user_id' => $signer['clientUserId'] ?? null,
                             ]);
                             break;
@@ -230,6 +228,53 @@ class DocuSignService
                     'user_email' => $recipientEmail,
                     'user_name' => $recipientName,
                 ]);
+            }
+            
+            // GENERATE SIGNING URL (common for both users and merchants)
+            try {
+                if (!isset($accessToken)) {
+                    $accessToken = $this->getAccessToken();
+                }
+                
+                Log::info('=== GENERATING SIGNING URL ===', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'recipient_email' => $recipientEmail,
+                    'recipient_name' => $recipientName,
+                    'client_user_id' => $clientUserId ?? 'NOT_SET',
+                    'using_client_user_id' => isset($clientUserId),
+                ]);
+                
+                // Generate signing URL - pass clientUserId only if it exists
+                $viewUrl = $this->getRecipientView(
+                    $accessToken,
+                    $existingEnvelopeId,
+                    $recipientEmail,
+                    $recipientName,
+                    $clientUserId, // Can be null for imported envelopes
+                    route('applications.docusign-callback', ['application' => $application->id])
+                );
+                
+                Log::info('Successfully generated signing URL', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'recipient_email' => $recipientEmail,
+                    'url_length' => strlen($viewUrl),
+                ]);
+                
+                return [
+                    'envelope_id' => $existingEnvelopeId,
+                    'signing_url' => $viewUrl,
+                    'embedded_signing' => true,
+                ];
+                
+            } catch (\Exception $e) {
+                Log::error('Failed to get signing URL for existing envelope', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'recipient_email' => $recipientEmail ?? 'unknown',
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                
+                throw $e;
             }
         }
         
@@ -1258,7 +1303,7 @@ class DocuSignService
             ]);
     
             // Fire event to send email (instead of sending directly)
-            event(new \App\Events\GatewayPartnerContractReadyEvent($application, $viewUrl));
+            // event(new \App\Events\GatewayPartnerContractReadyEvent($application, $viewUrl));
     
             return [
                 'envelope_id' => $envelopeId,
