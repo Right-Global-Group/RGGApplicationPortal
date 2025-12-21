@@ -43,18 +43,6 @@ class DocuSignService
             // EXISTING ENVELOPE - both users and merchants can access
             Log::info('Using existing envelope', ['envelope_id' => $existingEnvelopeId]);
             
-            // Check if this is an imported envelope
-            $isImported = false;
-            if ($application->status->current_step === 'contract_sent') {
-                $isImported = true;
-                
-                Log::info('Detected potential imported envelope scenario', [
-                    'application_id' => $application->id,
-                    'current_step' => $application->status->current_step,
-                    'contract_sent_at' => $application->status->contract_sent_at,
-                ]);
-            }
-            
             // Determine who is currently logged in
             $isAccount = auth()->guard('account')->check();
             
@@ -121,7 +109,7 @@ class DocuSignService
                     }
                     
                     // If not found AND this looks like an import, try to find the merchant signer
-                    if (!$merchantSigner && $isImported) {
+                    if (!$merchantSigner) {
                         Log::info('No exact match found - checking for imported merchant signer', [
                             'account_email' => $account->email,
                         ]);

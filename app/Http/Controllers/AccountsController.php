@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\AccountCredentialsEvent;
 use App\Models\Account;
+use App\Models\Application;
 use App\Models\EmailReminder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
