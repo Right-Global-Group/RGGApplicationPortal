@@ -76,7 +76,7 @@
             <div>
               <label class="block text-gray-300 font-medium mb-2">Created By</label>
               <Link 
-                v-if="account.user_id && !$page.props.auth.account" 
+                v-if="account.user_id && !$page.props.auth.user.account" 
                 :href="`/users/${account.user_id}/edit`" 
                 class="inline-block px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-magenta-400 hover:text-magenta-300 hover:border-magenta-500/50 transition-colors"
               >

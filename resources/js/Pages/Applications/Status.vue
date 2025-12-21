@@ -471,6 +471,16 @@
     <div v-if="is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Your Actions</h2>
       <div class="flex flex-wrap gap-3">
+
+        <!-- Add this temporarily right above the "Sign Contract" button in Status.vue -->
+<div class="bg-red-900/20 border border-red-700/30 rounded p-3 mb-3">
+  <p class="text-xs text-red-300">DEBUG INFO:</p>
+  <p class="text-xs text-gray-300">is_account: {{ is_account }}</p>
+  <p class="text-xs text-gray-300">can_merchant_sign: {{ application.can_merchant_sign }}</p>
+  <p class="text-xs text-gray-300">canAccountSignContract: {{ canAccountSignContract }}</p>
+  <p class="text-xs text-gray-300">contract_sent_at: {{ application.status?.timestamps?.contract_sent }}</p>
+  <p class="text-xs text-gray-300">contract_signed_at: {{ application.status?.timestamps?.contract_signed }}</p>
+</div>
         
         <!-- Sign Contract Button - generates fresh signing URL -->
         <button
