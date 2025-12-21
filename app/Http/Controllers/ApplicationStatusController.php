@@ -1003,6 +1003,8 @@ class ApplicationStatusController extends Controller
     {
         $status = $application->status;
         if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
+            return false;
+        }
         
         \Log::info('Timestamps check', [
             'has_status' => $application->status !== null,
