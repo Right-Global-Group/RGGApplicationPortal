@@ -71,6 +71,11 @@ class ApplicationStatusController extends Controller
                 $liveRecipientStatus = $application->status->docusign_recipient_status ?? [];
             }
         }
+
+        // Check if this is an imported application
+        $merchantImport = \App\Models\MerchantImport::where('account_id', $application->account_id)
+        ->where('application_id', $application->id)
+        ->first();
     
         return Inertia::render('Applications/Status', [
             'application' => [
