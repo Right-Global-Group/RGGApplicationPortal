@@ -1323,11 +1323,11 @@ export default {
         if (data.success && data.signing_url) {
           window.open(data.signing_url, '_blank', 'width=800,height=600');
         } else {
-          alert(data.message || 'Failed to open contract');
+          alert(data.message || 'Failed to open contract, please refresh and try again.');
         }
       } catch (error) {
         console.error('Error opening contract:', error);
-        alert('Failed to open contract');
+        alert('Failed to open contract, please refresh and try again.');
       } finally {
         this.isLoadingContract = false;
       }
