@@ -1417,10 +1417,9 @@ export default {
     async sendContractLink() {
       this.isLoading = true
       
-      // Open window IMMEDIATELY (before async call) - this bypasses popup blocker
+      // Open window IMMEDIATELY
       const popupWindow = window.open('about:blank', '_blank', 'width=800,height=600')
       
-      // Show loading message in the popup
       if (popupWindow) {
         popupWindow.document.write(`
           <html>
@@ -1467,25 +1466,30 @@ export default {
       }
       
       try {
+        // Get fresh CSRF token from meta tag (Laravel refreshes this automatically)
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+        
+        if (!csrfToken) {
+          throw new Error('CSRF token not found')
+        }
+        
         const response = await fetch(`/applications/${this.application.id}/send-contract`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-CSRF-TOKEN': csrfToken,
           },
         })
+        
         const data = await response.json()
 
         if (data.success && data.signing_url) {
-          // Navigate the already-open popup to the signing URL
           if (popupWindow && !popupWindow.closed) {
             popupWindow.location.href = data.signing_url
           } else {
-            // Fallback if popup was somehow closed
             window.open(data.signing_url, '_blank', 'width=800,height=600')
           }
         } else {
-          // Close popup and show error
           if (popupWindow && !popupWindow.closed) {
             popupWindow.close()
           }
@@ -1494,11 +1498,10 @@ export default {
       } catch (error) {
         console.error('Error sending contract:', error)
         
-        // Close popup and show error
         if (popupWindow && !popupWindow.closed) {
           popupWindow.close()
         }
-        alert('Failed to send contract')
+        alert('Failed to send contract: ' + error.message)
       } finally {
         this.isLoading = false
       }
