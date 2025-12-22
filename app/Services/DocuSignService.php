@@ -196,7 +196,12 @@ class DocuSignService
                 $user = auth()->guard('web')->user();
                 $recipientEmail = $user->email;
                 $recipientName = $user->name ?? $user->email;
-                $clientUserId = null; // Also set to null for users on imported envelopes
+
+                $isImported = \DB::table('merchant_imports')
+                    ->where('application_id', $application->id)
+                    ->exists();
+            
+                $clientUserId = $isImported ? null : ('user-' . $application->id);
                 
                 Log::info('User signing details', [
                     'user_email' => $recipientEmail,
@@ -261,10 +266,10 @@ class DocuSignService
                 'application_id' => $application->id,
             ]);
             
-            // Clear the contract_sent_at timestamp so we can create a fresh envelope
-            $application->status->update([
-                'contract_sent_at' => null,
-            ]);
+            // // Clear the contract_sent_at timestamp so we can create a fresh envelope
+            // $application->status->update([
+            //     'contract_sent_at' => null,
+            // ]);
         }
         
         // CREATE NEW ENVELOPE
@@ -960,14 +965,20 @@ class DocuSignService
                 ],
             ];
 
-            // User tabs (optional page 2 fields)
             // User tabs - gets both locked display fields AND editable page 2 fields (optional)
             $userTabs = [
                 'textTabs' => array_merge(
                     $tabsForAllRecipients['textTabs'],
-                    $fillableFormTabs['textTabs']
+                    // Lock the fillable fields for user too
+                    array_map(function($tab) {
+                        $tab['locked'] = true;
+                        return $tab;
+                    }, $fillableFormTabs['textTabs'])
                 ),
-                'checkboxTabs' => $fillableFormTabs['checkboxTabs'] ?? [],
+                'checkboxTabs' => array_map(function($tab) {
+                    $tab['locked'] = true;
+                    return $tab;
+                }, $fillableFormTabs['checkboxTabs'] ?? []),
             ];
 
             // Merchant tabs - signature fields for RIGHT column only (no anchor strings)

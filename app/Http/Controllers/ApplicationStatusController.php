@@ -585,21 +585,6 @@ class ApplicationStatusController extends Controller
             abort(403);
         }
     
-        // Ensure contract_sent step is marked complete
-        if (!$application->status->contract_sent_at) {
-            $application->status->update([
-                'contract_sent_at' => now()
-            ]);
-        }
-        
-        // Transition to contract_sent if not already there
-        if ($application->status->current_step !== 'contract_sent') {
-            $application->status->transitionTo(
-                'contract_sent',
-                'Contract reminder sent - marked as sent'
-            );
-        }
-    
         // Get the signing URL from DocuSign status
         $signingUrl = $application->status->docusign_signing_url ?? url("/applications/{$application->id}/status");
     
