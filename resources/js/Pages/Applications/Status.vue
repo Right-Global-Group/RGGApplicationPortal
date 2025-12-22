@@ -1514,6 +1514,14 @@ export default {
       }
       
       try {
+        // Refresh CSRF token before making request
+        await window.refreshCsrfToken()
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+        
+        if (!csrfToken) {
+          throw new Error('CSRF token not found')
+        }
         
         const response = await fetch(`/applications/${this.application.id}/send-contract`, {
           method: 'POST',
