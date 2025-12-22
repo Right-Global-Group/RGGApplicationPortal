@@ -118,7 +118,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>🚀 New Application Submission</h1>
+        <h1>New Application Submission</h1>
     </div>
     
     <div class="content">

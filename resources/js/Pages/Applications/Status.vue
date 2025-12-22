@@ -1164,7 +1164,8 @@ export default {
       
       return (
         !!timestamps?.contract_sent &&
-        !!timestamps?.contract_signed
+        !!timestamps?.contract_signed &&
+        !timestamps?.application_approved
       );
     },
     
