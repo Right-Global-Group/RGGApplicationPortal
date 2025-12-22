@@ -21,6 +21,7 @@ use App\Events\InvoiceReminderEvent;
 use App\Events\CardStreamCredentialsEvent;
 use App\Events\CardStreamCredentialsReminderEvent;
 use App\Events\AccountLiveEvent;
+use App\Events\DocumentUploadReadyEvent;
 use App\Events\AccountMessageToUserEvent;
 
 use App\Listeners\SendAccountCredentialsEmail;
@@ -41,6 +42,7 @@ use App\Listeners\SendInvoiceReminderEmail;
 use App\Listeners\SendCardStreamCredentialsEmail;
 use App\Listeners\SendCardStreamCredentialsReminderEmail;
 use App\Listeners\SendAccountLiveEmail;
+use App\Listeners\SendDocumentUploadReadyEmail;
 use App\Listeners\SendAccountMessageToUserEmail;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -98,6 +100,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         CardStreamCredentialsReminderEvent::class => [
             SendCardStreamCredentialsReminderEmail::class,
+        ],
+        DocumentUploadReadyEvent::class => [
+            SendDocumentUploadReadyEmail::class,
         ],
         AccountLiveEvent::class => [
             SendAccountLiveEmail::class,

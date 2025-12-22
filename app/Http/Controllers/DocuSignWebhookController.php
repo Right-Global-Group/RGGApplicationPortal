@@ -237,6 +237,15 @@ class DocuSignWebhookController extends Controller
                             );
                             
                             Log::info('Marked contract as fully signed');
+                            
+                            // Send document upload ready email if documents haven't been uploaded yet
+                            if (!$application->status->documents_uploaded_at) {
+                                event(new \App\Events\DocumentUploadReadyEvent($application));
+                                Log::info('Sent document upload ready email to merchant', [
+                                    'application_id' => $application->id,
+                                    'merchant_email' => $application->account->email,
+                                ]);
+                            }
                         } else {
                             Log::info('Not all recipients have signed yet', [
                                 'all_signed' => $allSigned,

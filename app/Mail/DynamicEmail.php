@@ -32,6 +32,7 @@ class DynamicEmail extends Mailable
         'invoice_reminder' => 'Reminder: Create Invoice in Xero',
         'cardstream_credentials' => 'Your CardStream Account is Ready',
         'cardstream_credentials_reminder' => 'Reminder: Set Up Your CardStream Account',
+        'document_upload_ready' => 'Contract Signed - Please Upload Your Documents',
         'account_live' => 'Congratulations! Your Account is Live',
         'account_message_to_user' => 'Message from Your Merchant Account',
     ];
@@ -58,6 +59,7 @@ class DynamicEmail extends Mailable
         'invoice_reminder' => 'emails.invoice-reminder',
         'cardstream_credentials' => 'emails.cardstream-credentials',
         'cardstream_credentials_reminder' => 'emails.cardstream-credentials',
+        'document_upload_ready' => 'emails.document-upload-ready',
         'account_live' => 'emails.account-live',
         'account_message_to_user' => 'emails.account-message-to-user',
     ];
