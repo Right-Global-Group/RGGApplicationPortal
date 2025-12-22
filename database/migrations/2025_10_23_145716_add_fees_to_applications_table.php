@@ -13,7 +13,7 @@ return new class extends Migration
             $table->dropColumn(['address', 'city', 'region', 'country', 'postal_code']);
             
             // Add fee fields
-            $table->decimal('scaling_fee', 10, 2)->default(450.00)->after('name');
+            $table->decimal('scaling_fee', 10, 2)->default(0.00)->after('name');
             $table->decimal('transaction_percentage', 5, 2)->default(2.00)->after('scaling_fee');
             $table->decimal('transaction_fixed_fee', 10, 2)->default(0.20)->after('transaction_percentage');
             $table->decimal('monthly_fee', 10, 2)->default(18.00)->after('transaction_fixed_fee');

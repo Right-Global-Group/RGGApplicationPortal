@@ -86,11 +86,11 @@
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
               </svg>
-              Uploaded Documents ({{ app.documents.length }})
+              Uploaded Documents ({{ getValidDocuments(app.documents).length }})
             </h3>
-            <div v-if="app.documents.length > 0" class="space-y-2">
+            <div v-if="getValidDocuments(app.documents).length > 0" class="space-y-2">
               <div
-                v-for="doc in app.documents"
+                v-for="doc in getValidDocuments(app.documents)"
                 :key="doc.id"
                 class="flex items-center justify-between bg-dark-900/50 border border-primary-700/30 rounded-lg p-4 hover:border-magenta-500/30 transition-colors"
               >
@@ -173,8 +173,12 @@ export default {
     }
   },
   methods: {
+    // Filter out documents with null/empty categories
+    getValidDocuments(documents) {
+      return documents.filter(doc => doc.category && doc.category.trim() !== '')
+    },
     formatCategory(category) {
-      if (!category) return 'Uncategorized'
+      if (!category) return null
       return category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     },
     viewDocument(doc) {

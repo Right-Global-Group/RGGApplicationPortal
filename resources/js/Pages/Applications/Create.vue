@@ -127,7 +127,7 @@ export default {
       form: this.$inertia.form({
         account_id: this.preselected_account_id,
         name: null,
-        scaling_fee: 450.00,
+        scaling_fee: 0.00,
         transaction_percentage: 2.00,
         transaction_fixed_fee: 0.20,
         monthly_fee: 18.00,
