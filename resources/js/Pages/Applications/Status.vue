@@ -1416,6 +1416,56 @@ export default {
     
     async sendContractLink() {
       this.isLoading = true
+      
+      // Open window IMMEDIATELY (before async call) - this bypasses popup blocker
+      const popupWindow = window.open('about:blank', '_blank', 'width=800,height=600')
+      
+      // Show loading message in the popup
+      if (popupWindow) {
+        popupWindow.document.write(`
+          <html>
+            <head>
+              <title>Loading Contract...</title>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  margin: 0;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                }
+                .loader {
+                  text-align: center;
+                }
+                .spinner {
+                  border: 4px solid rgba(255, 255, 255, 0.3);
+                  border-top: 4px solid white;
+                  border-radius: 50%;
+                  width: 40px;
+                  height: 40px;
+                  animation: spin 1s linear infinite;
+                  margin: 0 auto 20px;
+                }
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="loader">
+                <div class="spinner"></div>
+                <h2>Loading your contract...</h2>
+                <p>Please wait while we prepare your document.</p>
+              </div>
+            </body>
+          </html>
+        `)
+      }
+      
       try {
         const response = await fetch(`/applications/${this.application.id}/send-contract`, {
           method: 'POST',
@@ -1427,17 +1477,33 @@ export default {
         const data = await response.json()
 
         if (data.success && data.signing_url) {
-          window.open(data.signing_url, '_blank', 'width=800,height=600')
+          // Navigate the already-open popup to the signing URL
+          if (popupWindow && !popupWindow.closed) {
+            popupWindow.location.href = data.signing_url
+          } else {
+            // Fallback if popup was somehow closed
+            window.open(data.signing_url, '_blank', 'width=800,height=600')
+          }
         } else {
+          // Close popup and show error
+          if (popupWindow && !popupWindow.closed) {
+            popupWindow.close()
+          }
           alert(data.message || 'Failed to send contract')
         }
       } catch (error) {
         console.error('Error sending contract:', error)
+        
+        // Close popup and show error
+        if (popupWindow && !popupWindow.closed) {
+          popupWindow.close()
+        }
         alert('Failed to send contract')
       } finally {
         this.isLoading = false
       }
     },
+    
     cancelContractReminder() {
       if (confirm('Cancel scheduled contract reminders?')) {
         this.$inertia.post(`/applications/${this.application.id}/cancel-contract-reminder`)

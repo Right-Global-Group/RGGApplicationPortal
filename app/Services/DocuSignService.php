@@ -255,15 +255,30 @@ class DocuSignService
                 ];
                 
             } catch (\Exception $e) {
-                Log::error('Failed to get signing URL for existing envelope', [
+                // If we can't access the existing envelope, clear it and create new one
+                Log::warning('Failed to access existing envelope, will create new one', [
                     'envelope_id' => $existingEnvelopeId,
-                    'recipient_email' => $recipientEmail ?? 'unknown',
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
                 ]);
                 
-                throw $e;
+                $application->status->update([
+                    'docusign_envelope_id' => null,
+                ]);
+                
+                // Fall through to create new envelope
+                $existingEnvelopeId = null;
             }
+        }
+
+        if (!$existingEnvelopeId && $application->status->contract_sent_at) {
+            Log::warning('Contract marked as sent but no envelope ID - clearing contract_sent_at', [
+                'application_id' => $application->id,
+            ]);
+            
+            // Clear the contract_sent_at timestamp so we can create a fresh envelope
+            $application->status->update([
+                'contract_sent_at' => null,
+            ]);
         }
         
         // CREATE NEW ENVELOPE
@@ -335,23 +350,6 @@ class DocuSignService
                         'font' => 'Arial',
                         'fontSize' => 'Size9',
                         'tabLabel' => 'all_request_types_fee',
-                    ],
-                    
-                    // Monthly Fee (first occurrence)
-                    [
-                        'documentId' => '1',
-                        'anchorString' => 'Monthly Fee',
-                        'anchorXOffset' => '313',
-                        'anchorYOffset' => '-5',
-                        'anchorUnits' => 'pixels',
-                        'anchorIgnoreIfNotPresent' => 'false',
-                        'width' => '80',
-                        'height' => '15',
-                        'value' => '£' . number_format($application->monthly_fee, 2),
-                        'locked' => true,
-                        'font' => 'Arial',
-                        'fontSize' => 'Size9',
-                        'tabLabel' => 'monthly_fee_1',
                     ],
                     
                     // Service fee/monthly minimum
@@ -674,7 +672,7 @@ class DocuSignService
                         'width' => '250',
                         'height' => '20',
                         'required' => false,
-                        'tabLabel' => 'form_annual_turnover',
+                        'tabLabel' => 'form_provider_name',
                     ],
                     
                     // Projected Annual Turnover
