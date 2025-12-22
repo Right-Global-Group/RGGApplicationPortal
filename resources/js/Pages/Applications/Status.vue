@@ -832,7 +832,6 @@
 
     <!-- Document Upload Modal (for accounts) -->
     <document-upload-modal 
-      v-if="is_account"
       :show="showDocumentUploadModal"
       :application-id="application.id"
       :categories="documentCategories"

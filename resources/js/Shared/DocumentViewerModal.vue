@@ -165,25 +165,34 @@ export default {
     }
   },
   watch: {
-    // Watch for when modal opens
-    show(newVal) {
-      if (newVal) {
-        // When modal opens, completely reset and apply new category
-        this.$nextTick(() => {
-          this.uploadSuccess = false
-          this.selectedFileName = ''
-          this.form.clearErrors()
-          this.form.file = null
-          
-          // CRITICAL: Set category from prop
-          this.form.document_category = this.preselectedCategory || ''
-          
-          // Reset file input
-          if (this.$refs.fileInput) {
-            this.$refs.fileInput.value = ''
-          }
-        })
-      }
+    // Watch for when modal opens AND category changes
+    show: {
+      handler(newVal) {
+        if (newVal) {
+          this.$nextTick(() => {
+            // Reset success message
+            this.uploadSuccess = false
+            
+            // Apply preselected category
+            if (this.preselectedCategory) {
+              this.form.document_category = this.preselectedCategory
+            }
+          })
+        }
+      },
+      immediate: true,
+    },
+    
+    // CRITICAL: Watch for prop changes even when modal is already open
+    preselectedCategory: {
+      handler(newVal) {
+        if (this.show && newVal) {
+          this.$nextTick(() => {
+            this.form.document_category = newVal
+          })
+        }
+      },
+      immediate: true,
     },
   },
   methods: {
@@ -216,11 +225,11 @@ export default {
             this.uploadSuccess = false
           }, 3000)
         },
-        onError: () => {
-          // Errors will be shown in the form
+        onError: (errors) => {
+          console.error('Upload error:', errors)
         },
         preserveScroll: true,
-        preserveState: true, // CRITICAL: Prevents page reload and keeps modal open
+        preserveState: true, // CRITICAL: Keeps modal open
       })
     },
     close() {
