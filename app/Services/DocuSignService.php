@@ -40,143 +40,218 @@ class DocuSignService
         $existingEnvelopeId = $application->status->docusign_envelope_id;
         
         if ($existingEnvelopeId) {
+            // EXISTING ENVELOPE - both users and merchants can access
             Log::info('Using existing envelope', ['envelope_id' => $existingEnvelopeId]);
             
-            try {
-                $accessToken = $this->getAccessToken();
-                
-                // Get envelope status to check if it's still editable
-                $envelopeResponse = Http::withToken($accessToken)
-                    ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$existingEnvelopeId}");
-                
-                if ($envelopeResponse->failed()) {
-                    throw new \Exception('Failed to get envelope status');
-                }
-                
-                $envelopeStatus = $envelopeResponse->json();
-                
-                Log::info('Existing envelope status', [
-                    'envelope_id' => $existingEnvelopeId,
-                    'status' => $envelopeStatus['status'] ?? 'unknown',
-                ]);
-                
-                // Check envelope status
-                $status = $envelopeStatus['status'] ?? null;
-                
-                // If envelope is completed/voided/declined, create a new one
-                if (in_array($status, ['completed', 'voided', 'declined'])) {
-                    Log::info('Envelope is already completed/voided, creating new one');
+            // Determine who is currently logged in
+            $isAccount = auth()->guard('account')->check();
+            
+            if ($isAccount) {
+                // MERCHANT is trying to sign
+                try {
+                    $accessToken = $this->getAccessToken();
                     
-                    $application->status->update([
-                        'docusign_envelope_id' => null,
+                    Log::info('=== MERCHANT SIGNING FLOW START ===', [
+                        'application_id' => $application->id,
+                        'account_email' => $application->account->email,
+                        'envelope_id' => $existingEnvelopeId,
                     ]);
                     
-                    // Fall through to create new envelope
-                    $existingEnvelopeId = null;
-                } else {
-                    // Envelope is still active (sent/delivered) - generate signing URL
-                    $isAccount = auth()->guard('account')->check();
+                    // Get envelope details
+                    $envelopeResponse = Http::withToken($accessToken)
+                        ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$existingEnvelopeId}/recipients");
                     
-                    if ($isAccount) {
-                        // MERCHANT reopening
-                        $envelopeResponse = Http::withToken($accessToken)
-                            ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$existingEnvelopeId}/recipients");
-                        
-                        if ($envelopeResponse->failed()) {
-                            throw new \Exception('Failed to get envelope recipients');
-                        }
-                        
-                        $envelopeData = $envelopeResponse->json();
-                        $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
-                        
-                        $account = $application->account;
-                        $merchantSigner = null;
-                        $merchantRoutingOrder = null;
-                        
-                        // Find merchant signer
-                        foreach ($envelopeData['signers'] ?? [] as $signer) {
-                            if (strtolower($signer['email']) === strtolower($account->email)) {
-                                $merchantSigner = $signer;
-                                $merchantRoutingOrder = (int)$signer['routingOrder'];
-                                break;
-                            }
-                        }
-                        
-                        // If not found, try elimination method
-                        if (!$merchantSigner) {
-                            foreach ($envelopeData['signers'] ?? [] as $signer) {
-                                $signerEmail = strtolower($signer['email']);
-                                
-                                if (stripos($signerEmail, 'g2pay.co.uk') === false && 
-                                    stripos($signerEmail, 'management@') === false &&
-                                    stripos($signer['roleName'] ?? '', 'Director') === false &&
-                                    stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
-                                    
-                                    $merchantSigner = $signer;
-                                    $merchantRoutingOrder = (int)$signer['routingOrder'];
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (!$merchantSigner) {
-                            throw new \Exception('Merchant recipient not found in envelope');
-                        }
-                        
-                        if ($merchantRoutingOrder > $currentRoutingOrder) {
-                            throw new \Exception('The contract is not ready for your signature yet.');
-                        }
-                        
-                        if (in_array($merchantSigner['status'], ['completed', 'signed'])) {
-                            throw new \Exception('You have already signed this contract.');
-                        }
-                        
-                        $recipientEmail = $merchantSigner['email'];
-                        $recipientName = $merchantSigner['name'];
-                        $hasClientUserId = !empty($merchantSigner['clientUserId']);
-                        $clientUserId = $hasClientUserId ? $merchantSigner['clientUserId'] : null;
-                        
-                    } else {
-                        // USER reopening
-                        $user = auth()->guard('web')->user();
-                        $recipientEmail = $user->email;
-                        $recipientName = $user->name ?? $user->email;
-                        $clientUserId = null;
+                    if ($envelopeResponse->failed()) {
+                        Log::error('Failed to get envelope recipients', [
+                            'envelope_id' => $existingEnvelopeId,
+                            'status' => $envelopeResponse->status(),
+                            'body' => $envelopeResponse->body(),
+                        ]);
+                        throw new \Exception('Failed to get envelope recipients');
                     }
                     
-                    // Generate signing URL for existing envelope
-                    $viewUrl = $this->getRecipientView(
-                        $accessToken,
-                        $existingEnvelopeId,
-                        $recipientEmail,
-                        $recipientName,
-                        $clientUserId,
-                        route('applications.docusign-callback', ['application' => $application->id])
-                    );
+                    $envelopeData = $envelopeResponse->json();
+                    $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
                     
-                    Log::info('Successfully generated signing URL for existing envelope', [
-                        'envelope_id' => $existingEnvelopeId,
+                    $account = $application->account;
+                    $merchantSigner = null;
+                    $merchantRoutingOrder = null;
+                    
+                    // Try to find merchant by current account email first
+                    foreach ($envelopeData['signers'] ?? [] as $signer) {
+                        if (strtolower($signer['email']) === strtolower($account->email)) {
+                            $merchantSigner = $signer;
+                            $merchantRoutingOrder = (int)$signer['routingOrder'];
+                            
+                            Log::info('Found merchant by EXACT email match', [
+                                'account_email' => $account->email,
+                                'signer_email' => $signer['email'],
+                                'routing_order' => $merchantRoutingOrder,
+                                'has_client_user_id' => isset($signer['clientUserId']),
+                                'client_user_id' => $signer['clientUserId'] ?? null,
+                            ]);
+                            break;
+                        }
+                    }
+                    
+                    // If not found AND this looks like an import, try to find the merchant signer
+                    if (!$merchantSigner) {
+                        Log::info('No exact match found - checking for imported merchant signer', [
+                            'account_email' => $account->email,
+                        ]);
+                        
+                        foreach ($envelopeData['signers'] ?? [] as $signer) {
+                            $signerEmail = strtolower($signer['email']);
+                            
+                            // Skip G2Pay/internal signers
+                            if (stripos($signerEmail, 'g2pay.co.uk') !== false || 
+                                stripos($signerEmail, 'management@') !== false ||
+                                stripos($signer['roleName'] ?? '', 'Director') !== false ||
+                                stripos($signer['roleName'] ?? '', 'Product Manager') !== false) {
+                                
+                                Log::info('Skipping internal signer', [
+                                    'email' => $signerEmail,
+                                    'role' => $signer['roleName'] ?? 'N/A',
+                                ]);
+                                continue;
+                            }
+                            
+                            // This must be the merchant
+                            $merchantSigner = $signer;
+                            $merchantRoutingOrder = (int)$signer['routingOrder'];
+                            
+                            Log::info('Found merchant by elimination (imported envelope)', [
+                                'envelope_merchant_email' => $signer['email'],
+                                'account_email' => $account->email,
+                                'routing_order' => $merchantRoutingOrder,
+                                'role' => $signer['roleName'] ?? 'N/A',
+                                'has_client_user_id' => isset($signer['clientUserId']),
+                                'client_user_id' => $signer['clientUserId'] ?? null,
+                            ]);
+                            
+                            break;
+                        }
+                    }
+                    
+                    if (!$merchantSigner) {
+                        Log::error('Merchant recipient not found in envelope', [
+                            'account_email' => $account->email,
+                            'envelope_id' => $existingEnvelopeId,
+                            'all_signers' => collect($envelopeData['signers'] ?? [])->pluck('email')->toArray(),
+                        ]);
+                        throw new \Exception('Merchant recipient not found in envelope');
+                    }
+                    
+                    // Check if merchant's turn to sign
+                    if ($merchantRoutingOrder > $currentRoutingOrder) {
+                        Log::info('Not merchant\'s turn yet', [
+                            'merchant_routing_order' => $merchantRoutingOrder,
+                            'current_routing_order' => $currentRoutingOrder,
+                        ]);
+                        throw new \Exception('The contract is not ready for your signature yet. Previous signers must complete their review first. Please wait for an email notification when it\'s your turn to sign.');
+                    }
+                    
+                    // Check if already signed
+                    if (in_array($merchantSigner['status'], ['completed', 'signed'])) {
+                        Log::info('Merchant already signed', [
+                            'status' => $merchantSigner['status'],
+                        ]);
+                        throw new \Exception('You have already signed this contract.');
+                    }
+                    
+                    // Use the original email and check if envelope has clientUserId
+                    $recipientEmail = $merchantSigner['email'];
+                    $recipientName = $merchantSigner['name'];
+                    
+                    // Only use clientUserId if the envelope recipient actually has one
+                    // Imported envelopes won't have clientUserId, so we need to generate URL without it
+                    $hasClientUserId = !empty($merchantSigner['clientUserId']);
+                    $clientUserId = $hasClientUserId ? $merchantSigner['clientUserId'] : null;
+                    
+                    Log::info('=== MERCHANT SIGNING FLOW - READY TO GENERATE URL ===', [
                         'recipient_email' => $recipientEmail,
+                        'recipient_name' => $recipientName,
+                        'has_client_user_id' => $hasClientUserId,
+                        'client_user_id' => $clientUserId,
+                        'merchant_routing_order' => $merchantRoutingOrder,
+                        'merchant_status' => $merchantSigner['status'],
                     ]);
                     
-                    return [
+                } catch (\Exception $e) {
+                    Log::error('❌ Failed to check merchant signing eligibility', [
                         'envelope_id' => $existingEnvelopeId,
-                        'signing_url' => $viewUrl,
-                        'embedded_signing' => true,
-                    ];
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    throw $e;
+                }
+            } else {
+                // USER is opening
+                Log::info('=== USER SIGNING FLOW START ===', [
+                    'application_id' => $application->id,
+                    'envelope_id' => $existingEnvelopeId,
+                ]);
+                
+                $accessToken = $this->getAccessToken();
+                $user = auth()->guard('web')->user();
+                $recipientEmail = $user->email;
+                $recipientName = $user->name ?? $user->email;
+                $clientUserId = null; // Also set to null for users on imported envelopes
+                
+                Log::info('User signing details', [
+                    'user_email' => $recipientEmail,
+                    'user_name' => $recipientName,
+                ]);
+            }
+            
+            // GENERATE SIGNING URL (common for both users and merchants)
+            try {
+                if (!isset($accessToken)) {
+                    $accessToken = $this->getAccessToken();
                 }
                 
+                Log::info('=== GENERATING SIGNING URL ===', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'recipient_email' => $recipientEmail,
+                    'recipient_name' => $recipientName,
+                    'client_user_id' => $clientUserId ?? 'NOT_SET',
+                    'using_client_user_id' => isset($clientUserId),
+                ]);
+                
+                // Generate signing URL - pass clientUserId only if it exists
+                $viewUrl = $this->getRecipientView(
+                    $accessToken,
+                    $existingEnvelopeId,
+                    $recipientEmail,
+                    $recipientName,
+                    $clientUserId, // Can be null for imported envelopes
+                    route('applications.docusign-callback', ['application' => $application->id])
+                );
+                
+                Log::info('Successfully generated signing URL', [
+                    'envelope_id' => $existingEnvelopeId,
+                    'recipient_email' => $recipientEmail,
+                    'url_length' => strlen($viewUrl),
+                ]);
+                
+                return [
+                    'envelope_id' => $existingEnvelopeId,
+                    'signing_url' => $viewUrl,
+                    'embedded_signing' => true,
+                ];
+                
             } catch (\Exception $e) {
-                Log::error('Failed to access existing envelope', [
+                // If we can't access the existing envelope, clear it and create new one
+                Log::warning('Failed to access existing envelope, will create new one', [
                     'envelope_id' => $existingEnvelopeId,
                     'error' => $e->getMessage(),
                 ]);
                 
-                // If we can't access it, clear it and create new
                 $application->status->update([
                     'docusign_envelope_id' => null,
                 ]);
                 
+                // Fall through to create new envelope
                 $existingEnvelopeId = null;
             }
         }

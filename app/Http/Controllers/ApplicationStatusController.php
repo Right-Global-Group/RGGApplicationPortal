@@ -1014,7 +1014,7 @@ class ApplicationStatusController extends Controller
         
         // First check: contract must be sent but not signed
         if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
-            \Log::info('Failed initial timestamp check');
+            \Log::info('Merchant cannot sign yet');
             return false;
         }
                 

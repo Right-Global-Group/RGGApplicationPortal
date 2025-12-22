@@ -1466,7 +1466,9 @@ export default {
       }
       
       try {
-        // Get fresh CSRF token from meta tag (Laravel refreshes this automatically)
+        // Refresh CSRF token before making request
+        await window.refreshCsrfToken()
+        
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
         
         if (!csrfToken) {
