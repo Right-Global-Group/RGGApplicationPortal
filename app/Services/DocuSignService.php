@@ -1293,7 +1293,7 @@ class DocuSignService
     /**
      * Get the embedded signing URL
      */
-    private function getRecipientView(
+    public function getRecipientView(
         string $accessToken, 
         string $envelopeId, 
         string $email,
@@ -1527,7 +1527,7 @@ class DocuSignService
         }
     }
 
-    private function generateJWT(string $privateKey): string
+    public function generateJWT(string $privateKey): string
     {
         $now = time();
 
@@ -1543,7 +1543,7 @@ class DocuSignService
         return JWT::encode($payload, $privateKey, 'RS256');
     }
 
-    private function generateGatewayPartnerContractPDF(Application $application): string
+    public function generateGatewayPartnerContractPDF(Application $application): string
     {
         $template = config("gateway-partners.{$application->gateway_partner}.contract_template");
         $html = view($template, ['application' => $application])->render();
@@ -1552,7 +1552,7 @@ class DocuSignService
         return base64_encode($pdfContent);
     }
 
-    private function getMerchantContractTabs(Application $application): array
+    public function getMerchantContractTabs(Application $application): array
     {
         return [
             'signHereTabs' => [
@@ -1587,7 +1587,7 @@ class DocuSignService
         ];
     }
 
-    private function getGatewayContractTabs(Application $application): array
+    public function getGatewayContractTabs(Application $application): array
     {
         return [
             'textTabs' => [
