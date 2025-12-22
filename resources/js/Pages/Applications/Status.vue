@@ -599,8 +599,7 @@
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between -mx-6 -mt-6 mb-6">
         <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
         <button 
-          v-if="is_account"
-          @click="showDocumentUploadModal = true" 
+          @click="openUploadModal()" 
           class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
         >
           Upload Document
@@ -625,7 +624,18 @@
         :key="category"
         class="mb-6 last:mb-0"
       >
-        <h3 class="text-lg font-semibold text-gray-300 mb-2">{{ label }}</h3>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-semibold text-gray-300">{{ label }}</h3>
+          <button 
+            @click="openUploadModal(category)" 
+            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Upload
+          </button>
+        </div>
         <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
 
         <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
@@ -827,7 +837,8 @@
       :application-id="application.id"
       :categories="documentCategories"
       :category-descriptions="categoryDescriptions"
-      @close="showDocumentUploadModal = false"
+      :preselected-category="preselectedCategory"
+      @close="showDocumentUploadModal = false; preselectedCategory = null"
     />
 
     <credentials-modal
@@ -995,6 +1006,7 @@ export default {
       showCredentialsModal: false,
       showAccountMessageModal: false,
       showDocumentUploadModal: false,
+      preselectedCategory: null,
     }
   },
   computed: {
@@ -1305,6 +1317,11 @@ export default {
       } else {
         window.scrollTo({ top: 0, behavior: 'smooth' })
       }
+    },
+
+    openUploadModal(category = null) {
+      this.preselectedCategory = category
+      this.showDocumentUploadModal = true
     },
 
     async openContractForAccount() {

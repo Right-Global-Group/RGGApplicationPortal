@@ -156,7 +156,7 @@
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
             <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
             <button 
-              @click="showDocumentUploadModal = true" 
+              @click="openUploadModal()" 
               class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
             >
               Upload Document
@@ -185,6 +185,15 @@
             >
               <div class="flex items-center justify-between mb-2">
                 <h3 class="text-lg font-semibold text-gray-300">{{ label }}</h3>
+                <button 
+                  @click="openUploadModal(category)" 
+                  class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                  </svg>
+                  Upload
+                </button>
               </div>
               
               <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptions[category] }}</p>
@@ -239,9 +248,21 @@
                     <div class="flex items-center justify-between mb-3">
                       <h4 class="text-md font-semibold text-yellow-200">{{ additionalDoc.document_name }}</h4>
                       <div class="flex items-center gap-2">
+                        <!-- Upload button -->
+                        <button
+                          @click="openUploadModal(`additional_requested_${additionalDoc.id}`)"
+                          class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                          </svg>
+                          Upload
+                        </button>
+                        
                         <span class="text-xs text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded border border-yellow-700/30">
                           Pending
                         </span>
+                        
                         <!-- Delete requirement button (only for users) -->
                         <button
                           v-if="canChangeFees"
@@ -380,7 +401,8 @@
           :application-id="application.id"
           :categories="documentCategories"
           :category-descriptions="categoryDescriptions"
-          @close="showDocumentUploadModal = false"
+          :preselected-category="preselectedCategory"
+          @close="showDocumentUploadModal = false; preselectedCategory = null"
         />
 
         <!-- Edit Application Form -->
@@ -696,6 +718,7 @@
       return {
         showChangeFeesModal: false,
         showDocumentUploadModal: false,
+        preselectedCategory: null,
         showWordPressModal: false,
         showWordPressPassword: false,
         showCardStreamPassword: false,
@@ -825,6 +848,10 @@
             documentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
         })
+      },
+      openUploadModal(category = null) {
+        this.preselectedCategory = category
+        this.showDocumentUploadModal = true
       },
       formatDate(date) {
         if (!date) return '—'

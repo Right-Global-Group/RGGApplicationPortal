@@ -27,7 +27,7 @@ class DocuSignWebhookController extends Controller
                 'payload' => $payload
             ]);
     
-            // ✅ FIXED: Extract envelope ID from the correct location
+            // Extract envelope ID from the correct location
             $envelopeId = $payload['data']['envelopeId'] ?? null;
             $event = $payload['event'] ?? null;
             
