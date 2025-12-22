@@ -74,6 +74,7 @@
                         Choose File
                       </div>
                       <input
+                        ref="fileInput"
                         type="file"
                         @change="handleFileChange"
                         accept=".pdf,.doc,.docx,.xlsx,.xls,.csv,.jpg,.jpeg,.png"
@@ -158,26 +159,32 @@ export default {
       selectedFileName: '',
       uploadSuccess: false,
       form: this.$inertia.form({
-        document_category: this.preselectedCategory || '',
+        document_category: '',
         file: null,
       }),
     }
   },
   watch: {
-    show(newVal) {
-      if (newVal) {
-        // Reset success message when modal opens
-        this.uploadSuccess = false
-        // Set preselected category if provided
-        if (this.preselectedCategory) {
-          this.form.document_category = this.preselectedCategory
+    // Watch for when modal opens AND category changes
+    show: {
+      handler(newVal) {
+        if (newVal) {
+          // Reset success message when modal opens
+          this.uploadSuccess = false
+          // Set the category from prop
+          this.form.document_category = this.preselectedCategory || ''
         }
-      }
+      },
+      immediate: true,
     },
-    preselectedCategory(newVal) {
-      if (newVal && this.show) {
-        this.form.document_category = newVal
-      }
+    // Also watch preselectedCategory separately in case it changes while modal is open
+    preselectedCategory: {
+      handler(newVal) {
+        if (this.show) {
+          this.form.document_category = newVal || ''
+        }
+      },
+      immediate: true,
     },
   },
   methods: {
@@ -196,14 +203,13 @@ export default {
           // Show success message
           this.uploadSuccess = true
           
-          // Reset form but keep category selected and modal open
+          // Reset file but keep category selected
           this.form.file = null
           this.selectedFileName = ''
           
-          // Reset the file input
-          const fileInput = this.$el.querySelector('input[type="file"]')
-          if (fileInput) {
-            fileInput.value = ''
+          // Reset the file input using ref
+          if (this.$refs.fileInput) {
+            this.$refs.fileInput.value = ''
           }
           
           // Hide success message after 3 seconds
@@ -214,6 +220,7 @@ export default {
         onError: () => {
           // Errors will be shown in the form
         },
+        preserveScroll: true, // Prevents page from scrolling on success
       })
     },
     close() {
@@ -222,6 +229,12 @@ export default {
       this.form.clearErrors()
       this.selectedFileName = ''
       this.uploadSuccess = false
+      
+      // Reset file input
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = ''
+      }
+      
       this.$emit('close')
     },
   },
