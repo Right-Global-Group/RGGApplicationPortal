@@ -236,13 +236,36 @@
     <!-- Action Buttons (only for users, not accounts) -->
     <div v-if="!is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Quick Actions</h2>
+      
+      <!-- Refresh Notice (Admin Only) -->
+      <div v-if="canSendContract && !hasRefreshed" class="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-blue-300">
+            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Refresh the page to activate the DocuSign button
+          </p>
+          <button
+            @click="refreshPage"
+            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Refresh Page
+          </button>
+        </div>
+      </div>
+
       <div class="flex flex-wrap gap-3">
 
         <button
           v-if="canSendContract"
           @click="sendContractLink"
-          :disabled="isLoading"
+          :disabled="isLoading || !hasRefreshed"
           class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          :title="!hasRefreshed ? 'Please refresh the page first' : ''"
         >
           <svg 
             v-if="isLoading" 
@@ -281,10 +304,11 @@
             />
           </svg>
           <span v-if="isLoading">Opening DocuSign...</span>
+          <span v-else-if="!hasRefreshed">Open Contract (Refresh Required)</span>
           <span v-else>Open Contract Link (DocuSign)</span>
         </button>
 
-        <!-- Send Contract Link Button (shows when contract_sent) -->
+        <!-- Send Contract Link Button -->
         <button
           v-if="canSendContractReminder"
           @click="showContractReminderModal = true"
@@ -1006,6 +1030,7 @@ export default {
       showAccountMessageModal: false,
       showDocumentUploadModal: false,
       preselectedCategory: null,
+      hasRefreshed: false,
     }
   },
   computed: {
@@ -1316,6 +1341,11 @@ export default {
       } else {
         window.scrollTo({ top: 0, behavior: 'smooth' })
       }
+    },
+
+    refreshPage() {
+      sessionStorage.setItem('statusPageRefreshed', 'true')
+      window.location.reload()
     },
 
     openUploadModal(category = null) {
@@ -1717,6 +1747,12 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
+
+      // Check if page has been loaded before (refresh check)
+      if (sessionStorage.getItem('statusPageRefreshed')) {
+        this.hasRefreshed = true
+      }
+
       const mainContent = document.querySelector('[scroll-region]')
 
       if (mainContent) {
