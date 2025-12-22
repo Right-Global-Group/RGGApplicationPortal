@@ -94,7 +94,7 @@
         </div>
         
         <center>
-            <a href="{{ $login_url }}" class="button">Login to Your Account</a>
+            <a href="{{ $login_url }}" class="button" style="color: white;">Login to Your Account</a>
         </center>
         
         <p style="text-align: center; color: #666; font-size: 14px;">

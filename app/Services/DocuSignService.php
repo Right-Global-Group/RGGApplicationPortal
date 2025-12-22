@@ -1407,7 +1407,7 @@ class DocuSignService
      * @param string $documentId The document ID
      * @return string Base64 encoded document content
      */
-    public function downloadEnvelopeDocument(string $envelopeId, string $documentId = '2'): string
+    public function downloadEnvelopeDocument(string $envelopeId, string $documentId = '1'): string
     {
         try {
             $accessToken = $this->getAccessToken();
