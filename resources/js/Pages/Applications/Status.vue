@@ -1514,13 +1514,29 @@ export default {
       }
       
       try {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        
+        if (!csrfToken) {
+          throw new Error('CSRF token not found. Please refresh the page.')
+        }
         
         const response = await fetch(`/applications/${this.application.id}/send-contract`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json', // Important: tell server we expect JSON
+            'X-Requested-With': 'XMLHttpRequest', // Mark as AJAX request
           },
+          credentials: 'same-origin', // Include cookies for session
         })
+        
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned an invalid response. Please refresh the page and try again.')
+        }
         
         const data = await response.json()
 
@@ -1542,7 +1558,17 @@ export default {
         if (popupWindow && !popupWindow.closed) {
           popupWindow.close()
         }
-        alert('Failed to send contract: ' + error.message)
+        
+        // Better error messages
+        if (error.message.includes('CSRF')) {
+          alert('Your session has expired. Please refresh the page and try again.')
+          window.location.reload()
+        } else if (error.message.includes('invalid response')) {
+          alert('Session expired or server error. Please refresh the page and try again.')
+          window.location.reload()
+        } else {
+          alert('Failed to send contract: ' + error.message)
+        }
       } finally {
         this.isLoading = false
       }
