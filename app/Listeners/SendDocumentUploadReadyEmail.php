@@ -45,7 +45,7 @@ class SendDocumentUploadReadyEmail
                 'emailable_id' => $application->id,
                 'email_type' => 'document_upload_ready',
                 'recipient_email' => $account->email,
-                'subject' => 'Contract Signed - Please Upload Your Documents',
+                'subject' => 'Please Upload Your Documents',
                 'sent_at' => now(),
             ]);
 
