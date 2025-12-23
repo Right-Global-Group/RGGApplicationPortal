@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contract Signed - Upload Your Documents</title>
+    <title>Upload Your Documents</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -92,18 +92,16 @@
 </head>
 <body>
     <div class="header">
-        <h1>✓ Contract Signed Successfully!</h1>
+        <h1>Please Upload Documents</h1>
     </div>
     
     <div class="content">
         <div class="success-icon">🎉</div>
         
         <p>Hello {{ $account_name }},</p>
-        
-        <p><strong>Great news!</strong> Your contract for <span class="highlight">{{ $application_name }}</span> has been signed by all parties.</p>
-        
+                
         <div class="info-box">
-            <h3 style="margin-top: 0; color: #667eea;">Next Step: Upload Your Documents</h3>
+            <h3 style="margin-top: 0; color: #667eea;">An application step is awaitng your completion:</h3>
             <p>To continue processing your application, please upload the required documents. This is a crucial step in completing your merchant account setup.</p>
         </div>
         
@@ -131,7 +129,7 @@
             Or copy this link: <a href="{{ $upload_url }}">{{ $upload_url }}</a>
         </p>
         
-        <p style="margin-top: 30px;">Once all documents are uploaded and approved, we'll move forward with the final steps to get your account live.</p>
+        <p style="margin-top: 30px;">Once all documents are uploaded and approved, we'll move forward with the application and inform you of the next steps required.</p>
         
         <p>If you have any questions or need assistance with the document upload process, please don't hesitate to contact our support team.</p>
         
