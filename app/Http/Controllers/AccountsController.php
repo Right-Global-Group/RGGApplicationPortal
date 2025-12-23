@@ -187,7 +187,9 @@ class AccountsController extends Controller
                 'id' => $app->id,
                 'name' => $app->name,
                 'created_at' => $app->created_at,
-                'can_merchant_sign' => $this->canMerchantSignContract($app),
+                'can_merchant_sign' => auth()->guard('account')->check() 
+                ? $this->canMerchantSignContract($app) 
+                : false,  // Don't check if not authenticated
                 'status' => $app->status ? [
                     'current_step' => $app->status->current_step,
                     'timestamps' => [

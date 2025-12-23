@@ -245,7 +245,9 @@ class ApplicationsController extends Controller
                 'cardstream_password' => $application->cardstream_password,
                 'cardstream_merchant_id' => $application->cardstream_merchant_id,
                 'cardstream_credentials_entered_at' => $application->cardstream_credentials_entered_at,
-                'can_merchant_sign' => $this->canMerchantSignContract($application),
+                'can_merchant_sign' => auth()->guard('account')->check() 
+                ? $this->canMerchantSignContract($application) 
+                : false,  // Don't check if not authenticated
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,

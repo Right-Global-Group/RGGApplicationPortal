@@ -159,35 +159,44 @@ class DocuSignWebhookController extends Controller
                         ]);
                         Log::info('Updated application status with merged recipients');
                         
-                        // Check if ALL recipients have signed
+                        // Check if ALL recipients have signed (simplified - just check every recipient)
                         $allSigned = collect($currentRecipients)->every(fn($r) => in_array($r['status'], ['completed', 'signed']));
-                        Log::info('Checked if all signed', ['all_signed' => $allSigned, 'recipient_count' => count($currentRecipients)]);
-
+                        
+                        Log::info('Checked if all signed', [
+                            'all_signed' => $allSigned,
+                            'recipient_count' => count($currentRecipients),
+                            'recipients_detail' => collect($currentRecipients)->map(fn($r) => [
+                                'name' => $r['name'] ?? 'Unknown',
+                                'email' => $r['email'] ?? 'Unknown',
+                                'status' => $r['status'] ?? 'Unknown',
+                                'signed_at' => $r['signed_at'] ?? null
+                            ])->toArray()
+                        ]);
+                
+                        // Check for director signature to send merchant email
                         $directorSigned = false;
-                        $allSigned = true;
                         $merchantEmail = null;
+                        $merchantHasSigned = false;
                         
                         foreach ($currentRecipients as $recipient) {
-                            // Find the director (the user associated with the application)
+                            // Find the director (the user who created the application)
                             if ($recipient['email'] === $application->user->email) {
                                 if (in_array($recipient['status'], ['completed', 'signed'])) {
                                     $directorSigned = true;
                                 }
                             }
                             
-                            // Find the merchant
+                            // Find the merchant (the account holder)
                             if ($recipient['email'] === $application->account->email) {
                                 $merchantEmail = $recipient['email'];
-                            }
-                            
-                            // Check if anyone hasn't signed yet
-                            if (!in_array($recipient['status'], ['completed', 'signed'])) {
-                                $allSigned = false;
+                                if (in_array($recipient['status'], ['completed', 'signed'])) {
+                                    $merchantHasSigned = true;
+                                }
                             }
                         }
                         
                         // If director just signed and merchant hasn't signed yet, send email to merchant
-                        if ($directorSigned && !$allSigned && $merchantEmail) {
+                        if ($directorSigned && !$merchantHasSigned && $merchantEmail) {
                             try {
                                 $merchantSigningUrl = $this->docuSignService->getRecipientView(
                                     $this->docuSignService->getAccessToken(),
@@ -197,7 +206,7 @@ class DocuSignWebhookController extends Controller
                                     'merchant-' . $application->id,
                                     route('applications.docusign-callback', ['application' => $application->id])
                                 );
-
+                
                                 // Transition to contract_sent if not already there
                                 if ($application->status->current_step !== 'contract_sent') {
                                     $application->status->transitionTo(
@@ -221,7 +230,13 @@ class DocuSignWebhookController extends Controller
                             }
                         }
                         
+                        // If ALL recipients have signed, transition to contract_signed
                         if ($allSigned && count($currentRecipients) > 0) {
+                            Log::info('ALL RECIPIENTS HAVE SIGNED - Transitioning to contract_signed', [
+                                'application_id' => $application->id,
+                                'current_step' => $application->status->current_step
+                            ]);
+                            
                             $document->update([
                                 'status' => 'completed',
                                 'completed_at' => now()
@@ -231,25 +246,40 @@ class DocuSignWebhookController extends Controller
                                 'contract_signed_at' => now()
                             ]);
                             
-                            $application->status->transitionTo(
-                                'contract_signed',
-                                'All parties have signed the contract'
-                            );
-                            
-                            Log::info('Marked contract as fully signed');
-                            
-                            // Send document upload ready email if documents haven't been uploaded yet
-                            if (!$application->status->documents_uploaded_at) {
-                                event(new \App\Events\DocumentUploadReadyEvent($application));
-                                Log::info('Sent document upload ready email to merchant', [
-                                    'application_id' => $application->id,
-                                    'merchant_email' => $application->account->email,
+                            // Only transition if not already past contract_signed
+                            if (!in_array($application->status->current_step, ['contract_signed', 'documents_uploaded', 'documents_approved'])) {
+                                $application->status->transitionTo(
+                                    'contract_signed',
+                                    'All parties have signed the contract'
+                                );
+                                
+                                Log::info('Successfully transitioned to contract_signed');
+                                
+                                // Send document upload ready email if documents haven't been uploaded yet
+                                if (!$application->status->documents_uploaded_at) {
+                                    event(new \App\Events\DocumentUploadReadyEvent($application));
+                                    Log::info('Sent document upload ready email to merchant', [
+                                        'application_id' => $application->id,
+                                        'merchant_email' => $application->account->email,
+                                    ]);
+                                }
+                            } else {
+                                Log::info('Already past contract_signed, not transitioning', [
+                                    'current_step' => $application->status->current_step
                                 ]);
                             }
                         } else {
                             Log::info('Not all recipients have signed yet', [
                                 'all_signed' => $allSigned,
-                                'recipient_count' => count($currentRecipients)
+                                'recipient_count' => count($currentRecipients),
+                                'unsigned_recipients' => collect($currentRecipients)
+                                    ->filter(fn($r) => !in_array($r['status'], ['completed', 'signed']))
+                                    ->map(fn($r) => [
+                                        'name' => $r['name'] ?? 'Unknown',
+                                        'email' => $r['email'] ?? 'Unknown',
+                                        'status' => $r['status'] ?? 'Unknown'
+                                    ])
+                                    ->toArray()
                             ]);
                         }
                         
