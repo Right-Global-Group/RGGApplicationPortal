@@ -84,6 +84,16 @@ class DocuSignWebhookController extends Controller
                         'delivered',
                         'Contract has been delivered and is ready for signing'
                     ));
+
+
+                    // Send document upload ready email if documents haven't been uploaded yet
+                    if (!$application->status->documents_uploaded_at) {
+                        event(new \App\Events\DocumentUploadReadyEvent($application));
+                        Log::info('Sent document upload ready email to merchant', [
+                            'application_id' => $application->id,
+                            'merchant_email' => $application->account->email,
+                        ]);
+                    }
                     
                     Log::info('Processed envelope-delivered event');
                     break;
@@ -255,14 +265,6 @@ class DocuSignWebhookController extends Controller
                                 
                                 Log::info('Successfully transitioned to contract_signed');
                                 
-                                // Send document upload ready email if documents haven't been uploaded yet
-                                if (!$application->status->documents_uploaded_at) {
-                                    event(new \App\Events\DocumentUploadReadyEvent($application));
-                                    Log::info('Sent document upload ready email to merchant', [
-                                        'application_id' => $application->id,
-                                        'merchant_email' => $application->account->email,
-                                    ]);
-                                }
                             } else {
                                 Log::info('Already past contract_signed, not transitioning', [
                                     'current_step' => $application->status->current_step
@@ -335,7 +337,16 @@ class DocuSignWebhookController extends Controller
                         'completed',
                         'All parties have signed the contract'
                     ));
-                    
+
+                    // Send document upload ready email if documents haven't been uploaded yet
+                    if (!$application->status->documents_uploaded_at) {
+                        event(new \App\Events\DocumentUploadReadyEvent($application));
+                        Log::info('Sent document upload ready email to merchant', [
+                            'application_id' => $application->id,
+                            'merchant_email' => $application->account->email,
+                        ]);
+                    }
+
                     Log::info('Processed envelope-completed event');
                     break;
             
