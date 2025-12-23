@@ -40,7 +40,7 @@
         .button {
             display: inline-block;
             background: #667eea;
-            color: white;
+            color: white !important;
             padding: 15px 40px;
             text-decoration: none;
             border-radius: 5px;
@@ -79,6 +79,15 @@
             color: #667eea;
             font-weight: bold;
         }
+        .login-note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            color: #856404;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -108,6 +117,10 @@
                 <li>Proof of Business Address</li>
                 <li>Any additional documents requested</li>
             </ul>
+        </div>
+        
+        <div class="login-note">
+            <strong>📌 Note:</strong> If you're not already logged in, please <a href="{{ $login_url }}" style="color: #667eea; font-weight: bold;">log in to your account</a> first, then click the button below to upload your documents.
         </div>
         
         <center>

@@ -45,7 +45,7 @@
         .button {
             display: inline-block;
             background: #667eea;
-            color: white;
+            color: white !important;
             padding: 12px 30px;
             text-decoration: none;
             border-radius: 5px;
@@ -68,6 +68,15 @@
             padding: 15px;
             margin: 20px 0;
             border-radius: 5px;
+        }
+        .login-note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            color: #856404;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -95,6 +104,10 @@
         <div class="next-steps">
             <strong>📋 Next Step: Upload Documents</strong>
             <p style="margin: 10px 0 0 0;">Please upload the required documents to proceed with your application.</p>
+        </div>
+        
+        <div class="login-note">
+            <strong>📌 Note:</strong> If you're not already logged in, please <a href="{{ $login_url }}" style="color: #667eea; font-weight: bold;">log in to your account</a> first before accessing your application.
         </div>
         
         <center>

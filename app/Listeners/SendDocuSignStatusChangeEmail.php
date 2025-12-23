@@ -20,9 +20,10 @@ class SendDocuSignStatusChangeEmail
                 'application_name' => $application->name,
                 'account_name' => $application->account->name,
                 'status' => $status,
-                'status_message' => $statusMessage, // ← Changed to 'status_message'
+                'status_message' => $statusMessage,
                 'timestamp' => now()->format('F j, Y \a\t g:i A'),
-                'application_url' => url("/applications/{$application->id}/status"),
+                'application_url' => route('applications.status', $application),
+                'login_url' => route('account.login'),
             ];
 
             // Send email to the user who created the application

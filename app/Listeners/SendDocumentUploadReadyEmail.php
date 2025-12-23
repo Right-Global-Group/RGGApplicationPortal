@@ -23,13 +23,15 @@ class SendDocumentUploadReadyEmail
             ]);
 
             // Generate the upload URL (goes to application edit page with hash anchor to documents)
-            $uploadUrl = url("/applications/{$application->id}/edit#documents");
+            $uploadUrl = route('applications.edit', $application) . '#documents';
+            $loginUrl = route('account.login');
 
             $emailData = [
                 'account_name' => $account->name,
                 'application_name' => $application->name,
                 'upload_url' => $uploadUrl,
-                'application_url' => url("/applications/{$application->id}/edit"),
+                'login_url' => $loginUrl,
+                'application_url' => route('applications.edit', $application),
             ];
 
             // Send email to merchant account

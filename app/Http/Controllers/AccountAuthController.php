@@ -38,6 +38,7 @@ class AccountAuthController extends Controller
                 $account->markAsConfirmed();
             }
 
+            // Redirect to intended URL (from email link) or default to account edit page
             return redirect()->intended(route('accounts.edit', $account));
         }
 

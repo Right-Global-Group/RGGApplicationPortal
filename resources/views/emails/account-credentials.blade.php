@@ -45,11 +45,12 @@
         .button {
             display: inline-block;
             background: #667eea;
-            color: white;
+            color: white !important;
             padding: 12px 30px;
             text-decoration: none;
             border-radius: 5px;
             margin: 20px 0;
+            font-weight: bold;
         }
         .footer {
             margin-top: 30px;
@@ -94,7 +95,7 @@
         </div>
         
         <center>
-            <a href="{{ $login_url }}" class="button" style="color: white;">Login to Your Account</a>
+            <a href="{{ $login_url }}" class="button">Login to Your Account</a>
         </center>
         
         <p style="text-align: center; color: #666; font-size: 14px;">

@@ -39,6 +39,7 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        // Redirect to intended URL or default home
         return redirect()->intended(AppServiceProvider::HOME);
     }
 

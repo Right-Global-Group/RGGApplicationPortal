@@ -63,11 +63,18 @@
                                 </div>
                             </div>
 
+                            <!-- Login Note -->
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 25px 0;">
+                                <p style="margin: 0; font-size: 14px; color: #92400e;">
+                                    <strong>📌 Note:</strong> If you're not already logged in, please <a href="{{ $login_url }}" style="color: #b45309; font-weight: bold; text-decoration: underline;">log in to your account</a> first before viewing the application status.
+                                </p>
+                            </div>
+
                             <!-- Call to Action Button -->
                             <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
                                 <tr>
                                     <td align="center">
-                                        <a href="{{ $application_url }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
+                                        <a href="{{ $application_url }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff !important; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
                                             View Application Status
                                         </a>
                                     </td>
