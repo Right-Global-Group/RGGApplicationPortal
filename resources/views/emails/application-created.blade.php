@@ -107,13 +107,9 @@
         </div>
         
         <div class="login-note">
-            <strong>📌 Note:</strong> If you're not already logged in, please <a href="{{ $login_url }}" style="color: #667eea; font-weight: bold;">log in to your account</a> first before accessing your application.
+            <strong>📌 Note:</strong> We have also sent you an email containing your login details.
         </div>
-        
-        <center>
-            <a href="{{ $edit_url ?? '#' }}" class="button button-secondary">Upload Documents</a>
-            <a href="{{ $status_url ?? '#' }}" class="button">View Application Status</a>
-        </center>
+    
         
         <p>We will keep you updated as your application progresses through each stage. If you have any questions, please contact our support team.</p>
         
