@@ -554,7 +554,7 @@ class ApplicationStatusController extends Controller
             ]);
 
             // Send document upload ready email if documents haven't been uploaded yet
-            if (!$status->documents_uploaded_at) {
+            if (!$application->status->documents_uploaded_at) {
                 event(new \App\Events\DocumentUploadReadyEvent($application));
                 Log::info('Sent document upload ready email to merchant', [
                     'application_id' => $application->id,
