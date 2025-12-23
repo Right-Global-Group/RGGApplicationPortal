@@ -552,6 +552,15 @@ class ApplicationStatusController extends Controller
                 'docusign_envelope_id' => $result['envelope_id'],
                 'docusign_status' => 'sent',
             ]);
+
+            // Send document upload ready email if documents haven't been uploaded yet
+            if (!$status->documents_uploaded_at) {
+                event(new \App\Events\DocumentUploadReadyEvent($application));
+                Log::info('Sent document upload ready email to merchant', [
+                    'application_id' => $application->id,
+                    'merchant_email' => $application->account->email,
+                ]);
+            }
     
             return response()->json([
                 'success' => true,
