@@ -54,17 +54,35 @@ class InvoicesController extends Controller
                     // Try exact match first (fastest)
                     $account = $accounts->firstWhere('name', $stat->merchant_name);
                     
-                    // If no exact match, try fuzzy matching
+                    // If no exact match, use fuzzy matching with similarity scoring
                     if (!$account) {
+                        $bestMatch = null;
+                        $highestScore = 0;
+                        $threshold = 70; // Minimum similarity percentage
+                        
                         $searchName = strtolower(trim($stat->merchant_name));
                         
-                        $account = $accounts->first(function ($acc) use ($searchName) {
+                        foreach ($accounts as $acc) {
                             $accountName = strtolower(trim($acc->name));
                             
-                            // Check if either name contains the other
-                            return str_contains($accountName, $searchName) || 
-                                str_contains($searchName, $accountName);
-                        });
+                            // Calculate similarity percentage
+                            similar_text($searchName, $accountName, $score);
+                            
+                            // Also check if one contains most of the other (for partial matches)
+                            $containsScore = 0;
+                            if (str_contains($accountName, $searchName) || str_contains($searchName, $accountName)) {
+                                $containsScore = 85; // Boost score for contains matches
+                            }
+                            
+                            $finalScore = max($score, $containsScore);
+                            
+                            if ($finalScore > $highestScore && $finalScore >= $threshold) {
+                                $highestScore = $finalScore;
+                                $bestMatch = $acc;
+                            }
+                        }
+                        
+                        $account = $bestMatch;
                     }
                     
                     if ($account && $account->applications->isNotEmpty()) {
