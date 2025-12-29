@@ -116,15 +116,15 @@ class ApplicationDocumentsController extends Controller
                 
                 Log::info('Set documents_uploaded_at timestamp');
             }
+
+            // Fire "all documents uploaded" event (ONE email to user)
+            event(new AllDocumentsUploadedEvent($application));
             
             // Only transition current_step AND fire event if we're still in early stages
             if (in_array($application->status->current_step, ['created', 'contract_sent'])) {
                 Log::info('Transitioning to documents_uploaded and firing event');
                 
                 $application->status->transitionTo('documents_uploaded', 'All required documents uploaded');
-                
-                // Fire "all documents uploaded" event (ONE email to user)
-                event(new AllDocumentsUploadedEvent($application));
             } else {
                 Log::info('All documents uploaded but already past that step - no transition or event', [
                     'current_step' => $application->status->current_step

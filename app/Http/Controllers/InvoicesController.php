@@ -46,12 +46,27 @@ class InvoicesController extends Controller
                 $stats = $selectedImport->getMerchantStats();
                 
                 // Get all accounts with their first application
-                $accounts = Account::with('applications')->get()->keyBy('name');
-                
+                $accounts = Account::with('applications')->get();
+
                 $merchantStats = $stats->map(function ($stat) use ($accounts) {
-                    $account = $accounts->get($stat->merchant_name);
-                    
                     $monthlyFee = null;
+                    
+                    // Try exact match first (fastest)
+                    $account = $accounts->firstWhere('name', $stat->merchant_name);
+                    
+                    // If no exact match, try fuzzy matching
+                    if (!$account) {
+                        $searchName = strtolower(trim($stat->merchant_name));
+                        
+                        $account = $accounts->first(function ($acc) use ($searchName) {
+                            $accountName = strtolower(trim($acc->name));
+                            
+                            // Check if either name contains the other
+                            return str_contains($accountName, $searchName) || 
+                                str_contains($searchName, $accountName);
+                        });
+                    }
+                    
                     if ($account && $account->applications->isNotEmpty()) {
                         $monthlyFee = $account->applications->first()->monthly_fee;
                     }
