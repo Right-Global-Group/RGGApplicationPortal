@@ -54,24 +54,33 @@ class InvoicesController extends Controller
                     // Try exact match first (fastest)
                     $account = $accounts->firstWhere('name', $stat->merchant_name);
                     
-                    // If no exact match, use fuzzy matching with similarity scoring
+                    // If no exact match, use more conservative fuzzy matching
                     if (!$account) {
                         $bestMatch = null;
                         $highestScore = 0;
-                        $threshold = 70; // Minimum similarity percentage
+                        $threshold = 80; // Increased from 70 to 80 for stricter matching
                         
                         $searchName = strtolower(trim($stat->merchant_name));
+                        // Remove common suffixes for better matching
+                        $searchNameClean = preg_replace('/\b(ltd|limited|competitions?|comps?)\b/i', '', $searchName);
+                        $searchNameClean = preg_replace('/\s+/', ' ', trim($searchNameClean));
                         
                         foreach ($accounts as $acc) {
                             $accountName = strtolower(trim($acc->name));
+                            $accountNameClean = preg_replace('/\b(ltd|limited|competitions?|comps?)\b/i', '', $accountName);
+                            $accountNameClean = preg_replace('/\s+/', ' ', trim($accountNameClean));
                             
-                            // Calculate similarity percentage
-                            similar_text($searchName, $accountName, $score);
+                            // Calculate similarity percentage on cleaned names
+                            similar_text($searchNameClean, $accountNameClean, $score);
                             
-                            // Also check if one contains most of the other (for partial matches)
+                            // Require significant overlap for contains matches
                             $containsScore = 0;
-                            if (str_contains($accountName, $searchName) || str_contains($searchName, $accountName)) {
-                                $containsScore = 85; // Boost score for contains matches
+                            if (strlen($searchNameClean) >= 5 && strlen($accountNameClean) >= 5) {
+                                if (str_contains($accountNameClean, $searchNameClean)) {
+                                    $containsScore = 90;
+                                } elseif (str_contains($searchNameClean, $accountNameClean)) {
+                                    $containsScore = 90;
+                                }
                             }
                             
                             $finalScore = max($score, $containsScore);
