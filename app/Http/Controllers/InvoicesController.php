@@ -127,6 +127,100 @@ class InvoicesController extends Controller
         ]);
     }
 
+    public function show(string $merchantName): Response
+    {
+        $decodedMerchantName = urldecode($merchantName);
+        
+        // Get import_id from query string, or use most recent completed import
+        $importId = Request::input('import_id');
+        
+        if ($importId) {
+            $import = CardstreamImport::where('id', $importId)
+                ->where('status', 'completed')
+                ->firstOrFail();
+        } else {
+            $import = CardstreamImport::where('status', 'completed')
+                ->orderBy('imported_at', 'desc')
+                ->firstOrFail();
+        }
+        
+        // Get merchant stats for this merchant using the model's method
+        $merchantStats = $import->getMerchantStats();
+        $merchantStat = $merchantStats->firstWhere('merchant_name', $decodedMerchantName);
+        
+        if (!$merchantStat) {
+            abort(404, 'Merchant not found in this import');
+        }
+        
+        // Find matching account
+        $accounts = Account::with('applications')->get();
+        $account = $accounts->firstWhere('name', $decodedMerchantName);
+        
+        // If no exact match, use fuzzy matching
+        if (!$account) {
+            $bestMatch = null;
+            $highestScore = 0;
+            $threshold = 80;
+            
+            $searchName = strtolower(trim($decodedMerchantName));
+            $searchNameClean = preg_replace('/\b(ltd|limited|competitions?|comps?)\b/i', '', $searchName);
+            $searchNameClean = preg_replace('/\s+/', ' ', trim($searchNameClean));
+            
+            foreach ($accounts as $acc) {
+                $accountName = strtolower(trim($acc->name));
+                $accountNameClean = preg_replace('/\b(ltd|limited|competitions?|comps?)\b/i', '', $accountName);
+                $accountNameClean = preg_replace('/\s+/', ' ', trim($accountNameClean));
+                
+                similar_text($searchNameClean, $accountNameClean, $score);
+                
+                $containsScore = 0;
+                if (strlen($searchNameClean) >= 5 && strlen($accountNameClean) >= 5) {
+                    if (str_contains($accountNameClean, $searchNameClean)) {
+                        $containsScore = 90;
+                    } elseif (str_contains($searchNameClean, $accountNameClean)) {
+                        $containsScore = 90;
+                    }
+                }
+                
+                $finalScore = max($score, $containsScore);
+                
+                if ($finalScore > $highestScore && $finalScore >= $threshold) {
+                    $highestScore = $finalScore;
+                    $bestMatch = $acc;
+                }
+            }
+            
+            $account = $bestMatch;
+        }
+        
+        if (!$account || $account->applications->isEmpty()) {
+            abort(404, 'No application found for this merchant');
+        }
+        
+        $application = $account->applications->first();
+        
+        return Inertia::render('Invoices/Show', [
+            'merchantName' => $decodedMerchantName,
+            'merchantStats' => [
+                'accepted' => $merchantStat->accepted,
+                'received' => $merchantStat->received,
+                'declined' => $merchantStat->declined,
+                'canceled' => $merchantStat->canceled,
+                'total_transactions' => $merchantStat->total_transactions,
+            ],
+            'applicationData' => [
+                'scaling_fee' => $application->scaling_fee,
+                'transaction_percentage' => $application->transaction_percentage,
+                'transaction_fixed_fee' => $application->transaction_fixed_fee,
+                'monthly_fee' => $application->monthly_fee,
+                'monthly_minimum' => $application->monthly_minimum,
+                'setup_fee' => $application->setup_fee,
+            ],
+            'importFilename' => $import->filename,
+            'importId' => $import->id,
+        ]);
+    }
+
     public function upload(): RedirectResponse
     {        
         Request::validate([

@@ -211,6 +211,7 @@ Route::middleware(['auth:web,account'])->group(function () {
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/invoices', [InvoicesController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{merchantName}', [InvoicesController::class, 'show'])->name('invoices.show');
         Route::post('/invoices/upload', [InvoicesController::class, 'upload'])->name('invoices.upload');
         Route::delete('/invoices/{import}', [InvoicesController::class, 'destroy'])->name('invoices.destroy');
     });

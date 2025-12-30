@@ -167,8 +167,13 @@
                   :key="index"
                   class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
                 >
-                  <td class="px-4 py-3 text-gray-200">
-                    {{ stat.merchant_name }}
+                  <td class="px-4 py-3">
+                    <a 
+                      :href="`/invoices/${encodeURIComponent(stat.merchant_name)}?import_id=${selectedImportId}`"
+                      class="text-gray-200 hover:text-magenta-400 transition-colors duration-150 cursor-pointer"
+                    >
+                      {{ stat.merchant_name }}
+                    </a>
                   </td>
                   <td class="px-4 py-3 text-center">
                     <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-blue-900/30 text-blue-300">
