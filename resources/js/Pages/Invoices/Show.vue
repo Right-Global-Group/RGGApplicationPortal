@@ -142,7 +142,7 @@
       const transactionFeePrice = computed(() => parseFloat(props.applicationData.transaction_fixed_fee || 0))
       const transactionFeeSubtotal = computed(() => transactionFeeQty.value * transactionFeePrice.value)
       const transactionFeeTax = computed(() => transactionFeeSubtotal.value * TAX_RATE)
-      const transactionFeeAmount = computed(() => transactionFeeSubtotal.value + transactionFeeTax.value)
+      const transactionFeeAmount = computed(() => transactionFeeSubtotal.value)
   
       // Monthly Mini Top Up Calculations
       const monthlyMiniTopUpBasePrice = computed(() => {
@@ -176,7 +176,7 @@
       })
   
       const monthlyMiniTopUpTax = computed(() => monthlyMiniTopUpPrice.value * TAX_RATE)
-      const monthlyMiniTopUpAmount = computed(() => monthlyMiniTopUpPrice.value + monthlyMiniTopUpTax.value)
+      const monthlyMiniTopUpAmount = computed(() => monthlyMiniTopUpPrice.value)
   
       // Decline Fee Calculations
       const declineFeeQty = computed(() => props.merchantStats.declined)
@@ -186,12 +186,12 @@
         return declined * 2 * transactionFixedFee
       })
       const declineFeeTax = computed(() => declineFeePrice.value * TAX_RATE)
-      const declineFeeAmount = computed(() => declineFeePrice.value + declineFeeTax.value)
+      const declineFeeAmount = computed(() => declineFeePrice.value)
   
       // Monthly Fee Calculations
       const monthlyFeePrice = computed(() => parseFloat(props.applicationData.monthly_fee || 0))
       const monthlyFeeTax = computed(() => monthlyFeePrice.value * TAX_RATE)
-      const monthlyFeeAmount = computed(() => monthlyFeePrice.value + monthlyFeeTax.value)
+      const monthlyFeeAmount = computed(() => monthlyFeePrice.value)
   
       // Totals
       const subtotal = computed(() => {
