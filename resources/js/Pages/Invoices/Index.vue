@@ -129,15 +129,15 @@
             <table class="w-full whitespace-nowrap">
               <thead>
                 <tr class="text-left font-bold bg-dark-700/50 border-b border-primary-800/30">
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm">Merchant Name</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Total</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Accepted</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Received</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Declined</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Canceled</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-right">Monthly Min</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-right">Scaling Fee</th>
-                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-right">Monthly Fee</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs">Merchant Name</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-center">Total</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-center">Accepted</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-center">Received</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-center">Declined</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-center">Canceled</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-right">Monthly Min</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-right">Scaling Fee</th>
+                  <th class="pb-3 pt-4 px-3 text-magenta-400 text-xs text-right">Monthly Fee</th>
                 </tr>
               </thead>
 
@@ -173,51 +173,51 @@
                   ]"
                   @click="stat.monthly_fee ? navigateToMerchant(stat.merchant_name) : null"
                 >
-                  <td class="px-4 py-3">
+                  <td class="px-3 py-2">
                     <span 
                       :class="stat.monthly_fee ? 'text-gray-200 hover:text-magenta-400 transition-colors duration-150' : 'text-gray-500'"
                     >
                       {{ stat.merchant_name }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-blue-900/30 text-blue-300">
+                  <td class="px-3 py-2 text-center">
+                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-300">
                       {{ stat.total_transactions }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-green-900/30 text-green-300">
+                  <td class="px-3 py-2 text-center">
+                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-300">
                       {{ stat.accepted }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-900/30 text-yellow-300">
+                  <td class="px-3 py-2 text-center">
+                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-900/30 text-yellow-300">
                       {{ stat.received }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-red-900/30 text-red-300">
+                  <td class="px-3 py-2 text-center">
+                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-900/30 text-red-300">
                       {{ stat.declined }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-gray-900/30 text-gray-300">
+                  <td class="px-3 py-2 text-center">
+                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-900/30 text-gray-300">
                       {{ stat.canceled }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-right text-gray-300">
+                  <td class="px-3 py-2 text-right text-gray-300 text-sm">
                     <span v-if="stat.monthly_minimum" class="font-medium">
                       £{{ parseFloat(stat.monthly_minimum).toFixed(2) }}
                     </span>
                     <span v-else class="text-gray-500">—</span>
                   </td>
-                  <td class="px-4 py-3 text-right text-gray-300">
+                  <td class="px-3 py-2 text-right text-gray-300 text-sm">
                     <span v-if="stat.scaling_fee !== null && stat.scaling_fee !== undefined" class="font-medium">
                       £{{ parseFloat(stat.scaling_fee).toFixed(2) }}
                     </span>
                     <span v-else class="text-gray-500">—</span>
                   </td>
-                  <td class="px-4 py-3 text-right text-gray-300">
+                  <td class="px-3 py-2 text-right text-gray-300 text-sm">
                     <span v-if="stat.monthly_fee" class="font-medium">
                       £{{ parseFloat(stat.monthly_fee).toFixed(2) }}
                     </span>
@@ -236,35 +236,35 @@
               <!-- Summary Row -->
               <tfoot v-if="merchantStats.length > 0" class="bg-dark-700/50 font-bold">
                 <tr>
-                  <td class="px-4 py-3 text-magenta-400">TOTAL</td>
-                  <td class="px-4 py-3 text-center text-blue-300">
+                  <td class="px-3 py-2 text-magenta-400 text-sm">TOTAL</td>
+                  <td class="px-3 py-2 text-center text-blue-300 text-sm">
                     {{ totals.total_transactions }}
                   </td>
-                  <td class="px-4 py-3 text-center text-green-300">
+                  <td class="px-3 py-2 text-center text-green-300 text-sm">
                     {{ totals.accepted }}
                   </td>
-                  <td class="px-4 py-3 text-center text-yellow-300">
+                  <td class="px-3 py-2 text-center text-yellow-300 text-sm">
                     {{ totals.received }}
                   </td>
-                  <td class="px-4 py-3 text-center text-red-300">
+                  <td class="px-3 py-2 text-center text-red-300 text-sm">
                     {{ totals.declined }}
                   </td>
-                  <td class="px-4 py-3 text-center text-gray-300">
+                  <td class="px-3 py-2 text-center text-gray-300 text-sm">
                     {{ totals.canceled }}
                   </td>
-                  <td class="px-4 py-3 text-right text-magenta-400">
+                  <td class="px-3 py-2 text-right text-magenta-400 text-sm">
                     <span v-if="totals.monthly_minimum > 0">
                       £{{ totals.monthly_minimum.toFixed(2) }}
                     </span>
                     <span v-else>—</span>
                   </td>
-                  <td class="px-4 py-3 text-right text-magenta-400">
+                  <td class="px-3 py-2 text-right text-magenta-400 text-sm">
                     <span v-if="totals.scaling_fee > 0">
                       £{{ totals.scaling_fee.toFixed(2) }}
                     </span>
                     <span v-else>—</span>
                   </td>
-                  <td class="px-4 py-3 text-right text-magenta-400">
+                  <td class="px-3 py-2 text-right text-magenta-400 text-sm">
                     <span v-if="totals.monthly_fee > 0">
                       £{{ totals.monthly_fee.toFixed(2) }}
                     </span>
