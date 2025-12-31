@@ -51,7 +51,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <!-- Left Side: Imports List -->
       <div class="lg:col-span-1">
         <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-primary-800/30">
@@ -106,7 +106,7 @@
       </div>
 
       <!-- Right Side: Merchant Statistics -->
-      <div class="lg:col-span-2">
+      <div class="lg:col-span-3">
         <div v-if="!selectedImportId" class="bg-dark-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-primary-800/30 p-12 text-center">
           <icon name="invoices" class="w-16 h-16 fill-gray-600 mx-auto mb-4" />
           <p class="text-gray-400 text-lg">Select an import to view filtered merchant transaction list.</p>
@@ -135,6 +135,8 @@
                   <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Received</th>
                   <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Declined</th>
                   <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-center">Canceled</th>
+                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-right">Monthly Min</th>
+                  <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-right">Scaling Fee</th>
                   <th class="pb-3 pt-4 px-4 text-magenta-400 text-sm text-right">Monthly Fee</th>
                 </tr>
               </thead>
@@ -142,7 +144,7 @@
               <tbody>
                 <!-- Loading State -->
                 <tr v-if="selectedImport?.status === 'processing'">
-                  <td colspan="7" class="px-6 py-12 text-center">
+                  <td colspan="9" class="px-6 py-12 text-center">
                     <div class="flex flex-col items-center gap-4">
                       <div class="relative">
                         <div class="w-16 h-16 border-4 border-blue-900/30 border-t-blue-500 rounded-full animate-spin"></div>
@@ -204,6 +206,18 @@
                     </span>
                   </td>
                   <td class="px-4 py-3 text-right text-gray-300">
+                    <span v-if="stat.monthly_minimum" class="font-medium">
+                      £{{ parseFloat(stat.monthly_minimum).toFixed(2) }}
+                    </span>
+                    <span v-else class="text-gray-500">—</span>
+                  </td>
+                  <td class="px-4 py-3 text-right text-gray-300">
+                    <span v-if="stat.scaling_fee !== null && stat.scaling_fee !== undefined" class="font-medium">
+                      £{{ parseFloat(stat.scaling_fee).toFixed(2) }}
+                    </span>
+                    <span v-else class="text-gray-500">—</span>
+                  </td>
+                  <td class="px-4 py-3 text-right text-gray-300">
                     <span v-if="stat.monthly_fee" class="font-medium">
                       £{{ parseFloat(stat.monthly_fee).toFixed(2) }}
                     </span>
@@ -213,7 +227,7 @@
 
                 <!-- Empty State (only show if completed and no data) -->
                 <tr v-if="merchantStats.length === 0 && selectedImport?.status === 'completed'">
-                  <td colspan="7" class="px-6 py-8 text-gray-400 text-center">
+                  <td colspan="9" class="px-6 py-8 text-gray-400 text-center">
                     No merchant data found for this import.
                   </td>
                 </tr>
@@ -237,6 +251,18 @@
                   </td>
                   <td class="px-4 py-3 text-center text-gray-300">
                     {{ totals.canceled }}
+                  </td>
+                  <td class="px-4 py-3 text-right text-magenta-400">
+                    <span v-if="totals.monthly_minimum > 0">
+                      £{{ totals.monthly_minimum.toFixed(2) }}
+                    </span>
+                    <span v-else>—</span>
+                  </td>
+                  <td class="px-4 py-3 text-right text-magenta-400">
+                    <span v-if="totals.scaling_fee > 0">
+                      £{{ totals.scaling_fee.toFixed(2) }}
+                    </span>
+                    <span v-else>—</span>
                   </td>
                   <td class="px-4 py-3 text-right text-magenta-400">
                     <span v-if="totals.monthly_fee > 0">
@@ -293,6 +319,8 @@
             received: 0,
             declined: 0,
             canceled: 0,
+            monthly_minimum: 0,
+            scaling_fee: 0,
             monthly_fee: 0,
           }
         }
@@ -303,6 +331,12 @@
           acc.received += stat.received
           acc.declined += stat.declined
           acc.canceled += stat.canceled
+          if (stat.monthly_minimum) {
+            acc.monthly_minimum += parseFloat(stat.monthly_minimum)
+          }
+          if (stat.scaling_fee !== null && stat.scaling_fee !== undefined) {
+            acc.scaling_fee += parseFloat(stat.scaling_fee)
+          }
           if (stat.monthly_fee) {
             acc.monthly_fee += parseFloat(stat.monthly_fee)
           }
@@ -313,6 +347,8 @@
           received: 0,
           declined: 0,
           canceled: 0,
+          monthly_minimum: 0,
+          scaling_fee: 0,
           monthly_fee: 0,
         })
       })

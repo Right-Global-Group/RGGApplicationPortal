@@ -50,6 +50,8 @@ class InvoicesController extends Controller
 
                 $merchantStats = $stats->map(function ($stat) use ($accounts) {
                     $monthlyFee = null;
+                    $monthlyMinimum = null;
+                    $scalingFee = null;
                     
                     // Try exact match first (fastest)
                     $account = $accounts->firstWhere('name', $stat->merchant_name);
@@ -96,6 +98,8 @@ class InvoicesController extends Controller
                     
                     if ($account && $account->applications->isNotEmpty()) {
                         $monthlyFee = $account->applications->first()->monthly_fee;
+                        $monthlyMinimum = $account->applications->first()->monthly_minimum;
+                        $scalingFee = $account->applications->first()->scaling_fee;
                     }
                     
                     return [
@@ -107,6 +111,8 @@ class InvoicesController extends Controller
                         'canceled' => $stat->canceled,
                         'total_transactions' => $stat->total_transactions,
                         'monthly_fee' => $monthlyFee,
+                        'monthly_minimum' => $monthlyMinimum ?? null,
+                        'scaling_fee' => $scalingFee ?? null,
                     ];
                 })->toArray();
             }
