@@ -165,15 +165,18 @@
                   v-else
                   v-for="(stat, index) in merchantStats"
                   :key="index"
-                  class="hover:bg-primary-900/30 transition-colors duration-150 border-b border-primary-800/20"
+                  :class="[
+                    'border-b border-primary-800/20',
+                    stat.monthly_fee ? 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150' : 'opacity-50 cursor-not-allowed'
+                  ]"
+                  @click="stat.monthly_fee ? navigateToMerchant(stat.merchant_name) : null"
                 >
                   <td class="px-4 py-3">
-                    <a 
-                      :href="`/invoices/${encodeURIComponent(stat.merchant_name)}?import_id=${selectedImportId}`"
-                      class="text-gray-200 hover:text-magenta-400 transition-colors duration-150 cursor-pointer"
+                    <span 
+                      :class="stat.monthly_fee ? 'text-gray-200 hover:text-magenta-400 transition-colors duration-150' : 'text-gray-500'"
                     >
                       {{ stat.merchant_name }}
-                    </a>
+                    </span>
                   </td>
                   <td class="px-4 py-3 text-center">
                     <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium bg-blue-900/30 text-blue-300">
@@ -414,6 +417,10 @@
           preserveScroll: true,
         })
       }
+
+      const navigateToMerchant = (merchantName) => {
+        window.location.href = `/invoices/${encodeURIComponent(merchantName)}?import_id=${props.selectedImportId}`
+      }
   
       return {
         totals,
@@ -421,6 +428,7 @@
         selectImport,
         handleFileUpload,
         deleteImport,
+        navigateToMerchant,
         refreshPage,
         polling,
       }

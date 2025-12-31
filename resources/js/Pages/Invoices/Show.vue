@@ -17,14 +17,32 @@
             <p class="text-sm text-gray-400 mt-1">Invoice for {{ importFilename }}</p>
           </div>
           
-          <div class="flex items-center gap-3">
-            <label class="flex items-center gap-2 text-sm text-gray-300">
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
               <input 
                 type="checkbox" 
                 v-model="isFirstMonth"
-                class="rounded border-gray-600 bg-dark-700 text-magenta-500 focus:ring-magenta-500"
+                class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
               />
-              <span>Is First Month</span>
+              <span class="text-sm text-gray-200 select-none">Is First Month</span>
+            </label>
+  
+            <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
+              <input 
+                type="checkbox" 
+                v-model="removeDeclineFee"
+                class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
+              />
+              <span class="text-sm text-gray-200 select-none">Remove Decline Fee</span>
+            </label>
+  
+            <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
+              <input 
+                type="checkbox" 
+                v-model="addChargebackFee"
+                class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
+              />
+              <span class="text-sm text-gray-200 select-none">Add Chargeback Fee</span>
             </label>
           </div>
         </div>
@@ -73,7 +91,7 @@
               </tr>
   
               <!-- Decline Fee Row -->
-              <tr class="border-b border-primary-800/20">
+              <tr v-if="!removeDeclineFee" class="border-b border-primary-800/20">
                 <td class="px-6 py-4 text-gray-200">Decline Fee</td>
                 <td class="px-6 py-4 text-gray-300 text-sm">Decline Fee</td>
                 <td class="px-6 py-4 text-center text-gray-200">{{ declineFeeQty }}</td>
@@ -81,6 +99,17 @@
                 <td class="px-6 py-4 text-right text-gray-300 text-sm">20% (VAT on Income)</td>
                 <td class="px-6 py-4 text-right text-gray-200">{{ formatCurrency(declineFeeTax) }}</td>
                 <td class="px-6 py-4 text-right text-gray-200 font-medium">{{ formatCurrency(declineFeeAmount) }}</td>
+              </tr>
+  
+              <!-- Chargeback Fee Row -->
+              <tr v-if="addChargebackFee" class="border-b border-primary-800/20">
+                <td class="px-6 py-4 text-gray-200">Chargeback Fee</td>
+                <td class="px-6 py-4 text-gray-300 text-sm">Chargeback Fee</td>
+                <td class="px-6 py-4 text-center text-gray-200">1</td>
+                <td class="px-6 py-4 text-right text-gray-200">{{ formatCurrency(chargebackFeePrice) }}</td>
+                <td class="px-6 py-4 text-right text-gray-300 text-sm">20% (VAT on Income)</td>
+                <td class="px-6 py-4 text-right text-gray-200">{{ formatCurrency(chargebackFeeTax) }}</td>
+                <td class="px-6 py-4 text-right text-gray-200 font-medium">{{ formatCurrency(chargebackFeeAmount) }}</td>
               </tr>
   
               <!-- Monthly Fee Row -->
@@ -135,6 +164,8 @@
     },
     setup(props) {
       const isFirstMonth = ref(false)
+      const removeDeclineFee = ref(false)
+      const addChargebackFee = ref(false)
       const TAX_RATE = 0.20 // 20% VAT
   
       // Transaction Fee Calculations
@@ -178,15 +209,19 @@
       const monthlyMiniTopUpTax = computed(() => monthlyMiniTopUpPrice.value * TAX_RATE)
       const monthlyMiniTopUpAmount = computed(() => monthlyMiniTopUpPrice.value)
   
-      // Decline Fee Calculations
+      // Decline Fee Calculations (always £0.10 per declined transaction)
       const declineFeeQty = computed(() => props.merchantStats.declined)
       const declineFeePrice = computed(() => {
         const declined = props.merchantStats.declined
-        const transactionFixedFee = parseFloat(props.applicationData.transaction_fixed_fee || 0)
-        return declined * 2 * transactionFixedFee
+        return declined * 0.10 // Always £0.10 per declined transaction
       })
       const declineFeeTax = computed(() => declineFeePrice.value * TAX_RATE)
       const declineFeeAmount = computed(() => declineFeePrice.value)
+  
+      // Chargeback Fee Calculations (always £15)
+      const chargebackFeePrice = 15.00
+      const chargebackFeeTax = computed(() => chargebackFeePrice * TAX_RATE)
+      const chargebackFeeAmount = computed(() => chargebackFeePrice)
   
       // Monthly Fee Calculations
       const monthlyFeePrice = computed(() => parseFloat(props.applicationData.monthly_fee || 0))
@@ -195,17 +230,39 @@
   
       // Totals
       const subtotal = computed(() => {
-        return transactionFeeSubtotal.value + 
-               monthlyMiniTopUpPrice.value + 
-               declineFeePrice.value + 
-               monthlyFeePrice.value
+        let total = transactionFeeSubtotal.value + 
+                    monthlyMiniTopUpPrice.value + 
+                    monthlyFeePrice.value
+        
+        // Add decline fee if not removed
+        if (!removeDeclineFee.value) {
+          total += declineFeePrice.value
+        }
+        
+        // Add chargeback fee if added
+        if (addChargebackFee.value) {
+          total += chargebackFeePrice
+        }
+        
+        return total
       })
   
       const totalTax = computed(() => {
-        return transactionFeeTax.value + 
-               monthlyMiniTopUpTax.value + 
-               declineFeeTax.value + 
-               monthlyFeeTax.value
+        let total = transactionFeeTax.value + 
+                    monthlyMiniTopUpTax.value + 
+                    monthlyFeeTax.value
+        
+        // Add decline fee tax if not removed
+        if (!removeDeclineFee.value) {
+          total += declineFeeTax.value
+        }
+        
+        // Add chargeback fee tax if added
+        if (addChargebackFee.value) {
+          total += chargebackFeeTax.value
+        }
+        
+        return total
       })
   
       const total = computed(() => subtotal.value + totalTax.value)
@@ -219,6 +276,8 @@
   
       return {
         isFirstMonth,
+        removeDeclineFee,
+        addChargebackFee,
         transactionFeeQty,
         transactionFeePrice,
         transactionFeeTax,
@@ -230,6 +289,9 @@
         declineFeePrice,
         declineFeeTax,
         declineFeeAmount,
+        chargebackFeePrice,
+        chargebackFeeTax,
+        chargebackFeeAmount,
         monthlyFeePrice,
         monthlyFeeTax,
         monthlyFeeAmount,
