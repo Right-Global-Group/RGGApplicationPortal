@@ -47,7 +47,7 @@ return [
     ],
 
     'cardstream' => [
-        'contact_email' => env('CARDSTREAM_CONTACT_EMAIL', 'max.behrens@rightglobalgroup.com'),
+        'contact_email' => env('CARDSTREAM_CONTACT_EMAIL', 'erin.seaman@cardstream.com'),
         'api_url' => env('CARDSTREAM_API_URL'),
         'api_key' => env('CARDSTREAM_API_KEY'),
     ],
