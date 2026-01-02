@@ -169,13 +169,13 @@
                   :key="index"
                   :class="[
                     'border-b border-primary-800/20',
-                    stat.monthly_fee ? 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150' : 'opacity-50 cursor-not-allowed'
+                    stat.monthly_fee ? 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150' : ''
                   ]"
                   @click="stat.monthly_fee ? navigateToMerchant(stat.merchant_name) : null"
                 >
                   <td class="px-3 py-2">
                     <span 
-                      :class="stat.monthly_fee ? 'text-gray-200 hover:text-magenta-400 transition-colors duration-150' : 'text-gray-500'"
+                      :class="stat.monthly_fee ? 'text-gray-200 hover:text-magenta-400 transition-colors duration-150' : 'text-gray-200'"
                     >
                       {{ stat.merchant_name }}
                     </span>

@@ -1,9 +1,8 @@
 import '../css/app.css'
 
 import { createApp, h } from 'vue'
-import { createInertiaApp } from '@inertiajs/vue3'
+import { createInertiaApp, router } from '@inertiajs/vue3'
 import VueApexCharts from 'vue3-apexcharts'
-
 
 createInertiaApp({
   resolve: name => {
@@ -16,4 +15,26 @@ createInertiaApp({
       .use(VueApexCharts)
       .mount(el)
   },
+})
+
+// Prevent stale cache when user role/guard changes
+router.on('navigate', (event) => {
+  const currentAuth = event.detail.page.props.auth
+  
+  // Store auth state to detect changes
+  if (window._lastAuthState) {
+    const lastAuth = window._lastAuthState
+    
+    // If admin status or guard changed, force reload without cache
+    if (lastAuth.is_admin !== currentAuth?.is_admin || 
+        lastAuth.guard !== currentAuth?.guard) {
+      router.reload({ preserveState: false, preserveScroll: false })
+    }
+  }
+  
+  // Update stored auth state
+  window._lastAuthState = {
+    is_admin: currentAuth?.is_admin,
+    guard: currentAuth?.guard,
+  }
 })
