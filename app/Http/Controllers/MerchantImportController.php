@@ -649,7 +649,6 @@ class MerchantImportController extends Controller
                     'email' => $merchantInfo['email'],
                     'password' => $plainPassword,
                     'user_id' => auth()->id(),
-                    'status' => Account::STATUS_CONFIRMED,
                 ]);
             }
 
