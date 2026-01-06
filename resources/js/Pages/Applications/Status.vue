@@ -705,10 +705,11 @@
     </div>
 
     <!-- Documents Section -->
-    <div v-if="application.documents?.length > 0 || is_account" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+    <div v-if="application.documents?.length > 0 || (is_account && canUploadDocs)" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between -mx-6 -mt-6 mb-6">
         <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
         <button 
+          v-if="canUploadDocs"
           @click="openUploadModal()" 
           class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
         >
@@ -716,8 +717,8 @@
         </button>
       </div>
 
-      <!-- Explanation for Merchant Directors (only for accounts) -->
-      <div v-if="is_account" class="mb-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+      <!-- Explanation for Merchant Directors (only for accounts if they can upload) -->
+      <div v-if="is_account && canUploadDocs" class="mb-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
         <div class="flex items-start gap-3">
           <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -737,6 +738,7 @@
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-lg font-semibold text-gray-300">{{ label }}</h3>
           <button 
+            v-if="canUploadDocs"
             @click="openUploadModal(category)" 
             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
           >
@@ -749,6 +751,7 @@
         <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
 
         <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
+          <!-- Document list remains the same -->
           <div 
             v-for="doc in getDocumentsByCategory(category)"
             :key="doc.id"
@@ -1109,6 +1112,10 @@ export default {
     docusignRecipientStatus: {
       type: Array,
       default: () => [],
+    },
+    canUploadDocs: {
+      type: Boolean,
+      default: true,
     },
     contractReminder: {
       type: Object,

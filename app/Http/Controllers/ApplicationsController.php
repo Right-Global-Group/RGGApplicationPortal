@@ -214,6 +214,9 @@ class ApplicationsController extends Controller
         // Determine if current user can change fees (admin only)
         $canChangeFees = auth()->guard('web')->check() && auth()->guard('web')->user()->isAdmin();
         $canEditCardstream = auth()->guard('web')->check();
+        
+        // ✅ NEW: Determine if documents can still be uploaded
+        $canUploadDocs = !$application->status?->documents_approved_at;
     
         return Inertia::render('Applications/Edit', [
             'application' => [
@@ -230,7 +233,6 @@ class ApplicationsController extends Controller
                 'scaling_fee' => $application->scaling_fee,
                 'transaction_percentage' => $application->transaction_percentage,
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
-                'scaling_fee' => $application->scaling_fee,
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
                 'setup_fee' => $application->setup_fee,
@@ -246,8 +248,8 @@ class ApplicationsController extends Controller
                 'cardstream_merchant_id' => $application->cardstream_merchant_id,
                 'cardstream_credentials_entered_at' => $application->cardstream_credentials_entered_at,
                 'can_merchant_sign' => auth()->guard('account')->check() 
-                ? $this->canMerchantSignContract($application) 
-                : false,  // Don't check if not authenticated
+                    ? $this->canMerchantSignContract($application) 
+                    : false,
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,
@@ -274,6 +276,7 @@ class ApplicationsController extends Controller
                         'document_name' => $doc->document_name,
                         'instructions' => $doc->instructions,
                         'is_uploaded' => $doc->is_uploaded,
+                        'notes' => $doc->notes,
                         'requested_by' => $doc->requestedBy?->name,
                         'requested_at' => $doc->requested_at->format('Y-m-d H:i'),
                         'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
@@ -281,6 +284,7 @@ class ApplicationsController extends Controller
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
             'canChangeFees' => $canChangeFees,
+            'canUploadDocs' => $canUploadDocs, // ✅ NEW
             'canEditCardstream' => $canEditCardstream,
             'canEditCardStream' => auth()->guard('web')->check(),
             'documents' => $application->documents()->get()->map(fn ($doc) => [

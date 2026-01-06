@@ -43,7 +43,10 @@ class ApplicationStatusController extends Controller
         if (!$canViewStatus) {
             abort(403, 'Unauthorized access.');
         }
-
+    
+        // ✅ NEW: Check if documents can still be uploaded
+        $canUploadDocs = !$application->status?->documents_approved_at;
+    
         $liveRecipientStatus = [];
         if ($application->status->docusign_envelope_id) {
             try {
@@ -71,11 +74,11 @@ class ApplicationStatusController extends Controller
                 $liveRecipientStatus = $application->status->docusign_recipient_status ?? [];
             }
         }
-
+    
         // Check if this is an imported application
         $merchantImport = \App\Models\MerchantImport::where('account_id', $application->account_id)
-        ->where('application_id', $application->id)
-        ->first();
+            ->where('application_id', $application->id)
+            ->first();
     
         return Inertia::render('Applications/Status', [
             'application' => [
@@ -84,7 +87,6 @@ class ApplicationStatusController extends Controller
                 'trading_name' => $application->trading_name,
                 'scaling_fee' => $application->scaling_fee,
                 'transaction_percentage' => $application->transaction_percentage,
-                'scaling_fee' => $application->scaling_fee,
                 'transaction_fixed_fee' => $application->transaction_fixed_fee,
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
@@ -199,6 +201,7 @@ class ApplicationStatusController extends Controller
             'docusignRecipientStatus' => $liveRecipientStatus,
             'is_account' => $isAccount,
             'is_admin' => $isAdmin,
+            'canUploadDocs' => $canUploadDocs, // ✅ NEW
             'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
             'categoryDescriptions' => collect(ApplicationDocument::getCategoriesForApplication($application))
                 ->mapWithKeys(fn ($label, $key) => [

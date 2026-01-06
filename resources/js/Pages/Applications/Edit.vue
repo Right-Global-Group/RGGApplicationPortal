@@ -156,6 +156,7 @@
           <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between">
             <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
             <button 
+              v-if="canUploadDocs"
               @click="openUploadModal()" 
               class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
             >
@@ -165,7 +166,7 @@
           <div class="p-8">
 
             <!-- Explanation for Merchant Directors -->
-            <div class="mb-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+            <div v-if="canUploadDocs" class="mb-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
               <div class="flex items-start gap-3">
                 <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -186,6 +187,7 @@
               <div class="flex items-center justify-between mb-2">
                 <h3 class="text-lg font-semibold text-gray-300">{{ label }}</h3>
                 <button 
+                  v-if="canUploadDocs"
                   @click="openUploadModal(category)" 
                   class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
                 >
@@ -789,6 +791,10 @@
         type: Boolean,
         default: false,
       },
+      canUploadDocs: {
+        type: Boolean,
+        default: true,
+      },
       canEditWordPress: { type: Boolean, default: true },
       canEditCardstream: { type: Boolean, default: true },
     },
@@ -809,15 +815,11 @@
     },
     computed: {
       shouldShowDocuments() {
-        return true
-      },
-  
-      showAccountActions() {
-        return this.canUploadDocs || this.canSignContract
+        return this.canUploadDocs
       },
       
-      canUploadDocs() {
-        return true
+      showAccountActions() {
+        return this.canUploadDocs || this.canSignContract
       },
       
       canSignContract() {
