@@ -20,5 +20,17 @@ class ApplicationSchedule
             ->onFailure(function () {
                 \Log::error('SendScheduledEmails job failed');
             });
+
+        // Dump expired application documents daily at 2 AM
+        $schedule->command('applications:dump-expired-documents')
+            ->dailyAt('02:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->onSuccess(function () {
+                \Log::info('DumpExpiredApplicationDocuments completed successfully');
+            })
+            ->onFailure(function () {
+                \Log::error('DumpExpiredApplicationDocuments failed');
+            });
     }
 }

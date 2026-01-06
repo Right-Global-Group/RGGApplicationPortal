@@ -102,9 +102,11 @@ class ProgressTrackerController extends Controller
         }
         
         $allApplications = $statsQuery->get();
-        $allApplications = $statsQuery->get();
+        
         $stats = [
             'total_applications' => $allApplications->count(),
+            
+            // Awaiting Documents: Has contract_sent timestamp but NOT both contract_signed AND documents_approved
             'awaiting_documents' => $allApplications->filter(function($app) {
                 $timestamps = [
                     'documents_uploaded' => $app->status?->documents_uploaded_at,
@@ -113,18 +115,34 @@ class ProgressTrackerController extends Controller
                     'documents_approved' => $app->status?->documents_approved_at,
                 ];
                 
-                // Has documents_uploaded OR contract_sent timestamp
-                $hasEarlyTimestamp = $timestamps['documents_uploaded'] || $timestamps['contract_sent'];
+                // Has contract_sent OR documents_uploaded timestamp
+                $hasEarlyTimestamp = $timestamps['contract_sent'] || $timestamps['documents_uploaded'];
                 
                 // Does NOT have both contract_signed AND documents_approved
                 $hasNotCompleted = !($timestamps['contract_signed'] && $timestamps['documents_approved']);
                 
-                return $hasEarlyTimestamp || $hasNotCompleted;
+                return $hasEarlyTimestamp && $hasNotCompleted;
             })->count(),
-            'awaiting_approval' => $allApplications->filter(fn($app) => $app->status?->current_step === 'contract_submitted')->count(),
-            'awaiting_payment' => $allApplications->filter(fn($app) => $app->status?->current_step === 'invoice_sent')->count(),
-            'in_integration' => $allApplications->filter(fn($app) => in_array($app->status?->current_step, ['invoice_paid', 'gateway_integrated']))->count(),
-            'live_accounts' => $allApplications->filter(fn($app) => $app->status?->current_step === 'account_live')->count(),
+            
+            // Contract Sent: Has contract_sent_at but NOT contract_signed_at
+            'contract_sent' => $allApplications->filter(function($app) {
+                return $app->status?->contract_sent_at && !$app->status?->contract_signed_at;
+            })->count(),
+            
+            // Contract Signed: Has contract_signed_at but NOT application_approved_at
+            'contract_signed' => $allApplications->filter(function($app) {
+                return $app->status?->contract_signed_at && !$app->status?->application_approved_at;
+            })->count(),
+            
+            // Application Approved: Has application_approved_at but NOT invoice_paid_at
+            'application_approved' => $allApplications->filter(function($app) {
+                return $app->status?->application_approved_at && !$app->status?->invoice_paid_at;
+            })->count(),
+            
+            // Awaiting Payment: Has invoice_sent_at but NOT invoice_paid_at
+            'awaiting_payment' => $allApplications->filter(function($app) {
+                return $app->status?->invoice_sent_at && !$app->status?->invoice_paid_at;
+            })->count(),
         ];
 
         // Available status options for filter dropdown

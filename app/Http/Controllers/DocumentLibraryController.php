@@ -66,6 +66,8 @@ class DocumentLibraryController extends Controller
                     'filename' => $doc->original_filename,
                     'mime_type' => $doc->document_type,
                     'uploaded_at' => $doc->created_at->format('Y-m-d H:i'),
+                    'dumped_at' => $doc->dumped_at?->format('Y-m-d H:i'),
+                    'dumped_reason' => $doc->dumped_reason,
                     'download_url' => route('applications.documents.download', [
                         'application' => $application->id,
                         'document' => $doc->id,

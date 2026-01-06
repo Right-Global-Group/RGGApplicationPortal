@@ -138,6 +138,8 @@ class ApplicationStatusController extends Controller
                     'original_filename' => $doc->original_filename,
                     'status' => $doc->status,
                     'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
+                    'dumped_at' => $doc->dumped_at?->format('Y-m-d H:i'),
+                    'dumped_reason' => $doc->dumped_reason,   
                 ]),
                 'contractReminder' => $application->emailReminders()
                     ->where('email_type', 'contract_reminder')
@@ -1083,5 +1085,64 @@ class ApplicationStatusController extends Controller
             ]);
             return false;
         }
+    }
+
+    /**
+     * Manually transition to a specific step (admin only)
+     * This will complete all intermediate steps and only update the status,
+     * without triggering any automated actions like emails or submissions.
+     */
+    public function manualTransition(Application $application): RedirectResponse
+    {
+        // Only users (not accounts) can use manual transitions
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Manual transitions are only available to administrators.');
+        }
+
+        $validated = Request::validate([
+            'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
+            'current_order' => ['nullable', 'array'], // Step IDs in actual display order from frontend
+        ]);
+
+        $targetStep = $validated['target_step'];
+        
+        // Use the order from frontend (which reflects actual timeline display) OR fallback to default
+        $allSteps = $validated['current_order'] ?? [
+            'created',
+            'contract_sent',
+            'contract_signed',
+            'documents_uploaded',
+            'documents_approved',
+            'contract_submitted',
+            'application_approved',
+            'invoice_sent',
+            'invoice_paid',
+            'gateway_integrated',
+            'account_live',
+        ];
+
+        $targetIndex = array_search($targetStep, $allSteps);
+        $currentIndex = array_search($application->status->current_step, $allSteps);
+
+        // If going backwards, just transition to that step
+        if ($targetIndex < $currentIndex) {
+            $application->status->manualTransitionTo($targetStep, 'Manually transitioned backwards by ' . auth()->user()->name);
+            return Redirect::back()->with('success', "Manually transitioned to: " . str_replace('_', ' ', ucwords($targetStep)));
+        }
+
+        // Calculate number of steps to complete
+        $completedCount = $targetIndex - $currentIndex;
+
+        // If going forwards, complete all intermediate steps
+        $stepsToComplete = array_slice($allSteps, $currentIndex + 1, $completedCount);
+        
+        foreach ($stepsToComplete as $step) {
+            $application->status->manualTransitionTo($step, 'Auto-completed via manual transition by ' . auth()->user()->name, false);
+        }
+
+        // Final transition to target step
+        $application->status->manualTransitionTo($targetStep, 'Manually transitioned by ' . auth()->user()->name);
+
+        return Redirect::back()->with('success', "Manually transitioned through {$completedCount} step(s) to: " . str_replace('_', ' ', ucwords($targetStep)));
     }
 }

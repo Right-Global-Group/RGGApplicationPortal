@@ -29,7 +29,7 @@ class SendApplicationApprovedEmail
             'name' => $account->name,
             'application_name' => $application->name,
             'application_url' => $appUrl,
-        ], $application));
+        ]));
 
         EmailLog::create([
             'emailable_type' => get_class($application),

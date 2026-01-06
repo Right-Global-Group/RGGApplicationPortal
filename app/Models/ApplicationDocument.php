@@ -27,11 +27,14 @@ class ApplicationDocument extends Model
         'status',
         'sent_at',
         'completed_at',
+        'dumped_at',
+        'dumped_reason',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
         'completed_at' => 'datetime',
+        'dumped_at' => 'datetime',
     ];
 
     public function application(): BelongsTo
@@ -140,5 +143,10 @@ class ApplicationDocument extends Model
         }
         
         return $baseCategories;
+    }
+
+    public function isDumped(): bool
+    {
+        return !is_null($this->dumped_at);
     }
 }

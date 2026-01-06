@@ -190,6 +190,9 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/cancel-account-message-reminder', [ApplicationStatusController::class, 'cancelAccountMessageReminder'])
         ->name('applications.cancel-account-message-reminder');
 
+        Route::post('/{application}/manual-transition', [ApplicationStatusController::class, 'manualTransition'])
+        ->name('applications.manual-transition');
+
         // Document viewing routes
         Route::get('/{application}/documents/{document}/view', [ApplicationDocumentsController::class, 'view'])
         ->name('applications.documents.view');

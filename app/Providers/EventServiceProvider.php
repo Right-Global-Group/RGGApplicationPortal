@@ -23,6 +23,7 @@ use App\Events\CardStreamCredentialsReminderEvent;
 use App\Events\AccountLiveEvent;
 use App\Events\DocumentUploadReadyEvent;
 use App\Events\AccountMessageToUserEvent;
+use App\Events\DocumentsDumpedEvent;
 
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendApplicationCreatedEmail;
@@ -44,6 +45,7 @@ use App\Listeners\SendCardStreamCredentialsReminderEmail;
 use App\Listeners\SendAccountLiveEmail;
 use App\Listeners\SendDocumentUploadReadyEmail;
 use App\Listeners\SendAccountMessageToUserEmail;
+use App\Listeners\SendDocumentsDumpedEmail;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -109,6 +111,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         AccountMessageToUserEvent::class => [
             SendAccountMessageToUserEmail::class,
+        ],
+        DocumentsDumpedEvent::class => [
+            SendDocumentsDumpedEmail::class,
         ],
     ];
 

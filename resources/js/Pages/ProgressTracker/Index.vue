@@ -14,20 +14,20 @@
         <div class="text-sm text-yellow-400">Awaiting Documents</div>
       </div>
       <div class="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 backdrop-blur-sm rounded-xl p-6 border border-blue-700/30">
-        <div class="text-3xl font-bold text-white mb-1">{{ stats.awaiting_approval }}</div>
-        <div class="text-sm text-cyan-400">Awaiting Approval</div>
+        <div class="text-3xl font-bold text-white mb-1">{{ stats.contract_sent }}</div>
+        <div class="text-sm text-cyan-400">Contract Sent</div>
       </div>
       <div class="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-sm rounded-xl p-6 border border-purple-700/30">
-        <div class="text-3xl font-bold text-white mb-1">{{ stats.awaiting_payment }}</div>
-        <div class="text-sm text-pink-400">Awaiting Payment</div>
+        <div class="text-3xl font-bold text-white mb-1">{{ stats.contract_signed }}</div>
+        <div class="text-sm text-pink-400">Contract Signed</div>
       </div>
       <div class="bg-gradient-to-br from-orange-600/20 to-red-600/20 backdrop-blur-sm rounded-xl p-6 border border-orange-700/30">
-        <div class="text-3xl font-bold text-white mb-1">{{ stats.in_integration }}</div>
-        <div class="text-sm text-orange-400">In Integration</div>
+        <div class="text-3xl font-bold text-white mb-1">{{ stats.awaiting_payment }}</div>
+        <div class="text-sm text-orange-400">Awaiting Payment</div>
       </div>
       <div class="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-sm rounded-xl p-6 border border-green-700/30">
-        <div class="text-3xl font-bold text-white mb-1">{{ stats.live_accounts }}</div>
-        <div class="text-sm text-green-400">Live Accounts</div>
+        <div class="text-3xl font-bold text-white mb-1">{{ stats.application_approved }}</div>
+        <div class="text-sm text-green-400">Application Approved</div>
       </div>
     </div>
 

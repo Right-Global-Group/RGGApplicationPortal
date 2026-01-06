@@ -18,7 +18,7 @@ class AccountAuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
-        $credentials = $request->validate([
+        $validated = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
@@ -27,6 +27,11 @@ class AccountAuthController extends Controller
         if (Auth::guard('web')->check()) {
             Auth::guard('web')->logout();
         }
+
+        $credentials = [
+            'email' => strtolower($validated['email']),
+            'password' => $validated['password'],
+        ];
 
         if (Auth::guard('account')->attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();

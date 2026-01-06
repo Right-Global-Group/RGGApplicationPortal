@@ -213,6 +213,56 @@ class ApplicationStatus extends Model
         event(new ApplicationStatusChanged($this->application, $oldStep, $newStep));
     }
 
+    /**
+     * Manually transition to a specific step without triggering automated actions
+     * Used by admin manual override functionality
+     */
+    public function manualTransitionTo(string $newStep, ?string $notes = null, bool $logActivity = true): void
+    {
+        $oldStep = $this->current_step;
+        $history = $this->step_history ?? [];
+        
+        $history[] = [
+            'from' => $oldStep,
+            'to' => $newStep,
+            'timestamp' => now()->toISOString(),
+            'notes' => $notes,
+            'manual_transition' => true, // Mark as manual transition
+        ];
+
+        $updateData = [
+            'current_step' => $newStep,
+            'step_history' => $history,
+        ];
+
+        // Get the timestamp field for this step
+        $timestampField = $this->getTimestampField($newStep);
+        
+        // Set timestamp if it doesn't already exist
+        if ($timestampField && is_null($this->$timestampField)) {
+            $updateData[$timestampField] = now();
+        }
+
+        // Save the updates
+        $this->update($updateData);
+        
+        // FORCE refresh to ensure timestamps are loaded
+        $this->refresh();
+
+        // Log the activity if requested
+        if ($logActivity) {
+            ActivityLog::create([
+                'application_id' => $this->application_id,
+                'action' => 'manual_status_change',
+                'description' => "Status manually changed from {$oldStep} to {$newStep}",
+            ]);
+        }
+
+        // Fire event for real-time updates (but NOT for automated actions)
+        // The event system should be modified to check for manual_transition flag
+        event(new ApplicationStatusChanged($this->application, $oldStep, $newStep));
+    }
+
     private function getTimestampField(string $step): ?string
     {
         $mapping = [

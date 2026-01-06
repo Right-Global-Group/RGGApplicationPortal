@@ -152,12 +152,17 @@ class ApplicationDocumentsController extends Controller
         } else {
             abort(403);
         }
-
+    
         // Verify document belongs to application
         if ($document->application_id !== $application->id) {
             abort(404);
         }
-
+    
+        // Check if document has been dumped
+        if ($document->isDumped()) {
+            abort(410, 'This document has been removed as part of our data retention policy (30 days after application approval).');
+        }
+    
         return Storage::disk('public')->download($document->file_path, $document->original_filename);
     }
 
@@ -185,6 +190,14 @@ class ApplicationDocumentsController extends Controller
         // Verify document belongs to application
         if ($document->application_id !== $application->id) {
             abort(404);
+        }
+
+        // Check if document is dumped
+        if ($document->isDumped()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This document has been removed as part of our data retention policy (30 days after application approval).',
+            ], 410);
         }
 
         try {

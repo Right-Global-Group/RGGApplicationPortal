@@ -92,11 +92,30 @@
               <div
                 v-for="doc in getValidDocuments(app.documents)"
                 :key="doc.id"
-                class="flex items-center justify-between bg-dark-900/50 border border-primary-700/30 rounded-lg p-4 hover:border-magenta-500/30 transition-colors"
+                class="flex items-center justify-between bg-dark-900/50 border border-primary-700/30 rounded-lg p-4 transition-colors"
+                :class="{ 
+                  'hover:border-magenta-500/30': !doc.dumped_at,
+                  'opacity-60': doc.dumped_at 
+                }"
               >
                 <div class="flex items-center gap-3">
-                  <div class="p-2 bg-green-900/30 rounded">
-                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="p-2 rounded" :class="doc.dumped_at ? 'bg-yellow-900/30' : 'bg-green-900/30'">
+                    <svg 
+                      v-if="doc.dumped_at"
+                      class="w-5 h-5 text-yellow-400" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <svg 
+                      v-else
+                      class="w-5 h-5 text-green-400" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
@@ -105,10 +124,14 @@
                     <div class="text-sm text-gray-400">
                       {{ formatCategory(doc.category) }} • Uploaded {{ doc.uploaded_at }}
                     </div>
+                    <div v-if="doc.dumped_at" class="text-xs text-yellow-400 mt-1">
+                      ⚠️ File removed {{ doc.dumped_at }} - {{ doc.dumped_reason }}
+                    </div>
                   </div>
                 </div>
                 
-                <div class="flex gap-2">
+                <!-- Show buttons only if NOT dumped -->
+                <div v-if="!doc.dumped_at" class="flex gap-2">
                   <button
                     @click="viewDocument(doc)"
                     class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-2"
@@ -128,6 +151,11 @@
                     </svg>
                     Download
                   </a>
+                </div>
+                
+                <!-- Show "File Removed" badge if dumped -->
+                <div v-else class="px-4 py-2 bg-yellow-900/20 border border-yellow-700/30 rounded-lg text-sm text-yellow-300 font-medium">
+                  File Removed
                 </div>
               </div>
             </div>
@@ -173,9 +201,13 @@ export default {
     }
   },
   methods: {
-    // Filter out documents with null/empty categories
     getValidDocuments(documents) {
+      // Filter documents - include dumped docs but they'll be displayed differently
       return documents.filter(doc => doc.category && doc.category.trim() !== '')
+    },
+    
+    isDumped(doc) {
+      return !!doc.dumped_at
     },
     formatCategory(category) {
       if (!category) return null

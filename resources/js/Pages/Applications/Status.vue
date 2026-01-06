@@ -477,20 +477,104 @@
     </div>
 
 
-    <!-- Progress Timeline -->
     <div id="section-timeline" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-6">Progress Timeline</h2>
-      <div class="space-y-4">
-        <timeline-step
-          v-for="(step, index) in processSteps"
-          :key="step.id"
-          :label="step.label"
-          :description="step.description"
-          :is-completed="isStepCompleted(step.id)"
-          :is-current="application.status?.current_step === step.id"
-          :timestamp="getStepTimestamp(step.id)"
-          :show-connector="index < processSteps.length - 1"
-        />
+      
+      <!-- Grid layout: timeline on left, manual controls on right -->
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
+        
+        <!-- Timeline Steps Column -->
+        <div class="space-y-4">
+          <timeline-step
+            v-for="(step, index) in processSteps"
+            :key="step.id"
+            :label="step.label"
+            :description="step.description"
+            :is-completed="isStepCompleted(step.id)"
+            :is-current="application.status?.current_step === step.id"
+            :timestamp="getStepTimestamp(step.id)"
+            :show-connector="index < processSteps.length - 1"
+          />
+        </div>
+
+        <!-- Manual Transition Controls Column (Admin Only) -->
+        <div v-if="!is_account" class="lg:border-l lg:border-primary-800/30 lg:pl-6">
+          <div class="sticky top-6">
+            <h3 class="text-lg font-semibold text-magenta-400 mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              Manual Override
+            </h3>
+            
+            <div class="space-y-3">
+              <div
+                v-for="step in processSteps"
+                :key="'manual-' + step.id"
+                class="flex items-center gap-3"
+              >
+                <button
+                  @click="confirmManualTransition(step.id, step.label)"
+                  :disabled="isManualTransitioning"
+                  class="flex-1 px-3 py-2 text-sm rounded-lg transition-all duration-200 flex items-center justify-between gap-2"
+                  :class="[
+                    application.status?.current_step === step.id
+                      ? 'bg-magenta-600/30 text-magenta-300 border border-magenta-500/50 cursor-not-allowed'
+                      : isStepCompleted(step.id)
+                      ? 'bg-green-900/20 text-green-400 border border-green-700/30 hover:bg-green-900/30'
+                      : 'bg-primary-900/30 text-gray-400 border border-primary-700/30 hover:bg-primary-800/50 hover:text-gray-300',
+                    isManualTransitioning ? 'opacity-50 cursor-wait' : ''
+                  ]"
+                >
+                  <span class="truncate">{{ step.label }}</span>
+                  
+                  <!-- Current step indicator -->
+                  <svg 
+                    v-if="application.status?.current_step === step.id"
+                    class="w-4 h-4 flex-shrink-0" 
+                    fill="currentColor" 
+                    viewBox="0 0 20 20"
+                  >
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                  </svg>
+                  
+                  <!-- Completed indicator -->
+                  <svg 
+                    v-else-if="isStepCompleted(step.id)"
+                    class="w-4 h-4 flex-shrink-0" 
+                    fill="currentColor" 
+                    viewBox="0 0 20 20"
+                  >
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                  </svg>
+                  
+                  <!-- Arrow forward indicator -->
+                  <svg 
+                    v-else
+                    class="w-4 h-4 flex-shrink-0" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
+              <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div class="text-xs text-yellow-300">
+                  <p class="font-semibold mb-1">Manual Override Warning</p>
+                  <p>Manually transitioning will complete all intermediate steps without triggering automated actions (emails, submissions, etc.).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -669,20 +753,44 @@
             v-for="doc in getDocumentsByCategory(category)"
             :key="doc.id"
             class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+            :class="{ 'opacity-60': doc.dumped_at }"
           >
             <div class="flex items-center flex-1">
-              <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg 
+                v-if="doc.dumped_at"
+                class="w-5 h-5 text-yellow-400 mr-3" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <svg 
+                v-else
+                class="w-5 h-5 text-green-400 mr-3" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+              <div>
+                <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+                <div v-if="doc.dumped_at" class="text-xs text-yellow-400 mt-1">
+                  ⚠️ File removed {{ formatDate(doc.dumped_at) }} - {{ doc.dumped_reason }}
+                </div>
+              </div>
             </div>
             <div class="flex items-center gap-2">
-              <a 
-                :href="`/applications/${application.id}/documents/${doc.id}/download`"
-                class="text-blue-400 hover:text-blue-300 text-sm"
-              >
-                Download
-              </a>
+              <template v-if="!doc.dumped_at">
+                <a 
+                  :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                  class="text-blue-400 hover:text-blue-300 text-sm"
+                >
+                  Download
+                </a>
+              </template>
+              <span v-else class="text-xs text-gray-500">Removed</span>
             </div>
           </div>
         </div>
@@ -1033,6 +1141,7 @@ export default {
       showDocumentUploadModal: false,
       preselectedCategory: null,
       hasRefreshed: false,
+      isManualTransitioning: false,
     }
   },
   computed: {
@@ -1216,7 +1325,7 @@ export default {
     },
 
     canApprove() {
-      return ['contract_submitted'].includes(this.application.status?.current_step) && !this.is_account
+      return !this.is_account
     },
 
     canCreateInvoice() {
@@ -1354,6 +1463,18 @@ export default {
     openUploadModal(category = null) {
       this.preselectedCategory = category
       this.showDocumentUploadModal = true
+    },
+
+    formatDate(date) {
+      if (!date) return '—'
+      const d = new Date(date)
+      return d.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     },
 
     async openContractForAccount() {
@@ -1572,6 +1693,56 @@ export default {
         }
       } finally {
         this.isLoading = false
+      }
+    },
+    
+    confirmManualTransition(targetStep, stepLabel) {
+      if (this.application.status?.current_step === targetStep) {
+        return // Can't transition to current step
+      }
+
+      const currentStepLabel = this.formatStatus(this.application.status?.current_step)
+      
+      // Use the ACTUAL dynamic processSteps order (which reorders based on completion timestamps)
+      const stepIds = this.processSteps.map(step => step.id)
+      
+      const currentIndex = stepIds.indexOf(this.application.status?.current_step)
+      const targetIndex = stepIds.indexOf(targetStep)
+      
+      let message
+      if (targetIndex < currentIndex) {
+        message = `Transition backwards from "${currentStepLabel}" to "${stepLabel}"?\n\nThis will move the application back to an earlier step.`
+      } else {
+        // Calculate steps from current to target (inclusive)
+        const stepsToComplete = targetIndex - currentIndex
+        message = `Manually transition to "${stepLabel}"?\n\nThis will complete ${stepsToComplete} step(s) WITHOUT triggering automated actions like emails or submissions.\n\nAll intermediate steps will be marked as completed.`
+      }
+      
+      if (confirm(message)) {
+        this.manualTransition(targetStep)
+      }
+    },
+    
+    async manualTransition(targetStep) {
+      this.isManualTransitioning = true
+      
+      try {
+        await this.$inertia.post(
+          `/applications/${this.application.id}/manual-transition`,
+          { target_step: targetStep },
+          {
+            preserveScroll: true,
+            onSuccess: () => {
+              // Success message is shown by backend
+            },
+            onError: (errors) => {
+              console.error('Manual transition error:', errors)
+              alert('Failed to transition: ' + (errors.target_step || 'Unknown error'))
+            },
+          }
+        )
+      } finally {
+        this.isManualTransitioning = false
       }
     },
     

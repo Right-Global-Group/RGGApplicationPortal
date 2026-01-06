@@ -288,6 +288,8 @@ class ApplicationsController extends Controller
                 'document_category' => $doc->document_category,
                 'original_filename' => $doc->original_filename,
                 'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
+                'dumped_at' => $doc->dumped_at?->format('Y-m-d H:i'),
+                'dumped_reason' => $doc->dumped_reason,  
             ]),
             'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
             'categoryDescriptions' => collect(ApplicationDocument::getCategoriesForApplication($application))

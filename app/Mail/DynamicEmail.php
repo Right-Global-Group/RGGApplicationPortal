@@ -35,6 +35,7 @@ class DynamicEmail extends Mailable
         'document_upload_ready' => 'Please Upload Your Documents',
         'account_live' => 'Congratulations! Your Account is Live',
         'account_message_to_user' => 'Message from Your Merchant Account',
+        'documents_dumped' => 'Application Documents Removed',
     ];
 
     protected array $views = [
@@ -62,6 +63,7 @@ class DynamicEmail extends Mailable
         'document_upload_ready' => 'emails.document-upload-ready',
         'account_live' => 'emails.account-live',
         'account_message_to_user' => 'emails.account-message-to-user',
+        'documents_dumped' => 'emails.documents-dumped',
     ];
 
     public function __construct(
