@@ -705,7 +705,7 @@
     </div>
 
     <!-- Documents Section -->
-    <div v-if="application.documents?.length > 0 || (is_account && canUploadDocs)" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+    <div v-if="canUploadDocs" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between -mx-6 -mt-6 mb-6">
         <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
         <button 
