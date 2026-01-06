@@ -93,7 +93,7 @@ class Account extends Authenticatable
 
     public function isConfirmed(): bool
     {
-        return $this->status === self::STATUS_CONFIRMED;
+        return $this->first_login_at !== null;
     }
 
     public function markAsConfirmed(): void
