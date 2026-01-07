@@ -43,9 +43,10 @@ class DumpExpiredApplicationDocuments extends Command
 
     private function dumpApplicationDocuments(Application $application): int
     {
-        // Get all documents that haven't been dumped yet
+        // Get all documents that haven't been dumped yet, excluding application_form and contract categories
         $documents = ApplicationDocument::where('application_id', $application->id)
             ->whereNull('dumped_at')
+            ->whereNotIn('document_category', ['application_form', 'contract'])
             ->get();
 
         if ($documents->isEmpty()) {
