@@ -22,7 +22,7 @@ class ApplicationsController extends Controller
         $query = Application::query()
             ->with(['account', 'user'])
             ->orderBy('id', 'desc');
-
+    
         // Access control based on authentication guard
         if (auth()->guard('account')->check()) {
             // Accounts can only see their own applications
@@ -30,10 +30,19 @@ class ApplicationsController extends Controller
         } elseif (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
             
+            \Log::emergency('APPLICATIONS INDEX DEBUG', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'isAdmin' => $user->isAdmin(),
+                'entering_admin_branch' => $user->isAdmin(),
+            ]);
+            
             if ($user->isAdmin()) {
+                \Log::emergency('USER IS ADMIN - NO FILTERING');
                 // Admins see all applications
                 // No filtering needed
             } else {
+                \Log::emergency('USER IS NOT ADMIN - FILTERING');
                 // Regular users see only applications from accounts they created
                 $userAccountIds = Account::where('user_id', $user->id)->pluck('id');
                 $query->whereIn('account_id', $userAccountIds);
@@ -41,36 +50,41 @@ class ApplicationsController extends Controller
         } else {
             abort(403, 'Unauthorized access.');
         }
-
+    
         // Search filter for application name
         if ($search = Request::input('search')) {
+            \Log::emergency('SEARCH FILTER APPLIED', ['search' => $search]);
             $query->where('name', 'like', "%{$search}%");
         }
-
+    
         // Search filter for account name
         if ($accountSearch = Request::input('account_search')) {
+            \Log::emergency('ACCOUNT SEARCH FILTER APPLIED', ['account_search' => $accountSearch]);
             $query->whereHas('account', function ($q) use ($accountSearch) {
                 $q->where('name', 'like', "%{$accountSearch}%");
             });
         }
-
+    
         // Date range filter
         if ($dateFrom = Request::input('date_from')) {
+            \Log::emergency('DATE FROM FILTER APPLIED', ['date_from' => $dateFrom]);
             $query->whereDate('created_at', '>=', $dateFrom);
         }
         if ($dateTo = Request::input('date_to')) {
+            \Log::emergency('DATE TO FILTER APPLIED', ['date_to' => $dateTo]);
             $query->whereDate('created_at', '<=', $dateTo);
         }
-
+    
         // Deleted filter
         if ($deleted = Request::input('deleted')) {
+            \Log::emergency('DELETED FILTER APPLIED', ['deleted' => $deleted]);
             if ($deleted === 'with') {
                 $query->withTrashed();
             } elseif ($deleted === 'only') {
                 $query->onlyTrashed();
             }
         }
-
+    
         $applications = $query
             ->paginate(10)
             ->withQueryString()
@@ -86,7 +100,13 @@ class ApplicationsController extends Controller
                 'created_at' => $application->created_at?->format('Y-m-d H:i'),
                 'updated_at' => $application->updated_at?->format('Y-m-d H:i'),
             ]);
-
+    
+        \Log::emergency('FINAL APPLICATIONS COUNT', [
+            'total_returned' => $applications->total(),
+            'per_page' => $applications->perPage(),
+            'current_page' => $applications->currentPage(),
+        ]);
+    
         return Inertia::render('Applications/Index', [
             'filters' => Request::only(['search', 'account_search', 'date_from', 'date_to', 'deleted']),
             'applications' => $applications,
