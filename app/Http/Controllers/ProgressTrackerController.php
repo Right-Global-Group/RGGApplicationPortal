@@ -70,11 +70,27 @@ class ProgressTrackerController extends Controller
             $query->where('updated_at', '<=', $dateTo . ' 23:59:59');
         }
 
+        // Calculate progress based on completed steps
         $applications = $query
             ->leftJoin('application_statuses', 'applications.id', '=', 'application_statuses.application_id')
             ->select('applications.*')
-            ->orderByRaw('COALESCE(application_statuses.progress_percentage, 0) DESC') // Furthest first
-            ->orderBy('applications.updated_at', 'desc') // Then by most recent within same progress
+            ->selectRaw('
+                CASE 
+                    WHEN application_statuses.account_live_at IS NOT NULL THEN 100
+                    WHEN application_statuses.gateway_integrated_at IS NOT NULL THEN 95
+                    WHEN application_statuses.invoice_paid_at IS NOT NULL THEN 90
+                    WHEN application_statuses.invoice_sent_at IS NOT NULL THEN 82
+                    WHEN application_statuses.application_approved_at IS NOT NULL THEN 70
+                    WHEN application_statuses.contract_submitted_at IS NOT NULL THEN 60
+                    WHEN application_statuses.contract_signed_at IS NOT NULL THEN 50
+                    WHEN application_statuses.documents_approved_at IS NOT NULL THEN 30
+                    WHEN application_statuses.documents_uploaded_at IS NOT NULL THEN 20
+                    WHEN application_statuses.contract_sent_at IS NOT NULL THEN 10
+                    ELSE 0
+                END as calculated_progress
+            ')
+            ->orderBy('calculated_progress', 'desc') // Furthest progress first
+            ->orderBy('applications.updated_at', 'desc') // Then most recently updated
             ->paginate(20)
             ->withQueryString()
             ->through(fn ($app) => [
