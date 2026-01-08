@@ -41,7 +41,7 @@ class ApplicationDocumentsController extends Controller
 
         $validated = Request::validate([
             'document_category' => ['required', 'string'],
-            'file' => ['required', 'file', 'mimes:pdf,doc,docx,xlsx,xls,csv,jpg,jpeg,png', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:pdf,doc,docx,xlsx,xls,csv,jpg,jpeg,png', 'max:102400'],
         ]);
     
         // Validate category is valid for this application
