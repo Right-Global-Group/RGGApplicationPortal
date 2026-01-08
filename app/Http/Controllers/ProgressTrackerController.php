@@ -71,7 +71,10 @@ class ProgressTrackerController extends Controller
         }
 
         $applications = $query
-            ->latest()
+            ->leftJoin('application_statuses', 'applications.id', '=', 'application_statuses.application_id')
+            ->select('applications.*')
+            ->orderByRaw('COALESCE(application_statuses.progress_percentage, 0) DESC') // Furthest first
+            ->orderBy('applications.updated_at', 'desc') // Then by most recent within same progress
             ->paginate(20)
             ->withQueryString()
             ->through(fn ($app) => [
