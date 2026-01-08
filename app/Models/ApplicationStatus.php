@@ -214,12 +214,40 @@ class ApplicationStatus extends Model
     }
 
     /**
-     * Manually transition to a specific step without triggering automated actions
-     * Used by admin manual override functionality
-     */
-    public function manualTransitionTo(string $newStep, ?string $notes = null, bool $logActivity = true): void
+     * Manually transition to a specific step without triggering automated actions.
+     * When going backwards, this will clear all timestamps for steps that came after the target step.
+     * 
+     * @param string $newStep The target step to transition to
+     * @param string|null $notes Optional notes about the transition
+     * @param bool $logActivity Whether to log this transition
+     * @param array|null $currentOrder Optional array of step IDs in their actual display order
+    */
+    public function manualTransitionTo(string $newStep, ?string $notes = null, bool $logActivity = true, ?array $currentOrder = null): void
     {
         $oldStep = $this->current_step;
+        
+        // Use provided order OR fallback to canonical order
+        // The currentOrder comes from the frontend and reflects the ACTUAL timeline order
+        $allSteps = $currentOrder ?? [
+            'created',
+            'contract_sent',
+            'documents_uploaded',
+            'documents_approved',
+            'contract_signed',
+            'contract_submitted',
+            'application_approved',
+            'invoice_sent',
+            'invoice_paid',
+            'gateway_integrated',
+            'account_live',
+        ];
+        
+        $oldIndex = array_search($oldStep, $allSteps);
+        $newIndex = array_search($newStep, $allSteps);
+        
+        // Detect if this is a backward transition
+        $isBackwardTransition = $newIndex !== false && $oldIndex !== false && $newIndex < $oldIndex;
+        
         $history = $this->step_history ?? [];
         
         $history[] = [
@@ -227,7 +255,8 @@ class ApplicationStatus extends Model
             'to' => $newStep,
             'timestamp' => now()->toISOString(),
             'notes' => $notes,
-            'manual_transition' => true, // Mark as manual transition
+            'manual_transition' => true,
+            'direction' => $isBackwardTransition ? 'backward' : 'forward',
         ];
 
         $updateData = [
@@ -235,12 +264,38 @@ class ApplicationStatus extends Model
             'step_history' => $history,
         ];
 
-        // Get the timestamp field for this step
-        $timestampField = $this->getTimestampField($newStep);
-        
-        // Set timestamp if it doesn't already exist
-        if ($timestampField && is_null($this->$timestampField)) {
-            $updateData[$timestampField] = now();
+        // If going backwards, clear timestamps for all steps AFTER the target step
+        if ($isBackwardTransition) {
+            $stepsToReset = array_slice($allSteps, $newIndex + 1);
+            
+            \Log::info('Backward transition detected - clearing future timestamps', [
+                'application_id' => $this->application_id,
+                'from_step' => $oldStep,
+                'to_step' => $newStep,
+                'using_order' => $currentOrder ? 'dynamic' : 'fallback',
+                'steps_to_reset' => $stepsToReset,
+            ]);
+            
+            foreach ($stepsToReset as $step) {
+                $timestampField = $this->getTimestampField($step);
+                
+                if ($timestampField && !is_null($this->$timestampField)) {
+                    $updateData[$timestampField] = null;
+                    
+                    \Log::info('Clearing timestamp for step', [
+                        'step' => $step,
+                        'field' => $timestampField,
+                        'old_value' => $this->$timestampField,
+                    ]);
+                }
+            }
+        } else {
+            // Going forward - set timestamp for target step if it doesn't exist
+            $timestampField = $this->getTimestampField($newStep);
+            
+            if ($timestampField && is_null($this->$timestampField)) {
+                $updateData[$timestampField] = now();
+            }
         }
 
         // Save the updates
@@ -251,15 +306,15 @@ class ApplicationStatus extends Model
 
         // Log the activity if requested
         if ($logActivity) {
+            $direction = $isBackwardTransition ? 'backwards' : 'forwards';
             ActivityLog::create([
                 'application_id' => $this->application_id,
                 'action' => 'manual_status_change',
-                'description' => "Status manually changed from {$oldStep} to {$newStep}",
+                'description' => "Status manually changed {$direction} from {$oldStep} to {$newStep}",
             ]);
         }
 
-        // Fire event for real-time updates (but NOT for automated actions)
-        // The event system should be modified to check for manual_transition flag
+        // Fire event for real-time updates
         event(new ApplicationStatusChanged($this->application, $oldStep, $newStep));
     }
 

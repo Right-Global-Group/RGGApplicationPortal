@@ -1710,33 +1710,36 @@ export default {
 
       const currentStepLabel = this.formatStatus(this.application.status?.current_step)
       
-      // Use the ACTUAL dynamic processSteps order (which reorders based on completion timestamps)
-      const stepIds = this.processSteps.map(step => step.id)
+      // Get the actual dynamic order from processSteps
+      const currentOrder = this.processSteps.map(step => step.id)
       
-      const currentIndex = stepIds.indexOf(this.application.status?.current_step)
-      const targetIndex = stepIds.indexOf(targetStep)
+      const currentIndex = currentOrder.indexOf(this.application.status?.current_step)
+      const targetIndex = currentOrder.indexOf(targetStep)
       
       let message
       if (targetIndex < currentIndex) {
-        message = `Transition backwards from "${currentStepLabel}" to "${stepLabel}"?\n\nThis will move the application back to an earlier step.`
+        const stepsToUnmark = currentIndex - targetIndex
+        message = `Transition backwards from "${currentStepLabel}" to "${stepLabel}"?\n\nThis will move the application back to an earlier step and unmark ${stepsToUnmark} completed step(s).`
       } else {
-        // Calculate steps from current to target (inclusive)
         const stepsToComplete = targetIndex - currentIndex
         message = `Manually transition to "${stepLabel}"?\n\nThis will complete ${stepsToComplete} step(s) WITHOUT triggering automated actions like emails or submissions.\n\nAll intermediate steps will be marked as completed.`
       }
       
       if (confirm(message)) {
-        this.manualTransition(targetStep)
+        this.manualTransition(targetStep, currentOrder) // Pass the order
       }
     },
-    
-    async manualTransition(targetStep) {
+
+    async manualTransition(targetStep, currentOrder) {
       this.isManualTransitioning = true
       
       try {
         await this.$inertia.post(
           `/applications/${this.application.id}/manual-transition`,
-          { target_step: targetStep },
+          { 
+            target_step: targetStep,
+            current_order: currentOrder // Send the dynamic order
+          },
           {
             preserveScroll: true,
             onSuccess: () => {

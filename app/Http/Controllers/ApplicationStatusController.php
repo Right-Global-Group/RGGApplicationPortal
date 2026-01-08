@@ -1090,62 +1090,68 @@ class ApplicationStatusController extends Controller
         }
     }
 
-    /**
-     * Manually transition to a specific step (admin only)
-     * This will complete all intermediate steps and only update the status,
-     * without triggering any automated actions like emails or submissions.
-     */
     public function manualTransition(Application $application): RedirectResponse
     {
         // Only users (not accounts) can use manual transitions
         if (auth()->guard('account')->check()) {
             abort(403, 'Manual transitions are only available to administrators.');
         }
-
+    
         $validated = Request::validate([
             'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
             'current_order' => ['nullable', 'array'], // Step IDs in actual display order from frontend
         ]);
-
+    
         $targetStep = $validated['target_step'];
         
-        // Use the order from frontend (which reflects actual timeline display) OR fallback to default
-        $allSteps = $validated['current_order'] ?? [
-            'created',
-            'contract_sent',
-            'contract_signed',
-            'documents_uploaded',
-            'documents_approved',
-            'contract_submitted',
-            'application_approved',
-            'invoice_sent',
-            'invoice_paid',
-            'gateway_integrated',
-            'account_live',
-        ];
-
-        $targetIndex = array_search($targetStep, $allSteps);
-        $currentIndex = array_search($application->status->current_step, $allSteps);
-
-        // If going backwards, just transition to that step
-        if ($targetIndex < $currentIndex) {
-            $application->status->manualTransitionTo($targetStep, 'Manually transitioned backwards by ' . auth()->user()->name);
-            return Redirect::back()->with('success', "Manually transitioned to: " . str_replace('_', ' ', ucwords($targetStep)));
-        }
-
-        // Calculate number of steps to complete
-        $completedCount = $targetIndex - $currentIndex;
-
-        // If going forwards, complete all intermediate steps
-        $stepsToComplete = array_slice($allSteps, $currentIndex + 1, $completedCount);
+        // Use the order from frontend (which reflects actual timeline display)
+        $currentOrder = $validated['current_order'] ?? null;
         
-        foreach ($stepsToComplete as $step) {
-            $application->status->manualTransitionTo($step, 'Auto-completed via manual transition by ' . auth()->user()->name, false);
+        if ($currentOrder) {
+            $targetIndex = array_search($targetStep, $currentOrder);
+            $currentIndex = array_search($application->status->current_step, $currentOrder);
+    
+            // If going backwards, just transition to that step (with order)
+            if ($targetIndex < $currentIndex) {
+                $application->status->manualTransitionTo(
+                    $targetStep, 
+                    'Manually transitioned backwards by ' . auth()->user()->name,
+                    true,
+                    $currentOrder // Pass the dynamic order
+                );
+                return Redirect::back()->with('success', "Manually transitioned to: " . str_replace('_', ' ', ucwords($targetStep)));
+            }
+    
+            // If going forwards, complete all intermediate steps
+            $completedCount = $targetIndex - $currentIndex;
+            $stepsToComplete = array_slice($currentOrder, $currentIndex + 1, $completedCount);
+            
+            foreach ($stepsToComplete as $step) {
+                $application->status->manualTransitionTo(
+                    $step, 
+                    'Auto-completed via manual transition by ' . auth()->user()->name, 
+                    false,
+                    $currentOrder // Pass the dynamic order
+                );
+            }
+    
+            // Final transition to target step
+            $application->status->manualTransitionTo(
+                $targetStep, 
+                'Manually transitioned by ' . auth()->user()->name,
+                true,
+                $currentOrder // Pass the dynamic order
+            );
+    
+            return Redirect::back()->with('success', "Manually transitioned through {$completedCount} step(s) to: " . str_replace('_', ' ', ucwords($targetStep)));
         }
-
-        // Final transition to target step
-        $application->status->manualTransitionTo($targetStep, 'Manually transitioned by ' . auth()->user()->name);
-
-        return Redirect::back()->with('success', "Manually transitioned through {$completedCount} step(s) to: " . str_replace('_', ' ', ucwords($targetStep)));
+    
+        // Fallback if no order provided (shouldn't happen with proper frontend)
+        $application->status->manualTransitionTo(
+            $targetStep, 
+            'Manually transitioned by ' . auth()->user()->name
+        );
+    
+        return Redirect::back()->with('success', "Manually transitioned to: " . str_replace('_', ' ', ucwords($targetStep)));
     }
 }
