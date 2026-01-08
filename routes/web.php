@@ -27,6 +27,18 @@ Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('lo
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
 Route::delete('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
+Route::get('/debug-auth', function() {
+    return response()->json([
+        'authenticated' => auth()->check(),
+        'guard' => auth()->getDefaultDriver(),
+        'user_id' => auth()->id(),
+        'user_email' => auth()->user()?->email,
+        'is_admin' => auth()->user()?->isAdmin(),
+        'session_id' => session()->getId(),
+        'account_ids' => \App\Models\Account::where('user_id', auth()->id())->pluck('id'),
+    ]);
+})->middleware('auth');
+
 // DocuSign Webhooks (Public - No Auth Required)
 Route::post('/webhooks/docusign/merchant', [DocuSignWebhookController::class, 'handleMerchantWebhook'])
     ->name('webhooks.docusign.merchant');
