@@ -240,15 +240,15 @@ export default {
       try {
         console.log('Loading PDF.js library...');
         
-        // Import PDF.js with specific version
+        // Import PDF.js
         const pdfjs = await import('pdfjs-dist');
         pdfjsLib = pdfjs;
         
         console.log('PDF.js version:', pdfjsLib.version);
         
-        // Use the exact same version for the worker - this is critical!
-        // Format: 3.11.174 or 4.0.379 etc
-        const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        // CRITICAL: v3.11.174 uses .js extension, NOT .mjs
+        // Also use legacy build format for better compatibility
+        const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
         console.log('Setting worker URL:', workerUrl);
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -312,9 +312,7 @@ export default {
         // Load PDF document
         const loadingTask = pdfjsLib.getDocument({ 
           data: pdfArray,
-          // Disable worker for now to avoid version mismatch issues
-          disableWorker: false,
-          // Use standard font
+          // Use standard configuration
           useSystemFonts: false,
         });
         
@@ -326,23 +324,20 @@ export default {
         this.pdfPage = await this.pdfDoc.getPage(1);
         console.log('Page 1 loaded');
         
-        // Calculate scale to fit container width (max-width of modal content area)
+        // Calculate scale to fit container width
         const containerWidth = this.$refs.pdfContainer?.clientWidth || 1000;
         const pageViewport = this.pdfPage.getViewport({ scale: 1.0 });
-        const scale = Math.min(containerWidth / pageViewport.width, 2.0); // Max scale of 2.0
+        const scale = Math.min(containerWidth / pageViewport.width, 2.0);
         
         this.viewport = this.pdfPage.getViewport({ scale });
         console.log('Viewport calculated, scale:', scale);
         
-        // Prepare canvas with proper dimensions
+        // Prepare canvas
         const canvas = this.$refs.pdfCanvas;
         const context = canvas.getContext('2d');
         
-        // Set actual size in pixels
         canvas.height = this.viewport.height;
         canvas.width = this.viewport.width;
-        
-        // Set display size to match
         canvas.style.width = '100%';
         canvas.style.height = 'auto';
         
@@ -378,7 +373,6 @@ export default {
         const data = await response.json();
         
         if (data.success && data.fields) {
-          // Convert fields to overlay positions
           this.overlayFields = this.convertFieldsToOverlay(data.fields);
         } else {
           alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
@@ -394,15 +388,13 @@ export default {
     },
     
     convertFieldsToOverlay(fieldsData) {
-      // Convert fields to overlay format with estimated positions
       const overlayFields = [];
-      let yPosition = 100; // Start position
+      let yPosition = 100;
       const xPosition = 50;
       const fieldHeight = 35;
       const fieldWidth = 400;
       const spacing = 10;
       
-      // Flatten all fields from all pages
       Object.values(fieldsData).forEach(pageFields => {
         pageFields.forEach(field => {
           overlayFields.push({
@@ -423,7 +415,6 @@ export default {
     cancelEditing() {
       this.editMode = false;
       this.overlayFields = [];
-      // Re-render PDF without overlays
       this.$nextTick(() => {
         this.renderPdf();
       });
@@ -432,7 +423,6 @@ export default {
     async saveEdits() {
       this.saving = true;
       
-      // Convert overlay fields back to simple object
       const fieldValues = {};
       this.overlayFields.forEach(field => {
         fieldValues[field.name] = field.value;
