@@ -86,7 +86,7 @@
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="text-gray-400">Rendering PDF...</p>
+                    <p class="text-gray-400">{{ pdfError || 'Rendering PDF...' }}</p>
                   </div>
                 </div>
               </div>
@@ -182,8 +182,9 @@
 <script>
 import { router } from '@inertiajs/vue3'
 
-// Lazy load PDF.js to avoid SSR issues and use dynamic worker loading
+// Store PDF.js library reference at module level
 let pdfjsLib = null
+let pdfjsInitialized = false
 
 export default {
   emits: ["close"],
@@ -209,6 +210,7 @@ export default {
       pdfPage: null,
       viewport: null,
       pdfLibLoaded: false,
+      pdfError: null,
     };
   },
   computed: {
@@ -233,20 +235,33 @@ export default {
     },
   },
   async mounted() {
-    // Load PDF.js dynamically when component mounts
-    if (typeof window !== 'undefined' && !pdfjsLib) {
+    // Initialize PDF.js once for the entire app
+    if (typeof window !== 'undefined' && !pdfjsInitialized) {
       try {
+        console.log('Loading PDF.js library...');
+        
+        // Import PDF.js with specific version
         const pdfjs = await import('pdfjs-dist');
         pdfjsLib = pdfjs;
         
-        // Use mozilla's CDN as the most reliable source
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        console.log('PDF.js version:', pdfjsLib.version);
         
+        // Use the exact same version for the worker - this is critical!
+        // Format: 3.11.174 or 4.0.379 etc
+        const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        console.log('Setting worker URL:', workerUrl);
+        
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+        
+        pdfjsInitialized = true;
         this.pdfLibLoaded = true;
+        
+        console.log('PDF.js initialized successfully');
       } catch (error) {
         console.error('Failed to load PDF.js:', error);
+        this.pdfError = 'Failed to load PDF library';
       }
-    } else if (pdfjsLib) {
+    } else if (pdfjsInitialized) {
       this.pdfLibLoaded = true;
     }
   },
@@ -275,12 +290,16 @@ export default {
     async renderPdf() {
       if (!this.$refs.pdfCanvas || !pdfjsLib) {
         console.error('PDF canvas ref or PDF.js library not available');
+        this.pdfError = 'PDF viewer not ready';
         return;
       }
       
       this.loadingPdf = true;
+      this.pdfError = null;
       
       try {
+        console.log('Starting PDF render...');
+        
         // Convert base64 to binary
         const pdfData = atob(this.document.content);
         const pdfArray = new Uint8Array(pdfData.length);
@@ -288,12 +307,24 @@ export default {
           pdfArray[i] = pdfData.charCodeAt(i);
         }
         
+        console.log('PDF data converted, size:', pdfArray.length, 'bytes');
+        
         // Load PDF document
-        const loadingTask = pdfjsLib.getDocument({ data: pdfArray });
+        const loadingTask = pdfjsLib.getDocument({ 
+          data: pdfArray,
+          // Disable worker for now to avoid version mismatch issues
+          disableWorker: false,
+          // Use standard font
+          useSystemFonts: false,
+        });
+        
+        console.log('Loading PDF document...');
         this.pdfDoc = await loadingTask.promise;
+        console.log('PDF loaded, pages:', this.pdfDoc.numPages);
         
         // Get first page
         this.pdfPage = await this.pdfDoc.getPage(1);
+        console.log('Page 1 loaded');
         
         // Calculate scale to fit container width (max-width of modal content area)
         const containerWidth = this.$refs.pdfContainer?.clientWidth || 1000;
@@ -301,6 +332,7 @@ export default {
         const scale = Math.min(containerWidth / pageViewport.width, 2.0); // Max scale of 2.0
         
         this.viewport = this.pdfPage.getViewport({ scale });
+        console.log('Viewport calculated, scale:', scale);
         
         // Prepare canvas with proper dimensions
         const canvas = this.$refs.pdfCanvas;
@@ -314,6 +346,8 @@ export default {
         canvas.style.width = '100%';
         canvas.style.height = 'auto';
         
+        console.log('Canvas prepared, rendering...');
+        
         // Render PDF page
         const renderContext = {
           canvasContext: context,
@@ -321,9 +355,11 @@ export default {
         };
         
         await this.pdfPage.render(renderContext).promise;
+        console.log('PDF rendered successfully');
         
       } catch (error) {
         console.error('Error rendering PDF:', error);
+        this.pdfError = 'Failed to render: ' + error.message;
         alert('Failed to render PDF: ' + error.message);
       } finally {
         this.loadingPdf = false;
@@ -454,6 +490,7 @@ export default {
       this.pdfDoc = null;
       this.pdfPage = null;
       this.viewport = null;
+      this.pdfError = null;
     },
 
     close() {
