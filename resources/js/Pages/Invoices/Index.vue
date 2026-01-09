@@ -119,8 +119,21 @@
                 <h2 class="text-xl font-bold text-magenta-400">Merchant Transactions</h2>
                 <p class="text-sm text-gray-400 mt-1">{{ selectedImport?.filename }}</p>
               </div>
-              <div class="text-sm text-gray-400">
-                {{ selectedImport?.imported_at }}
+              <div class="flex items-center gap-4">
+                <div class="text-sm text-gray-400">
+                  {{ selectedImport?.imported_at }}
+                </div>
+                <button
+                  v-if="selectedImport?.status === 'completed' && merchantStats.length > 0"
+                  @click="exportAllToXero"
+                  class="btn-primary flex items-center gap-2"
+                  title="Export all merchant invoices to Xero CSV format"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 fill-current" viewBox="0 0 20 20">
+                    <path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/>
+                  </svg>
+                  <span>Export All to Xero</span>
+                </button>
               </div>
             </div>
           </div>
@@ -433,7 +446,6 @@
           preserveScroll: false,
           onSuccess: () => {
             event.target.value = ''
-            // Polling will auto-start via the watch when status becomes 'processing'
             window.location.href = response.props.url || window.location.href
           },
           onError: (errors) => {
@@ -457,6 +469,10 @@
       const navigateToMerchant = (merchantName) => {
         window.location.href = `/invoices/${encodeURIComponent(merchantName)}?import_id=${props.selectedImportId}`
       }
+      
+      const exportAllToXero = () => {
+        window.location.href = `/invoices/export-all-xero?import_id=${props.selectedImportId}`
+      }
   
       return {
         totals,
@@ -466,6 +482,7 @@
         deleteImport,
         navigateToMerchant,
         refreshPage,
+        exportAllToXero,
         polling,
       }
     },

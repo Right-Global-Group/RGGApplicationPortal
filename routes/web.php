@@ -14,6 +14,7 @@ use App\Http\Controllers\DocumentLibraryController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\MerchantImportController;
 use App\Http\Controllers\InvoicesController;
+use App\Http\Controllers\XeroExportController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -209,6 +210,13 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::get('/{application}/docusign/download', [DocumentLibraryController::class, 'downloadDocuSignContract'])
             ->name('applications.docusign.download');
     });
+
+    // Xero Export Routes
+    Route::get('/invoices/{merchantName}/export-xero', [XeroExportController::class, 'exportMerchantInvoice'])
+    ->name('invoices.export-xero');
+
+    Route::get('/invoices/export-all-xero', [XeroExportController::class, 'exportAllMerchantsInvoices'])
+    ->name('invoices.export-all-xero');
 
     // Progress Tracker
     Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');
