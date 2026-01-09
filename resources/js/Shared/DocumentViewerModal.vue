@@ -234,22 +234,25 @@ export default {
       );
     },
   },
-  // Complete mounted() hook - copy this entire section
+  // Complete mounted() hook - uses bundled worker from node_modules
   async mounted() {
       if (typeof window !== 'undefined' && !pdfjsInitialized) {
         try {
           console.log('🔧 Loading PDF.js library...');
           
+          // Import both the main library and the worker
           const pdfjs = await import('pdfjs-dist');
           pdfjsLib = pdfjs;
           
           console.log('✅ PDF.js version:', pdfjsLib.version);
           
-          // Use unpkg CDN which is more reliable for workers
-          const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-          console.log('✅ Worker URL:', workerUrl);
+          // Import the worker as a module (Vite will bundle it)
+          const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
           
-          pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+          // Set the worker source to the bundled worker
+          pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
+          
+          console.log('✅ Worker configured from bundled module');
           
           pdfjsInitialized = true;
           this.pdfLibLoaded = true;
