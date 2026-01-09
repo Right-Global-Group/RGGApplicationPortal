@@ -181,10 +181,9 @@
 
 <script>
 import { router } from '@inertiajs/vue3'
-import * as pdfjsLib from 'pdfjs-dist'
 
-// Set up PDF.js worker - use unpkg CDN which is more reliable
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.js'
+// Lazy load PDF.js to avoid SSR issues and use dynamic worker loading
+let pdfjsLib = null
 
 export default {
   emits: ["close"],
@@ -209,6 +208,7 @@ export default {
       pdfDoc: null,
       pdfPage: null,
       viewport: null,
+      pdfLibLoaded: false,
     };
   },
   computed: {
@@ -232,11 +232,29 @@ export default {
       );
     },
   },
+  async mounted() {
+    // Load PDF.js dynamically when component mounts
+    if (typeof window !== 'undefined' && !pdfjsLib) {
+      try {
+        const pdfjs = await import('pdfjs-dist');
+        pdfjsLib = pdfjs;
+        
+        // Use mozilla's CDN as the most reliable source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        
+        this.pdfLibLoaded = true;
+      } catch (error) {
+        console.error('Failed to load PDF.js:', error);
+      }
+    } else if (pdfjsLib) {
+      this.pdfLibLoaded = true;
+    }
+  },
   watch: {
     show(value) {
       if (value && this.document) {
         this.parseIfNeeded();
-        if (this.isPDF) {
+        if (this.isPDF && this.pdfLibLoaded) {
           this.$nextTick(() => {
             this.renderPdf();
           });
@@ -245,10 +263,20 @@ export default {
         this.reset();
       }
     },
+    pdfLibLoaded(loaded) {
+      if (loaded && this.show && this.isPDF) {
+        this.$nextTick(() => {
+          this.renderPdf();
+        });
+      }
+    },
   },
   methods: {
     async renderPdf() {
-      if (!this.$refs.pdfCanvas) return;
+      if (!this.$refs.pdfCanvas || !pdfjsLib) {
+        console.error('PDF canvas ref or PDF.js library not available');
+        return;
+      }
       
       this.loadingPdf = true;
       
