@@ -45,129 +45,131 @@
               </div>
             </div>
 
-            <!-- Document viewer or editor -->
+            <!-- Document viewer -->
             <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto" style="max-height: 70vh;">
 
-              <!-- EDIT MODE: Show editable fields -->
-              <div v-if="editMode">
-                <!-- Loading state -->
-                <div v-if="loadingFields" class="flex items-center justify-center py-12">
+              <!-- PDF Viewer with PDF.js -->
+              <div v-if="isPDF" class="relative">
+                <!-- PDF Canvas Container -->
+                <div ref="pdfContainer" class="relative bg-white rounded overflow-hidden" style="min-height: 60vh;">
+                  <canvas ref="pdfCanvas"></canvas>
+                  
+                  <!-- Editable overlay (only in edit mode) -->
+                  <div v-if="editMode" class="absolute inset-0 pointer-events-none">
+                    <div
+                      v-for="field in overlayFields"
+                      :key="field.name"
+                      :style="{
+                        position: 'absolute',
+                        left: field.left + 'px',
+                        top: field.top + 'px',
+                        width: field.width + 'px',
+                        height: field.height + 'px',
+                      }"
+                      class="pointer-events-auto"
+                    >
+                      <input
+                        v-model="field.value"
+                        type="text"
+                        :placeholder="field.name"
+                        class="w-full h-full px-2 bg-yellow-100/90 border-2 border-yellow-500 text-gray-900 text-sm rounded focus:outline-none focus:ring-2 focus:ring-yellow-600"
+                        :title="formatFieldName(field.name)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Loading indicator -->
+                <div v-if="loadingPdf" class="absolute inset-0 flex items-center justify-center bg-dark-900/80">
                   <div class="text-center">
                     <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="text-gray-400">Loading PDF fields...</p>
-                  </div>
-                </div>
-
-                <!-- Edit fields -->
-                <div v-else class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                  <div
-                    v-for="(fieldValue, fieldName) in editableFields"
-                    :key="fieldName"
-                    class="bg-dark-800/50 border border-primary-800/30 rounded-lg p-4"
-                  >
-                    <label :for="`field-${fieldName}`" class="block text-sm font-medium text-gray-300 mb-2">
-                      {{ formatFieldName(fieldName) }}
-                    </label>
-                    <input
-                      :id="`field-${fieldName}`"
-                      v-model="editableFields[fieldName]"
-                      type="text"
-                      class="w-full px-4 py-2 bg-dark-900 border border-primary-800/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-magenta-500"
-                    />
-                  </div>
-
-                  <div v-if="Object.keys(editableFields).length === 0" class="text-center py-8 text-gray-400">
-                    No editable fields found in this PDF
+                    <p class="text-gray-400">Rendering PDF...</p>
                   </div>
                 </div>
               </div>
 
-              <!-- VIEW MODE: Show PDF -->
-              <div v-else>
-                <!-- PDF Viewer -->
-                <iframe
-                  v-if="isPDF"
-                  :src="`data:application/pdf;base64,${document.content}`"
-                  class="w-full h-full"
-                  style="min-height: 60vh;"
-                ></iframe>
+              <!-- Image Viewer -->
+              <img
+                v-else-if="isImage"
+                :src="`data:${document.mime_type};base64,${document.content}`"
+                :alt="document.filename"
+                class="max-w-full max-h-[60vh] mx-auto rounded-lg"
+              />
 
-                <!-- Image Viewer -->
-                <img
-                  v-else-if="isImage"
-                  :src="`data:${document.mime_type};base64,${document.content}`"
-                  :alt="document.filename"
-                  class="max-w-full max-h-[60vh] mx-auto rounded-lg"
-                />
+              <!-- CSV Viewer -->
+              <div v-else-if="isCSV" class="overflow-auto max-h-[60vh]">
+                <table class="min-w-full text-left border-collapse text-gray-300 text-sm">
+                  <thead>
+                    <tr>
+                      <th
+                        v-for="(h, index) in csvHeaders"
+                        :key="index"
+                        class="border-b border-gray-700 px-3 py-2 font-semibold bg-dark-700"
+                      >
+                        {{ h }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, rIndex) in csvRows" :key="rIndex">
+                      <td
+                        v-for="(col, cIndex) in row"
+                        :key="cIndex"
+                        class="border-b border-gray-800 px-3 py-2"
+                      >
+                        {{ col }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-                <!-- CSV Viewer -->
-                <div v-else-if="isCSV" class="overflow-auto max-h-[60vh]">
-                  <table class="min-w-full text-left border-collapse text-gray-300 text-sm">
-                    <thead>
-                      <tr>
-                        <th
-                          v-for="(h, index) in csvHeaders"
-                          :key="index"
-                          class="border-b border-gray-700 px-3 py-2 font-semibold bg-dark-700"
-                        >
-                          {{ h }}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="(row, rIndex) in csvRows" :key="rIndex">
-                        <td
-                          v-for="(col, cIndex) in row"
-                          :key="cIndex"
-                          class="border-b border-gray-800 px-3 py-2"
-                        >
-                          {{ col }}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <!-- Unsupported -->
-                <div v-else class="p-8 text-center">
-                  <p class="text-gray-400 mb-4">This file cannot be previewed in the browser.</p>
-                  <p class="text-sm text-gray-500">{{ document.mime_type }}</p>
-                </div>
+              <!-- Unsupported -->
+              <div v-else class="p-8 text-center">
+                <p class="text-gray-400 mb-4">This file cannot be previewed in the browser.</p>
+                <p class="text-sm text-gray-500">{{ document.mime_type }}</p>
               </div>
 
             </div>
 
             <!-- Footer -->
-            <div class="mt-6 flex justify-end gap-3">
-              <button
-                v-if="editMode"
-                @click="cancelEditing"
-                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                v-if="editMode"
-                @click="saveEdits"
-                :disabled="saving"
-                class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>{{ saving ? 'Saving...' : 'Save Edited Version' }}</span>
-              </button>
-              <button
-                v-if="!editMode"
-                @click="close"
-                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-              >
-                Close
-              </button>
+            <div class="mt-6 flex justify-between items-center">
+              <div v-if="editMode" class="text-sm text-gray-400">
+                💡 Tip: Input fields are overlaid on the PDF. Adjust values and save.
+              </div>
+              <div v-else></div>
+              
+              <div class="flex gap-3">
+                <button
+                  v-if="editMode"
+                  @click="cancelEditing"
+                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  v-if="editMode"
+                  @click="saveEdits"
+                  :disabled="saving"
+                  class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{{ saving ? 'Saving...' : 'Save Edited Version' }}</span>
+                </button>
+                <button
+                  v-if="!editMode"
+                  @click="close"
+                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
           </div>
@@ -179,6 +181,10 @@
 
 <script>
 import { router } from '@inertiajs/vue3'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
 export default {
   emits: ["close"],
@@ -197,10 +203,12 @@ export default {
       csvRows: [],
       csvHeaders: [],
       editMode: false,
-      loadingFields: false,
+      loadingPdf: false,
       saving: false,
-      editableFields: {},
-      originalFields: {},
+      overlayFields: [],
+      pdfDoc: null,
+      pdfPage: null,
+      viewport: null,
     };
   },
   computed: {
@@ -217,10 +225,6 @@ export default {
       );
     },
     canEdit() {
-      // Can edit if:
-      // 1. Not an account user
-      // 2. Is a PDF
-      // 3. Is contract or application_form category
       return (
         !this.isAccount &&
         this.isPDF &&
@@ -232,60 +236,134 @@ export default {
     show(value) {
       if (value && this.document) {
         this.parseIfNeeded();
+        if (this.isPDF) {
+          this.$nextTick(() => {
+            this.renderPdf();
+          });
+        }
       } else if (!value) {
         this.reset();
       }
     },
   },
   methods: {
+    async renderPdf() {
+      if (!this.$refs.pdfCanvas) return;
+      
+      this.loadingPdf = true;
+      
+      try {
+        // Convert base64 to binary
+        const pdfData = atob(this.document.content);
+        const pdfArray = new Uint8Array(pdfData.length);
+        for (let i = 0; i < pdfData.length; i++) {
+          pdfArray[i] = pdfData.charCodeAt(i);
+        }
+        
+        // Load PDF document
+        const loadingTask = pdfjsLib.getDocument({ data: pdfArray });
+        this.pdfDoc = await loadingTask.promise;
+        
+        // Get first page
+        this.pdfPage = await this.pdfDoc.getPage(1);
+        
+        // Set up viewport
+        const scale = 1.5;
+        this.viewport = this.pdfPage.getViewport({ scale });
+        
+        // Prepare canvas
+        const canvas = this.$refs.pdfCanvas;
+        const context = canvas.getContext('2d');
+        canvas.height = this.viewport.height;
+        canvas.width = this.viewport.width;
+        
+        // Render PDF page
+        const renderContext = {
+          canvasContext: context,
+          viewport: this.viewport,
+        };
+        
+        await this.pdfPage.render(renderContext).promise;
+        
+      } catch (error) {
+        console.error('Error rendering PDF:', error);
+        alert('Failed to render PDF');
+      } finally {
+        this.loadingPdf = false;
+      }
+    },
+    
     async startEditing() {
       this.editMode = true;
-      this.loadingFields = true;
+      this.loadingPdf = true;
       
       try {
         const response = await fetch(
           `/applications/${this.applicationId}/documents/${this.document.id}/pdf-fields`
         );
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Invalid response from server');
-        }
-        
         const data = await response.json();
         
-        if (data.success) {
-          // Flatten all fields from all pages into single object
-          const allFields = {};
-          Object.values(data.fields).forEach(pageFields => {
-            pageFields.forEach(field => {
-              allFields[field.name] = field.value || '';
-            });
-          });
-          
-          this.editableFields = allFields;
-          this.originalFields = { ...allFields };
+        if (data.success && data.fields) {
+          // Convert fields to overlay positions
+          this.overlayFields = this.convertFieldsToOverlay(data.fields);
         } else {
-          alert('Failed to load PDF fields: ' + data.message);
+          alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
           this.editMode = false;
         }
       } catch (error) {
         console.error('Failed to load PDF fields:', error);
-        alert('Failed to load PDF fields. Please try again.');
+        alert('Failed to load PDF fields');
         this.editMode = false;
       } finally {
-        this.loadingFields = false;
+        this.loadingPdf = false;
       }
+    },
+    
+    convertFieldsToOverlay(fieldsData) {
+      // Convert fields to overlay format with estimated positions
+      const overlayFields = [];
+      let yPosition = 100; // Start position
+      const xPosition = 50;
+      const fieldHeight = 35;
+      const fieldWidth = 400;
+      const spacing = 10;
+      
+      // Flatten all fields from all pages
+      Object.values(fieldsData).forEach(pageFields => {
+        pageFields.forEach(field => {
+          overlayFields.push({
+            name: field.name,
+            value: field.value || '',
+            left: xPosition,
+            top: yPosition,
+            width: fieldWidth,
+            height: fieldHeight,
+          });
+          yPosition += fieldHeight + spacing;
+        });
+      });
+      
+      return overlayFields;
     },
     
     cancelEditing() {
       this.editMode = false;
-      this.editableFields = {};
-      this.originalFields = {};
+      this.overlayFields = [];
+      // Re-render PDF without overlays
+      this.$nextTick(() => {
+        this.renderPdf();
+      });
     },
     
     async saveEdits() {
       this.saving = true;
+      
+      // Convert overlay fields back to simple object
+      const fieldValues = {};
+      this.overlayFields.forEach(field => {
+        fieldValues[field.name] = field.value;
+      });
       
       try {
         const response = await fetch(
@@ -296,7 +374,7 @@ export default {
               'Content-Type': 'application/json',
               'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({ field_values: this.editableFields })
+            body: JSON.stringify({ field_values: fieldValues })
           }
         );
 
@@ -306,8 +384,6 @@ export default {
           alert('✅ Document edited successfully! A new version has been created.');
           this.editMode = false;
           this.close();
-          
-          // Reload the page to show the new version
           router.reload({ preserveScroll: true });
         } else {
           alert('❌ Failed to save: ' + data.message);
@@ -329,7 +405,6 @@ export default {
     parseCSV(raw) {
       const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
       if (lines.length === 0) return;
-
       this.csvHeaders = lines[0].split(",");
       this.csvRows = lines.slice(1).map((l) => l.split(","));
     },
@@ -338,8 +413,10 @@ export default {
       this.csvRows = [];
       this.csvHeaders = [];
       this.editMode = false;
-      this.editableFields = {};
-      this.originalFields = {};
+      this.overlayFields = [];
+      this.pdfDoc = null;
+      this.pdfPage = null;
+      this.viewport = null;
     },
 
     close() {
@@ -358,7 +435,6 @@ export default {
     },
     
     formatFieldName(fieldName) {
-      // Convert field names like "merchant_name" to "Merchant Name"
       return fieldName
         .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
