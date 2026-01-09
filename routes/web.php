@@ -27,18 +27,6 @@ Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('lo
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
 Route::delete('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
-Route::get('/debug-auth', function() {
-    return response()->json([
-        'authenticated' => auth()->check(),
-        'guard' => auth()->getDefaultDriver(),
-        'user_id' => auth()->id(),
-        'user_email' => auth()->user()?->email,
-        'is_admin' => auth()->user()?->isAdmin(),
-        'session_id' => session()->getId(),
-        'account_ids' => \App\Models\Account::where('user_id', auth()->id())->pluck('id'),
-    ]);
-})->middleware('auth');
-
 // DocuSign Webhooks (Public - No Auth Required)
 Route::post('/webhooks/docusign/merchant', [DocuSignWebhookController::class, 'handleMerchantWebhook'])
     ->name('webhooks.docusign.merchant');
@@ -66,6 +54,13 @@ Route::middleware(['auth:web,account'])->group(function () {
     Route::post('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
         ->name('email-templates.preview');
 
+    // Document Library Routes
+    Route::get('/document-library', [DocumentLibraryController::class, 'index'])
+        ->name('document-library.index');
+    Route::post('/document-library/upload', [DocumentLibraryController::class, 'uploadDocument'])
+        ->name('document-library.upload');
+
+    // Legacy route (kept for backwards compatibility)
     Route::get('/documents', [DocumentLibraryController::class, 'index'])
         ->name('documents.index');
 
@@ -111,7 +106,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
         Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
         
-        // NEW: Contract reminder routes
+        // Contract reminder routes
         Route::post('/{application}/send-contract-reminder', [ApplicationStatusController::class, 'sendContractReminder'])
             ->name('applications.send-contract-reminder');
         Route::post('/{application}/set-contract-reminder', [ApplicationStatusController::class, 'setContractReminder'])
@@ -119,7 +114,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/cancel-contract-reminder', [ApplicationStatusController::class, 'cancelContractReminder'])
             ->name('applications.cancel-contract-reminder');
         
-        // NEW: Submit to CardStream
+        // Submit to CardStream
         Route::post('/{application}/submit-to-cardstream', [ApplicationStatusController::class, 'submitToCardStream'])
             ->name('applications.submit-to-cardstream');
         
@@ -155,8 +150,6 @@ Route::middleware(['auth:web,account'])->group(function () {
         // Document Upload
         Route::post('/{application}/documents', [ApplicationDocumentsController::class, 'store'])
             ->name('applications.documents.store');
-        Route::get('/{application}/documents/{document}/download', [ApplicationDocumentsController::class, 'download'])
-            ->name('applications.documents.download');
         Route::delete('/{application}/documents/{document}', [ApplicationDocumentsController::class, 'destroy'])
             ->name('applications.documents.destroy');
         Route::post('/{application}/mark-documents-approved', [ApplicationStatusController::class, 'markDocumentsApproved'])
@@ -166,59 +159,55 @@ Route::middleware(['auth:web,account'])->group(function () {
 
         // Invoice management
         Route::post('/{application}/send-invoice-reminder', [ApplicationStatusController::class, 'sendInvoiceReminder'])
-        ->name('applications.send-invoice-reminder');
+            ->name('applications.send-invoice-reminder');
         Route::post('/{application}/mark-invoice-paid', [ApplicationStatusController::class, 'markInvoiceAsPaid'])
-        ->name('applications.mark-invoice-paid');
+            ->name('applications.mark-invoice-paid');
 
         // CardStream credentials
         Route::post('/{application}/send-cardstream-credentials', [ApplicationsController::class, 'sendCardStreamCredentials'])
-        ->name('applications.send-cardstream-credentials');
+            ->name('applications.send-cardstream-credentials');
         Route::post('/{application}/cancel-cardstream-reminder', [ApplicationsController::class, 'cancelCardStreamReminder'])
-        ->name('applications.cancel-cardstream-reminder');
+            ->name('applications.cancel-cardstream-reminder');
 
         // Gateway integration
         Route::post('/{application}/mark-gateway-integrated', [ApplicationsController::class, 'markGatewayIntegrated'])
-        ->name('applications.mark-gateway-integrated');
+            ->name('applications.mark-gateway-integrated');
 
         // WordPress credentials
         Route::post('/{application}/request-wordpress-credentials', [ApplicationsController::class, 'requestWordPressCredentials'])
-        ->name('applications.request-wordpress-credentials');
+            ->name('applications.request-wordpress-credentials');
         Route::post('/{application}/save-wordpress-credentials', [ApplicationsController::class, 'saveWordPressCredentials'])
-        ->name('applications.save-wordpress-credentials');
+            ->name('applications.save-wordpress-credentials');
         Route::post('/{application}/cancel-wordpress-reminder', [ApplicationsController::class, 'cancelWordPressReminder'])
-        ->name('applications.cancel-wordpress-reminder');
+            ->name('applications.cancel-wordpress-reminder');
 
         // Make account live
         Route::post('/{application}/make-account-live', [ApplicationsController::class, 'makeAccountLive'])
-        ->name('applications.make-account-live');
+            ->name('applications.make-account-live');
 
         // Account message routes (only for accounts)
         Route::post('/{application}/send-account-message', [ApplicationStatusController::class, 'sendAccountMessage'])
-        ->name('applications.send-account-message');
-
+            ->name('applications.send-account-message');
         Route::post('/{application}/set-account-message-reminder', [ApplicationStatusController::class, 'setAccountMessageReminder'])
-        ->name('applications.set-account-message-reminder');
-
+            ->name('applications.set-account-message-reminder');
         Route::post('/{application}/cancel-account-message-reminder', [ApplicationStatusController::class, 'cancelAccountMessageReminder'])
-        ->name('applications.cancel-account-message-reminder');
+            ->name('applications.cancel-account-message-reminder');
 
+        // Manual transition
         Route::post('/{application}/manual-transition', [ApplicationStatusController::class, 'manualTransition'])
-        ->name('applications.manual-transition');
+            ->name('applications.manual-transition');
 
-        // Document viewing routes
-        Route::get('/{application}/documents/{document}/view', [ApplicationDocumentsController::class, 'view'])
-        ->name('applications.documents.view');
-
-        // Download document (returns file download)
+        // Document viewing and downloading routes (consolidated)
+        Route::get('/{application}/documents/{document}/view', [DocumentLibraryController::class, 'viewDocument'])
+            ->name('applications.documents.view');
         Route::get('/{application}/documents/{document}/download', [DocumentLibraryController::class, 'downloadDocument'])
-        ->name('applications.documents.download');
+            ->name('applications.documents.download');
 
         // DocuSign contract viewing and downloading
         Route::get('/{application}/docusign/view', [DocumentLibraryController::class, 'viewDocuSignContract'])
-        ->name('applications.docusign.view');
-
+            ->name('applications.docusign.view');
         Route::get('/{application}/docusign/download', [DocumentLibraryController::class, 'downloadDocuSignContract'])
-        ->name('applications.docusign.download');
+            ->name('applications.docusign.download');
     });
 
     // Progress Tracker

@@ -44,8 +44,25 @@ class ApplicationStatusController extends Controller
             abort(403, 'Unauthorized access.');
         }
     
-        // ✅ NEW: Check if documents can still be uploaded
+        // Check if documents can still be uploaded
         $canUploadDocs = !$application->status?->documents_approved_at;
+
+        // Get uploadable categories (required + additional requested)
+        $uploadableCategories = ApplicationDocument::getUploadableCategories($application);
+
+        // Get extra categories (from library uploads)
+        $extraCategories = ApplicationDocument::getExtraCategories($application);
+        
+        // Get all unique categories that have been uploaded
+        $uploadedCategories = $application->documents()
+            ->select('document_category')
+            ->distinct()
+            ->pluck('document_category')
+            ->filter() // Remove nulls
+            ->mapWithKeys(function ($category) {
+                return [$category => ucwords(str_replace('_', ' ', $category))];
+            })
+            ->toArray();
     
         $liveRecipientStatus = [];
         if ($application->status->docusign_envelope_id) {
@@ -107,6 +124,8 @@ class ApplicationStatusController extends Controller
                 'has_wordpress_credentials' => $application->hasWordPressCredentials(),
                 'can_merchant_sign' => $this->canMerchantSignContract($application),
                 'is_imported' => $merchantImport !== null,
+                
+                'extra_document_categories' => $extraCategories,
                 'docusign_envelope_url' => $merchantImport && $application->status->docusign_envelope_id
                 ? "https://app.docusign.com/documents/details/{$application->status->docusign_envelope_id}"
                 : null,
@@ -201,9 +220,10 @@ class ApplicationStatusController extends Controller
             'docusignRecipientStatus' => $liveRecipientStatus,
             'is_account' => $isAccount,
             'is_admin' => $isAdmin,
-            'canUploadDocs' => $canUploadDocs, // ✅ NEW
-            'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
-            'categoryDescriptions' => collect(ApplicationDocument::getCategoriesForApplication($application))
+            'canUploadDocs' => $canUploadDocs,
+            'documentCategories' => $uploadableCategories,
+            'extraDocumentCategories' => $extraCategories,
+            'categoryDescriptions' => collect($uploadableCategories)
                 ->mapWithKeys(fn ($label, $key) => [
                     $key => ApplicationDocument::getCategoryDescriptionForApplication($key, $application)
                 ])

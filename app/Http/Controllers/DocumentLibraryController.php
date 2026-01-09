@@ -6,8 +6,10 @@ use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Services\DocuSignService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,7 +28,7 @@ class DocumentLibraryController extends Controller
             $applications = Application::where('account_id', auth()->guard('account')->id())
                 ->with(['documents' => function ($query) {
                     $query->orderBy('created_at', 'desc');
-                }, 'status'])
+                }, 'status', 'account'])
                 ->orderBy('created_at', 'desc')
                 ->get();
         } else {
@@ -34,7 +36,7 @@ class DocumentLibraryController extends Controller
             if ($user->isAdmin()) {
                 $applications = Application::with(['documents' => function ($query) {
                     $query->orderBy('created_at', 'desc');
-                }, 'status'])
+                }, 'status', 'account'])
                 ->orderBy('created_at', 'desc')
                 ->get();
             } else {
@@ -42,20 +44,45 @@ class DocumentLibraryController extends Controller
                     $query->where('user_id', $user->id);
                 })->with(['documents' => function ($query) {
                     $query->orderBy('created_at', 'desc');
-                }, 'status'])
+                }, 'status', 'account'])
                 ->orderBy('created_at', 'desc')
                 ->get();
             }
         }
+    
+        // Check incoming filter parameter
+        $applicationFilter = Request::input('application');
 
+        // Apply application/account name filter
+        if ($applicationFilter) {
+    
+            $applications = $applications->filter(function ($app) use ($applicationFilter) {
+                // Handle case where account might be null
+                $accountName = $app->account ? $app->account->name : '';
+                $tradingName = $app->trading_name ?? '';
+                
+                $matchesName = stripos($app->name, $applicationFilter) !== false;
+                $matchesAccount = stripos($accountName, $applicationFilter) !== false;
+                $matchesTrading = stripos($tradingName, $applicationFilter) !== false;
+                
+                return $matchesName || $matchesAccount || $matchesTrading;
+            });
+            
+            Log::info('Filter applied', [
+                'total_apps_after' => $applications->count(),
+            ]);
+        } else {
+            Log::info('No filter applied - showing all applications');
+        }
+    
         // Map applications with their documents
         $applicationsWithDocs = $applications->map(function ($application) {
-            $envelopeId = $application->status->docusign_envelope_id;
-
+            $envelopeId = $application->status?->docusign_envelope_id ?? null;
+    
             return [
                 'id' => $application->id,
                 'name' => $application->name,
-                'account_name' => $application->account->name ?? 'Unknown',
+                'account_name' => $application->account?->name ?? 'Unknown',
                 'trading_name' => $application->trading_name,
                 'created_at' => $application->created_at->format('Y-m-d'),
                 'docusign_envelope_id' => $envelopeId,
@@ -79,14 +106,49 @@ class DocumentLibraryController extends Controller
                 ]),
             ];
         });
-
+    
+        // Get all applications for the dropdown (for upload modal)
+        $allApplications = $isAccount 
+            ? Application::with('account')
+                ->where('account_id', auth()->guard('account')->id())
+                ->orderBy('name')
+                ->get()
+                ->map(fn($app) => [
+                    'id' => $app->id,
+                    'name' => $app->name . ' - ' . ($app->account?->name ?? 'Unknown'),
+                    'account_name' => $app->account?->name ?? 'Unknown',
+                ])
+            : ($user->isAdmin() 
+                ? Application::with('account')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn($app) => [
+                        'id' => $app->id,
+                        'name' => $app->name . ' - ' . ($app->account?->name ?? 'Unknown'),
+                        'account_name' => $app->account?->name ?? 'Unknown',
+                    ])
+                : Application::with('account')
+                    ->whereHas('account', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn($app) => [
+                        'id' => $app->id,
+                        'name' => $app->name . ' - ' . ($app->account?->name ?? 'Unknown'),
+                        'account_name' => $app->account?->name ?? 'Unknown',
+                    ])
+            );
+    
         return Inertia::render('Documents/Index', [
-            'applications' => $applicationsWithDocs,
+            'applications' => $applicationsWithDocs->values(),
+            'allApplications' => $allApplications,
             'is_account' => $isAccount,
+            'filters' => Request::only(['application']),
         ]);
     }
-    
-    /**
+
+        /**
      * View a document inline (returns base64 encoded content for modal viewing)
      */
     private function view(Application $application, ApplicationDocument $document): JsonResponse
@@ -133,6 +195,43 @@ class DocumentLibraryController extends Controller
                 'message' => 'Failed to load document',
             ], 500);
         }
+    }
+    
+    /**
+     * Upload document from library
+     */
+    public function uploadDocument(): RedirectResponse
+    {
+        // Only users can upload from library
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot upload documents from the library.');
+        }
+
+        $validated = Request::validate([
+            'application_id' => ['required', 'exists:applications,id'],
+            'document_category' => ['required', 'string', 'max:255'],
+            'file' => ['required', 'file', 'mimes:pdf,doc,docx,xlsx,xls,csv,jpg,jpeg,png', 'max:51200'], // 50MB
+        ]);
+
+        $application = Application::findOrFail($validated['application_id']);
+
+        // Store the file
+        $file = Request::file('file');
+        $path = $file->store('application_documents/' . $application->id, 'public');
+
+        // Create document record
+        ApplicationDocument::create([
+            'application_id' => $application->id,
+            'document_type' => $file->getMimeType(),
+            'document_category' => $validated['document_category'],
+            'file_path' => $path,
+            'original_filename' => $file->getClientOriginalName(),
+            'uploaded_by' => auth()->id(),
+            'uploaded_by_type' => 'user',
+            'is_library_uploaded' => true,
+        ]);
+
+        return redirect()->back()->with('success', 'Document uploaded successfully.');
     }
 
     /**

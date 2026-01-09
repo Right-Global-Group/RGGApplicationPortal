@@ -13,24 +13,12 @@ class ApplicationSchedule
         $schedule->job(new SendScheduledEmails)
             ->everyFiveMinutes()
             ->withoutOverlapping(5)
-            ->runInBackground()
-            ->onSuccess(function () {
-                \Log::info('SendScheduledEmails job completed successfully');
-            })
-            ->onFailure(function () {
-                \Log::error('SendScheduledEmails job failed');
-            });
+            ->runInBackground();
 
         // Dump expired application documents daily at 2 AM
         $schedule->command('applications:dump-expired-documents')
             ->dailyAt('02:00')
             ->withoutOverlapping()
-            ->runInBackground()
-            ->onSuccess(function () {
-                \Log::info('DumpExpiredApplicationDocuments completed successfully');
-            })
-            ->onFailure(function () {
-                \Log::error('DumpExpiredApplicationDocuments failed');
-            });
+            ->runInBackground();
     }
 }

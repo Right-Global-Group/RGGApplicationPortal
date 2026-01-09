@@ -235,8 +235,25 @@ class ApplicationsController extends Controller
         $canChangeFees = auth()->guard('web')->check() && auth()->guard('web')->user()->isAdmin();
         $canEditCardstream = auth()->guard('web')->check();
         
-        // ✅ NEW: Determine if documents can still be uploaded
+        // Determine if documents can still be uploaded
         $canUploadDocs = !$application->status?->documents_approved_at;
+            
+        // Get uploadable categories (required + additional requested)
+        $uploadableCategories = ApplicationDocument::getUploadableCategories($application);
+
+        // Get extra categories (from library uploads)
+        $extraCategories = ApplicationDocument::getExtraCategories($application);
+        
+        // Get all unique categories that have been uploaded
+        $uploadedCategories = $application->documents()
+            ->select('document_category')
+            ->distinct()
+            ->pluck('document_category')
+            ->filter() // Remove nulls
+            ->mapWithKeys(function ($category) {
+                return [$category => ucwords(str_replace('_', ' ', $category))];
+            })
+            ->toArray();
     
         return Inertia::render('Applications/Edit', [
             'application' => [
@@ -267,6 +284,7 @@ class ApplicationsController extends Controller
                 'cardstream_password' => $application->cardstream_password,
                 'cardstream_merchant_id' => $application->cardstream_merchant_id,
                 'cardstream_credentials_entered_at' => $application->cardstream_credentials_entered_at,
+                'extra_document_categories' => $extraCategories,
                 'can_merchant_sign' => auth()->guard('account')->check() 
                     ? $this->canMerchantSignContract($application) 
                     : false,
@@ -304,7 +322,7 @@ class ApplicationsController extends Controller
             ],
             'accounts' => Account::orderBy('name')->get()->map->only('id', 'name'),
             'canChangeFees' => $canChangeFees,
-            'canUploadDocs' => $canUploadDocs, // ✅ NEW
+            'canUploadDocs' => $canUploadDocs,
             'canEditCardstream' => $canEditCardstream,
             'canEditCardStream' => auth()->guard('web')->check(),
             'documents' => $application->documents()->get()->map(fn ($doc) => [
@@ -315,8 +333,9 @@ class ApplicationsController extends Controller
                 'dumped_at' => $doc->dumped_at?->format('Y-m-d H:i'),
                 'dumped_reason' => $doc->dumped_reason,  
             ]),
-            'documentCategories' => ApplicationDocument::getCategoriesForApplication($application),
-            'categoryDescriptions' => collect(ApplicationDocument::getCategoriesForApplication($application))
+            'documentCategories' => $uploadableCategories,
+            'extraDocumentCategories' => $extraCategories,
+            'categoryDescriptions' => collect($uploadableCategories)
                 ->mapWithKeys(fn ($label, $key) => [
                     $key => ApplicationDocument::getCategoryDescriptionForApplication($key, $application)
                 ])

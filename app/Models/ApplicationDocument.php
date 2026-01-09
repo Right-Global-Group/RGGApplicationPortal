@@ -29,12 +29,14 @@ class ApplicationDocument extends Model
         'completed_at',
         'dumped_at',
         'dumped_reason',
+        'is_library_uploaded', // flag for docs uploaded from library
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
         'completed_at' => 'datetime',
         'dumped_at' => 'datetime',
+        'is_library_uploaded' => 'boolean',
     ];
 
     public function application(): BelongsTo
@@ -66,9 +68,9 @@ class ApplicationDocument extends Model
     }
 
     /**
-     * Get all categories including additional if required for a specific application
+     * Get uploadable categories for an application (required + additional requested)
      */
-    public static function getCategoriesForApplication(Application $application): array
+    public static function getUploadableCategories(Application $application): array
     {
         $categories = self::getRequiredCategories();
         
@@ -82,6 +84,33 @@ class ApplicationDocument extends Model
     }
 
     /**
+     * Get extra (library-uploaded) categories for an application
+     * These are categories that don't match required or additional requested
+     */
+    public static function getExtraCategories(Application $application): array
+    {
+        $uploadableCategories = array_keys(self::getUploadableCategories($application));
+        
+        // Get all unique categories from uploaded documents
+        $allUploadedCategories = $application->documents()
+            ->select('document_category')
+            ->distinct()
+            ->pluck('document_category')
+            ->filter()
+            ->toArray();
+        
+        // Find categories that are not in uploadable list
+        $extraCategories = [];
+        foreach ($allUploadedCategories as $category) {
+            if (!in_array($category, $uploadableCategories)) {
+                $extraCategories[$category] = ucwords(str_replace('_', ' ', $category));
+            }
+        }
+        
+        return $extraCategories;
+    }
+
+    /**
      * Get category display name
      */
     public function getCategoryNameAttribute(): string
@@ -92,7 +121,7 @@ class ApplicationDocument extends Model
         }
         
         $categories = self::getRequiredCategories();
-        return $categories[$this->document_category] ?? $this->document_category;
+        return $categories[$this->document_category] ?? ucwords(str_replace('_', ' ', $this->document_category));
     }
 
     /**
@@ -143,6 +172,15 @@ class ApplicationDocument extends Model
         }
         
         return $baseCategories;
+    }
+
+    /**
+     * Check if a category is uploadable (required or additional requested)
+     */
+    public static function isUploadableCategory(string $category, Application $application): bool
+    {
+        $uploadableCategories = array_keys(self::getUploadableCategories($application));
+        return in_array($category, $uploadableCategories);
     }
 
     public function isDumped(): bool

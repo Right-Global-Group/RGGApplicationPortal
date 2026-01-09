@@ -708,13 +708,26 @@
     <div v-if="canUploadDocs" id="section-documents" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <div class="px-8 py-4 bg-gradient-to-r from-primary-900/50 to-magenta-900/50 border-b border-primary-800/30 flex items-center justify-between -mx-6 -mt-6 mb-6">
         <h2 class="text-magenta-400 font-bold text-lg">Documents</h2>
-        <button 
-          v-if="canUploadDocs"
-          @click="openUploadModal()" 
-          class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
-        >
-          Upload Document
-        </button>
+        <!-- Button Group -->
+        <div class="flex items-center gap-3">
+          <button 
+            v-if="canUploadDocs"
+            @click="openUploadModal()" 
+            class="px-4 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors text-sm font-medium"
+          >
+            Upload Document
+          </button>
+          
+          <Link
+            :href="getDocumentLibraryUrl()"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+            Document Library
+          </Link>
+        </div>
       </div>
 
       <!-- Explanation for Merchant Directors (only for accounts if they can upload) -->
@@ -794,6 +807,83 @@
                 </a>
               </template>
               <span v-else class="text-xs text-gray-500">Removed</span>
+            </div>
+          </div>
+        </div>
+        <!-- Extra Documents (Library Uploads) - No Upload Button -->
+        <div v-if="hasExtraDocuments" class="mt-8 pt-6 border-t border-primary-800/30">
+          <h3 class="text-lg font-semibold text-gray-300 mb-4">
+            📁 Extra Documents
+            <span class="text-sm text-gray-500 font-normal ml-2">(Uploaded from Document Library)</span>
+          </h3>
+          
+          <div 
+            v-for="(label, category) in application.extra_document_categories" 
+            :key="category"
+            class="mb-6 last:mb-0"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-md font-semibold text-gray-400">{{ label }}</h4>
+              <!-- NO UPLOAD BUTTON -->
+            </div>
+            
+            <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
+              <div 
+                v-for="doc in getDocumentsByCategory(category)"
+                :key="doc.id"
+                class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+                :class="{ 'opacity-60': doc.dumped_at }"
+              >
+                <div class="flex items-center flex-1">
+                  <svg 
+                    v-if="doc.dumped_at"
+                    class="w-5 h-5 text-yellow-400 mr-3" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <svg 
+                    v-else
+                    class="w-5 h-5 text-green-400 mr-3" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+                    <div v-if="doc.dumped_at" class="text-xs text-yellow-400 mt-1">
+                      ⚠️ File removed {{ formatDate(doc.dumped_at) }} - {{ doc.dumped_reason }}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <template v-if="!doc.dumped_at">
+                    <a 
+                      :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                      class="text-blue-400 hover:text-blue-300 text-sm"
+                    >
+                      Download
+                    </a>
+                    <button 
+                      v-if="canChangeFees"
+                      @click="deleteDocument(doc.id)"
+                      class="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Delete File
+                    </button>
+                  </template>
+                  <div v-else class="px-3 py-1 bg-yellow-900/20 border border-yellow-700/30 rounded text-xs text-yellow-300">
+                    File Removed
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
+              <p class="text-yellow-300 text-sm">No documents in this category yet</p>
             </div>
           </div>
         </div>
@@ -1266,6 +1356,11 @@ export default {
       )
     },
 
+    hasExtraDocuments() {
+      return this.application.extra_document_categories && 
+            Object.keys(this.application.extra_document_categories).length > 0
+    },
+
     canAccountSignContract() {
       if (!this.is_account) return false;
       
@@ -1482,6 +1577,18 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
       })
+    },
+
+    getDocumentLibraryUrl() {
+      const accountName = this.application.account_name;
+      
+      // Only add filter if account_name exists and is not empty
+      if (accountName && accountName.trim() !== '' && accountName !== 'Unknown') {
+        return `/document-library?application=${encodeURIComponent(accountName)}`;
+      }
+      
+      // Otherwise just go to document library without filter
+      return '/document-library';
     },
 
     async openContractForAccount() {
