@@ -234,8 +234,8 @@ export default {
       );
     },
   },
-  // Complete mounted() hook - uses worker from public directory
-  async mounted() {
+// Complete mounted() hook - uses worker from CDN
+async mounted() {
       if (typeof window !== 'undefined' && !pdfjsInitialized) {
         try {
           console.log('🔧 Loading PDF.js library...');
@@ -245,10 +245,10 @@ export default {
           
           console.log('✅ PDF.js version:', pdfjsLib.version);
           
-          // Use worker from public directory (must be copied there first)
-          pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+          // Use CDN worker to avoid file extension issues
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
           
-          console.log('✅ Worker configured: /pdf.worker.min.mjs');
+          console.log('✅ Worker configured from CDN');
           
           pdfjsInitialized = true;
           this.pdfLibLoaded = true;
