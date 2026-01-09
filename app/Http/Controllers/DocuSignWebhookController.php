@@ -8,6 +8,7 @@ use App\Services\DocuSignService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class DocuSignWebhookController extends Controller
 {
@@ -76,7 +77,7 @@ class DocuSignWebhookController extends Controller
                     break;
             
                 case 'envelope-delivered':
-                case 'recipient-delivered':  // ← ADD THIS LINE
+                case 'recipient-delivered':
                     $application->status->update(['contract_viewed_at' => now()]);
                     
                     event(new \App\Events\DocuSignStatusChangeEvent(
@@ -230,12 +231,14 @@ class DocuSignWebhookController extends Controller
                             }
                         }
                         
-                        // If ALL recipients have signed, transition to contract_signed
+                        // If ALL recipients have signed, transition to contract_signed AND download documents
                         if ($allSigned && count($currentRecipients) > 0) {
-                            Log::info('ALL RECIPIENTS HAVE SIGNED - Transitioning to contract_signed', [
+                            Log::info('ALL RECIPIENTS HAVE SIGNED - Downloading documents and transitioning', [
                                 'application_id' => $application->id,
                                 'current_step' => $application->status->current_step
                             ]);
+                            
+                            $this->downloadAndStoreDocuSignDocuments($application, $envelopeId);
                             
                             $document->update([
                                 'status' => 'completed',
@@ -308,6 +311,10 @@ class DocuSignWebhookController extends Controller
                     break;
 
                 case 'envelope-completed':
+                    Log::info('Envelope completed - downloading documents');
+                    
+                    $this->downloadAndStoreDocuSignDocuments($application, $envelopeId);
+                    
                     $document->update([
                         'status' => 'completed',
                         'completed_at' => now()
@@ -357,6 +364,136 @@ class DocuSignWebhookController extends Controller
             ]);
             
             return response()->json(['error' => 'Webhook processing failed'], 500);
+        }
+    }
+
+    /**
+     * Download and store DocuSign signed documents
+     */
+    private function downloadAndStoreDocuSignDocuments(Application $application, string $envelopeId): void
+    {
+        try {
+            Log::info('Starting DocuSign document download', [
+                'application_id' => $application->id,
+                'envelope_id' => $envelopeId,
+            ]);
+            
+            // Document 1: The main contract (signed by all parties)
+            $this->downloadAndStoreSingleDocument(
+                $application,
+                $envelopeId,
+                '1', // Document ID 1 is the main contract
+                'contract',
+                "Signed_Contract_{$application->name}.pdf"
+            );
+            
+            // Document 2: The application form (second document in template)
+            $this->downloadAndStoreSingleDocument(
+                $application,
+                $envelopeId,
+                '2', // Document ID 2 is the application form
+                'application_form',
+                "Application_Form_{$application->name}.pdf"
+            );
+            
+            Log::info('Successfully downloaded and stored all DocuSign documents', [
+                'application_id' => $application->id,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to download DocuSign documents', [
+                'application_id' => $application->id,
+                'envelope_id' => $envelopeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Don't throw - we don't want to fail the webhook if document download fails
+            // The contract is still signed, we just don't have the local copy yet
+        }
+    }
+    
+    /**
+     * Download and store a single document from DocuSign
+     */
+    private function downloadAndStoreSingleDocument(
+        Application $application,
+        string $envelopeId,
+        string $documentId,
+        string $documentCategory,
+        string $filename
+    ): void {
+        try {
+            // Check if this document is already stored
+            $existingDoc = ApplicationDocument::where('application_id', $application->id)
+                ->where('document_category', $documentCategory)
+                ->where('external_id', $envelopeId)
+                ->where('external_system', 'docusign')
+                ->whereNotNull('file_path') // Must have a file
+                ->first();
+            
+            if ($existingDoc) {
+                Log::info('Document already downloaded, skipping', [
+                    'application_id' => $application->id,
+                    'category' => $documentCategory,
+                    'document_id' => $existingDoc->id,
+                ]);
+                return;
+            }
+            
+            // Download the document from DocuSign
+            $base64Content = $this->docuSignService->downloadEnvelopeDocument($envelopeId, $documentId);
+            $pdfContent = base64_decode($base64Content);
+            
+            // Store the file
+            $directory = "applications/{$application->id}/documents";
+            $storagePath = "{$directory}/" . time() . "_{$filename}";
+            
+            Storage::disk('public')->put($storagePath, $pdfContent);
+            
+            Log::info('Downloaded and stored document', [
+                'application_id' => $application->id,
+                'envelope_id' => $envelopeId,
+                'document_id' => $documentId,
+                'category' => $documentCategory,
+                'storage_path' => $storagePath,
+                'file_size' => strlen($pdfContent),
+            ]);
+            
+            // Create or update the document record
+            ApplicationDocument::updateOrCreate(
+                [
+                    'application_id' => $application->id,
+                    'document_category' => $documentCategory,
+                    'external_id' => $envelopeId,
+                    'external_system' => 'docusign',
+                ],
+                [
+                    'document_type' => 'application/pdf',
+                    'file_path' => $storagePath,
+                    'original_filename' => $filename,
+                    'uploaded_by' => null, // System download
+                    'uploaded_by_type' => null,
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]
+            );
+            
+            Log::info('Created/updated ApplicationDocument record', [
+                'application_id' => $application->id,
+                'category' => $documentCategory,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to download single document', [
+                'application_id' => $application->id,
+                'envelope_id' => $envelopeId,
+                'document_id' => $documentId,
+                'category' => $documentCategory,
+                'error' => $e->getMessage(),
+            ]);
+            
+            throw $e; // Re-throw so parent knows it failed
         }
     }
 
