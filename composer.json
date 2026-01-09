@@ -17,8 +17,11 @@
         "laravel/tinker": "^2.10.1",
         "league/glide": "^3.0",
         "phpoffice/phpspreadsheet": "^5.3",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "smalot/pdfparser": "^2.12",
-        "spatie/laravel-permission": "^6.21"
+        "spatie/laravel-permission": "^6.21",
+        "tecnickcom/tcpdf": "^6.10"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

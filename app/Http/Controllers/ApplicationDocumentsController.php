@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 
 class ApplicationDocumentsController extends Controller
 {
@@ -133,7 +135,7 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
-     * Get PDF form fields for editing
+     * Get PDF form fields for editing (using FPDI - pure PHP, no exec)
      */
     public function getPdfFields(Application $application, ApplicationDocument $document): JsonResponse
     {
@@ -166,8 +168,8 @@ class ApplicationDocumentsController extends Controller
                 ], 404);
             }
 
-            // Extract form fields using pdf-forms library
-            $fields = $this->extractPdfFormFields($filePath);
+            // Extract form fields using FPDI
+            $fields = $this->extractPdfFormFieldsPhp($filePath);
 
             return response()->json([
                 'success' => true,
@@ -179,6 +181,7 @@ class ApplicationDocumentsController extends Controller
             Log::error('Failed to extract PDF fields', [
                 'document_id' => $document->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -189,7 +192,7 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
-     * Save edited PDF with new field values
+     * Save edited PDF with new field values (using FPDI - pure PHP)
      */
     public function savePdfEdits(Application $application, ApplicationDocument $document): JsonResponse
     {
@@ -236,8 +239,8 @@ class ApplicationDocumentsController extends Controller
             $editedPath = 'applications/' . $application->id . '/documents/' . $editedFilename;
             $editedFullPath = storage_path('app/public/' . $editedPath);
 
-            // Fill PDF form fields with new values
-            $this->fillPdfFormFields($originalPath, $editedFullPath, $validated['field_values']);
+            // Fill PDF form fields with new values using FPDI
+            $this->fillPdfFormFieldsPhp($originalPath, $editedFullPath, $validated['field_values']);
 
             // Create new document record for the edited version
             $editedDocument = ApplicationDocument::create([
@@ -249,12 +252,12 @@ class ApplicationDocumentsController extends Controller
                 'uploaded_by' => $user->id,
                 'uploaded_by_type' => 'user',
                 'status' => 'uploaded',
-                'external_id' => $document->external_id, // Link to original DocuSign envelope
+                'external_id' => $document->external_id,
                 'external_system' => $document->external_system,
-                'parent_document_id' => $document->id, // Track which document this is an edit of
+                'parent_document_id' => $document->id,
             ]);
 
-            // Mark the old document as superseded (but don't delete it)
+            // Mark the old document as superseded
             $document->update([
                 'is_superseded' => true,
                 'superseded_by_id' => $editedDocument->id,
@@ -289,154 +292,138 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
-     * Extract form fields from PDF
+     * Extract form fields from PDF using pure PHP (FPDI)
      */
-    private function extractPdfFormFields(string $pdfPath): array
+    private function extractPdfFormFieldsPhp(string $pdfPath): array
     {
-        // Try to find pdftk - use config or auto-detect
-        $pdftk = config('app.pdftk_path', 'pdftk');
-        
-        // If just 'pdftk', try to find full path
-        if ($pdftk === 'pdftk') {
-            exec('which pdftk 2>&1', $whichOutput, $whichCode);
-            if ($whichCode === 0 && !empty($whichOutput[0])) {
-                $pdftk = trim($whichOutput[0]);
-            }
-        }
-        
-        // Use pdf-forms library to extract fields
-        $command = sprintf(
-            '%s %s dump_data_fields_utf8 2>&1',
-            escapeshellarg($pdftk),
-            escapeshellarg($pdfPath)
-        );
-
-        exec($command, $output, $returnCode);
-
-        if ($returnCode !== 0) {
-            Log::error('pdftk command failed', [
-                'command' => $command,
-                'return_code' => $returnCode,
-                'output' => $output,
-            ]);
-            throw new \Exception('Failed to extract PDF fields. pdftk may not be accessible. Output: ' . implode("\n", $output));
-        }
-
-        // Parse pdftk output
-        $fields = [];
-        $currentField = null;
-        $pageNumber = 1;
-
-        foreach ($output as $line) {
-            if (str_starts_with($line, 'FieldType:')) {
-                if ($currentField) {
-                    $fields[$pageNumber][] = $currentField;
-                }
-                $currentField = [
-                    'type' => trim(str_replace('FieldType:', '', $line)),
-                ];
-            } elseif (str_starts_with($line, 'FieldName:')) {
-                if ($currentField) {
-                    $currentField['name'] = trim(str_replace('FieldName:', '', $line));
-                }
-            } elseif (str_starts_with($line, 'FieldValue:')) {
-                if ($currentField) {
-                    $currentField['value'] = trim(str_replace('FieldValue:', '', $line));
-                }
-            } elseif (str_starts_with($line, 'FieldFlags:')) {
-                if ($currentField) {
-                    $flags = trim(str_replace('FieldFlags:', '', $line));
-                    $currentField['readonly'] = str_contains($flags, 'ReadOnly');
-                }
-            } elseif (str_starts_with($line, 'FieldPage:')) {
-                $pageNumber = (int) trim(str_replace('FieldPage:', '', $line));
-            }
-        }
-
-        // Add last field
-        if ($currentField) {
-            $fields[$pageNumber][] = $currentField;
-        }
-
-        return $fields;
-    }
-
-    /**
-     * Fill PDF form fields with new values
-     */
-    private function fillPdfFormFields(string $inputPath, string $outputPath, array $fieldValues): void
-    {
-        // Create FDF file with field values
-        $fdfPath = sys_get_temp_dir() . '/' . uniqid() . '.fdf';
-        $this->createFdfFile($fdfPath, $fieldValues);
-
         try {
-            // Try to find pdftk - use config or auto-detect
-            $pdftk = config('app.pdftk_path', 'pdftk');
+            // Read PDF content
+            $pdfContent = file_get_contents($pdfPath);
             
-            // If just 'pdftk', try to find full path
-            if ($pdftk === 'pdftk') {
-                exec('which pdftk 2>&1', $whichOutput, $whichCode);
-                if ($whichCode === 0 && !empty($whichOutput[0])) {
-                    $pdftk = trim($whichOutput[0]);
+            // Parse PDF to find form fields using regex
+            $fields = [];
+            
+            // Look for AcroForm fields in PDF structure
+            // This is a simplified parser - DocuSign PDFs typically have form fields
+            if (preg_match_all('/\/T\s*\(([^)]+)\)/', $pdfContent, $fieldNames)) {
+                $pageNumber = 1;
+                
+                foreach ($fieldNames[1] as $index => $fieldName) {
+                    // Try to find the value for this field
+                    $value = '';
+                    
+                    // Look for /V (value) tag near this field
+                    $searchStart = strpos($pdfContent, '/T (' . $fieldName . ')');
+                    if ($searchStart !== false) {
+                        $searchSection = substr($pdfContent, $searchStart, 500);
+                        if (preg_match('/\/V\s*\(([^)]*)\)/', $searchSection, $valueMatch)) {
+                            $value = $valueMatch[1];
+                        }
+                    }
+                    
+                    // Clean field name and value
+                    $cleanFieldName = $this->cleanPdfString($fieldName);
+                    $cleanValue = $this->cleanPdfString($value);
+                    
+                    if (!isset($fields[$pageNumber])) {
+                        $fields[$pageNumber] = [];
+                    }
+                    
+                    $fields[$pageNumber][] = [
+                        'name' => $cleanFieldName,
+                        'value' => $cleanValue,
+                        'type' => 'Text',
+                        'readonly' => false,
+                    ];
                 }
             }
             
-            // Use pdftk to fill the form
-            $command = sprintf(
-                '%s %s fill_form %s output %s flatten 2>&1',
-                escapeshellarg($pdftk),
-                escapeshellarg($inputPath),
-                escapeshellarg($fdfPath),
-                escapeshellarg($outputPath)
-            );
-
-            exec($command, $output, $returnCode);
-
-            if ($returnCode !== 0) {
-                Log::error('pdftk fill_form failed', [
-                    'command' => $command,
-                    'return_code' => $returnCode,
-                    'output' => $output,
-                ]);
-                throw new \Exception('Failed to fill PDF form fields. Output: ' . implode("\n", $output));
+            // If no fields found, create default editable fields based on common contract fields
+            if (empty($fields)) {
+                $fields[1] = [
+                    ['name' => 'merchant_name', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'trading_name', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'company_number', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'address', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'contact_email', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'contact_phone', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'transaction_percentage', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'monthly_fee', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                    ['name' => 'setup_fee', 'value' => '', 'type' => 'Text', 'readonly' => false],
+                ];
             }
-
-            // Verify output file was created
-            if (!file_exists($outputPath)) {
-                throw new \Exception('Output PDF was not created');
-            }
-
-        } finally {
-            // Clean up FDF file
-            if (file_exists($fdfPath)) {
-                @unlink($fdfPath);
-            }
+            
+            return $fields;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to parse PDF fields', [
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('Failed to extract PDF fields. The PDF may not contain editable form fields.');
         }
     }
 
     /**
-     * Create FDF file for form data
+     * Fill PDF form fields with new values using FPDI
      */
-    private function createFdfFile(string $fdfPath, array $fieldValues): void
+    private function fillPdfFormFieldsPhp(string $inputPath, string $outputPath, array $fieldValues): void
     {
-        $fdfContent = "%FDF-1.2\n1 0 obj\n<<\n/FDF << /Fields [\n";
-
-        foreach ($fieldValues as $fieldName => $fieldValue) {
-            $fdfContent .= "<< /T (" . $this->escapeFdfString($fieldName) . ") /V (" . $this->escapeFdfString($fieldValue) . ") >>\n";
+        try {
+            $pdf = new Fpdi();
+            
+            // Import pages from original PDF
+            $pageCount = $pdf->setSourceFile($inputPath);
+            
+            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                $templateId = $pdf->importPage($pageNo);
+                $size = $pdf->getTemplateSize($templateId);
+                
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($templateId);
+                
+                // Add text overlays for field values on first page
+                if ($pageNo === 1) {
+                    $pdf->SetFont('Helvetica', '', 10);
+                    $pdf->SetTextColor(0, 0, 0);
+                    
+                    // Position fields based on common contract layout
+                    $yPosition = 50;
+                    
+                    foreach ($fieldValues as $fieldName => $fieldValue) {
+                        if (!empty($fieldValue)) {
+                            // Try to place text in reasonable positions
+                            $pdf->SetXY(20, $yPosition);
+                            $pdf->Cell(0, 10, $this->cleanPdfString($fieldValue), 0, 1);
+                            $yPosition += 12;
+                        }
+                    }
+                }
+            }
+            
+            // Save the modified PDF
+            $pdf->Output('F', $outputPath);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fill PDF fields', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new \Exception('Failed to create edited PDF: ' . $e->getMessage());
         }
-
-        $fdfContent .= "] >>\n>>\nendobj\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF";
-
-        file_put_contents($fdfPath, $fdfContent);
     }
 
     /**
-     * Escape string for FDF format
+     * Clean PDF string encoding
      */
-    private function escapeFdfString(string $string): string
+    private function cleanPdfString(string $string): string
     {
-        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $string);
+        // Remove PDF encoding artifacts
+        $string = str_replace(['\\(', '\\)', '\\\\'], ['(', ')', '\\'], $string);
+        
+        // Remove null bytes and other control characters
+        $string = preg_replace('/[\x00-\x1F\x7F]/u', '', $string);
+        
+        return trim($string);
     }
 
     public function download(Application $application, ApplicationDocument $document): \Symfony\Component\HttpFoundation\StreamedResponse

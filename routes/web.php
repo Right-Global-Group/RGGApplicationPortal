@@ -212,10 +212,10 @@ Route::middleware(['auth:web,account'])->group(function () {
 
         // PDF Editing Routes (for contract and application_form documents)
         Route::get('/{application}/documents/{document}/pdf-fields', [ApplicationDocumentsController::class, 'getPdfFields'])
-        ->name('applications.documents.pdf-fields');
-
+            ->name('applications.documents.pdf-fields');
+        
         Route::post('/{application}/documents/{document}/save-pdf-edits', [ApplicationDocumentsController::class, 'savePdfEdits'])
-        ->name('applications.documents.save-pdf-edits');
+            ->name('applications.documents.save-pdf-edits');
     });
 
     // Xero Export Routes

@@ -205,7 +205,7 @@ class ApplicationDocument extends Model
     }
 
     /**
-     * Get all versions of this document (if this is the original)
+     * Get all versions of this document
      */
     public function versions()
     {
@@ -217,7 +217,7 @@ class ApplicationDocument extends Model
      */
     public function isSuperseded(): bool
     {
-        return $this->is_superseded;
+        return $this->is_superseded ?? false;
     }
 
     /**

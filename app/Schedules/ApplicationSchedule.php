@@ -12,13 +12,11 @@ class ApplicationSchedule
         // Send scheduled reminder emails every 5 minutes
         $schedule->job(new SendScheduledEmails)
             ->everyFiveMinutes()
-            ->withoutOverlapping(5)
-            ->runInBackground();
+            ->withoutOverlapping(5);
 
         // Dump expired application documents daily at 2 AM
         $schedule->command('applications:dump-expired-documents')
             ->dailyAt('02:00')
-            ->withoutOverlapping()
-            ->runInBackground();
+            ->withoutOverlapping();
     }
 }
