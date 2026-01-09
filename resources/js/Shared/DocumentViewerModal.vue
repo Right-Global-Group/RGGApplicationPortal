@@ -48,34 +48,30 @@
             <!-- Document viewer -->
             <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto" style="max-height: 70vh;">
               
-              <!-- PDF Viewer with PDF.js -->
+              <!-- PDF Viewer -->
               <div v-if="isPDF" class="relative">
-                <!-- PDF Canvas Container -->
-                <div ref="pdfContainer" class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
-                  <canvas ref="pdfCanvas" class="mx-auto"></canvas>
-                  
-                  <!-- Editable overlay (only in edit mode) -->
-                  <div v-if="editMode" class="absolute inset-0 pointer-events-none">
-                    <div
-                      v-for="field in overlayFields"
-                      :key="field.name"
-                      :style="{
-                        position: 'absolute',
-                        left: field.left + 'px',
-                        top: field.top + 'px',
-                        width: field.width + 'px',
-                        height: field.height + 'px',
-                      }"
-                      class="pointer-events-auto"
-                    >
-                      <input
-                        v-model="field.value"
-                        type="text"
-                        :placeholder="field.name"
-                        class="w-full h-full px-2 bg-yellow-100/90 border-2 border-yellow-500 text-gray-900 text-sm rounded focus:outline-none focus:ring-2 focus:ring-yellow-600"
-                        :title="formatFieldName(field.name)"
-                      />
-                    </div>
+                <!-- PDF Display using embed (most reliable) -->
+                <div v-if="!editMode" class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
+                  <embed
+                    :src="`data:${document.mime_type};base64,${document.content}`"
+                    type="application/pdf"
+                    class="w-full"
+                    style="min-height: 600px;"
+                  />
+                </div>
+
+                <!-- Edit Mode - Show form fields -->
+                <div v-if="editMode" class="bg-white rounded p-6 space-y-4">
+                  <div v-for="field in overlayFields" :key="field.name" class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">
+                      {{ formatFieldName(field.name) }}
+                    </label>
+                    <input
+                      v-model="field.value"
+                      type="text"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      :placeholder="formatFieldName(field.name)"
+                    />
                   </div>
                 </div>
 
@@ -86,7 +82,7 @@
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="text-gray-400">{{ pdfError || 'Rendering PDF...' }}</p>
+                    <p class="text-gray-400">{{ pdfError || 'Loading PDF...' }}</p>
                   </div>
                 </div>
               </div>
@@ -138,7 +134,7 @@
             <!-- Footer -->
             <div class="mt-6 flex justify-between items-center">
               <div v-if="editMode" class="text-sm text-gray-400">
-                💡 Tip: Input fields are overlaid on the PDF. Adjust values and save.
+                💡 Tip: Fill in the fields below and save your changes.
               </div>
               <div v-else></div>
               
@@ -182,10 +178,6 @@
 <script>
 import { router } from '@inertiajs/vue3'
 
-// Store PDF.js library reference at module level
-let pdfjsLib = null
-let pdfjsInitialized = false
-
 export default {
   emits: ["close"],
   props: {
@@ -206,10 +198,6 @@ export default {
       loadingPdf: false,
       saving: false,
       overlayFields: [],
-      pdfDoc: null,
-      pdfPage: null,
-      viewport: null,
-      pdfLibLoaded: false,
       pdfError: null,
     };
   },
@@ -234,135 +222,16 @@ export default {
       );
     },
   },
-// Complete mounted() hook - uses worker from CDN
-async mounted() {
-      if (typeof window !== 'undefined' && !pdfjsInitialized) {
-        try {
-          console.log('🔧 Loading PDF.js library...');
-          
-          const pdfjs = await import('pdfjs-dist');
-          pdfjsLib = pdfjs;
-          
-          console.log('✅ PDF.js version:', pdfjsLib.version);
-          
-          // Use CDN worker to avoid file extension issues
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-          
-          console.log('✅ Worker configured from CDN');
-          
-          pdfjsInitialized = true;
-          this.pdfLibLoaded = true;
-          
-          console.log('✅ PDF.js initialized successfully');
-        } catch (error) {
-          console.error('❌ Failed to load PDF.js:', error);
-          this.pdfError = 'Failed to load PDF library: ' + error.message;
-        }
-      } else if (pdfjsInitialized) {
-        this.pdfLibLoaded = true;
-      }
-  },
   watch: {
     show(value) {
       if (value && this.document) {
         this.parseIfNeeded();
-        if (this.isPDF && this.pdfLibLoaded) {
-          this.$nextTick(() => {
-            this.renderPdf();
-          });
-        }
       } else if (!value) {
         this.reset();
       }
     },
-    pdfLibLoaded(loaded) {
-      if (loaded && this.show && this.isPDF) {
-        this.$nextTick(() => {
-          this.renderPdf();
-        });
-      }
-    },
   },
   methods: {
-    async renderPdf() {
-      if (!this.$refs.pdfCanvas || !pdfjsLib) {
-        console.error('PDF canvas ref or PDF.js library not available');
-        this.pdfError = 'PDF viewer not ready';
-        return;
-      }
-      
-      this.loadingPdf = true;
-      this.pdfError = null;
-      
-      try {
-        console.log('Starting PDF render...');
-        
-        // Convert base64 to binary
-        const pdfData = atob(this.document.content);
-        const pdfArray = new Uint8Array(pdfData.length);
-        for (let i = 0; i < pdfData.length; i++) {
-          pdfArray[i] = pdfData.charCodeAt(i);
-        }
-        
-        console.log('PDF data converted, size:', pdfArray.length, 'bytes');
-        
-        // Load PDF document
-        const loadingTask = pdfjsLib.getDocument({ 
-          data: pdfArray,
-          // Disable worker for now to avoid version mismatch issues
-          disableWorker: false,
-          // Use standard font
-          useSystemFonts: false,
-        });
-        
-        console.log('Loading PDF document...');
-        this.pdfDoc = await loadingTask.promise;
-        console.log('PDF loaded, pages:', this.pdfDoc.numPages);
-        
-        // Get first page
-        this.pdfPage = await this.pdfDoc.getPage(1);
-        console.log('Page 1 loaded');
-        
-        // Calculate scale to fit container width (max-width of modal content area)
-        const containerWidth = this.$refs.pdfContainer?.clientWidth || 1000;
-        const pageViewport = this.pdfPage.getViewport({ scale: 1.0 });
-        const scale = Math.min(containerWidth / pageViewport.width, 2.0); // Max scale of 2.0
-        
-        this.viewport = this.pdfPage.getViewport({ scale });
-        console.log('Viewport calculated, scale:', scale);
-        
-        // Prepare canvas with proper dimensions
-        const canvas = this.$refs.pdfCanvas;
-        const context = canvas.getContext('2d');
-        
-        // Set actual size in pixels
-        canvas.height = this.viewport.height;
-        canvas.width = this.viewport.width;
-        
-        // Set display size to match
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        
-        console.log('Canvas prepared, rendering...');
-        
-        // Render PDF page
-        const renderContext = {
-          canvasContext: context,
-          viewport: this.viewport,
-        };
-        
-        await this.pdfPage.render(renderContext).promise;
-        console.log('PDF rendered successfully');
-        
-      } catch (error) {
-        console.error('Error rendering PDF:', error);
-        this.pdfError = 'Failed to render: ' + error.message;
-        alert('Failed to render PDF: ' + error.message);
-      } finally {
-        this.loadingPdf = false;
-      }
-    },
-        
     async startEditing() {
       this.editMode = true;
       this.loadingPdf = true;
@@ -375,8 +244,11 @@ async mounted() {
         const data = await response.json();
         
         if (data.success && data.fields) {
-          // Convert fields to overlay positions
-          this.overlayFields = this.convertFieldsToOverlay(data.fields);
+          // Flatten fields from all pages
+          this.overlayFields = [];
+          Object.values(data.fields).forEach(pageFields => {
+            this.overlayFields.push(...pageFields);
+          });
         } else {
           alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
           this.editMode = false;
@@ -390,46 +262,15 @@ async mounted() {
       }
     },
     
-    convertFieldsToOverlay(fieldsData) {
-      // Convert fields to overlay format with estimated positions
-      const overlayFields = [];
-      let yPosition = 100; // Start position
-      const xPosition = 50;
-      const fieldHeight = 35;
-      const fieldWidth = 400;
-      const spacing = 10;
-      
-      // Flatten all fields from all pages
-      Object.values(fieldsData).forEach(pageFields => {
-        pageFields.forEach(field => {
-          overlayFields.push({
-            name: field.name,
-            value: field.value || '',
-            left: xPosition,
-            top: yPosition,
-            width: fieldWidth,
-            height: fieldHeight,
-          });
-          yPosition += fieldHeight + spacing;
-        });
-      });
-      
-      return overlayFields;
-    },
-    
     cancelEditing() {
       this.editMode = false;
       this.overlayFields = [];
-      // Re-render PDF without overlays
-      this.$nextTick(() => {
-        this.renderPdf();
-      });
     },
     
     async saveEdits() {
       this.saving = true;
       
-      // Convert overlay fields back to simple object
+      // Convert fields to simple object
       const fieldValues = {};
       this.overlayFields.forEach(field => {
         fieldValues[field.name] = field.value;
@@ -484,9 +325,6 @@ async mounted() {
       this.csvHeaders = [];
       this.editMode = false;
       this.overlayFields = [];
-      this.pdfDoc = null;
-      this.pdfPage = null;
-      this.viewport = null;
       this.pdfError = null;
     },
 
