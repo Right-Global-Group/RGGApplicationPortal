@@ -47,12 +47,12 @@
 
             <!-- Document viewer -->
             <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto" style="max-height: 70vh;">
-
+              
               <!-- PDF Viewer with PDF.js -->
               <div v-if="isPDF" class="relative">
                 <!-- PDF Canvas Container -->
-                <div ref="pdfContainer" class="relative bg-white rounded overflow-hidden" style="min-height: 60vh;">
-                  <canvas ref="pdfCanvas"></canvas>
+                <div ref="pdfContainer" class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
+                  <canvas ref="pdfCanvas" class="mx-auto"></canvas>
                   
                   <!-- Editable overlay (only in edit mode) -->
                   <div v-if="editMode" class="absolute inset-0 pointer-events-none">
@@ -80,7 +80,7 @@
                 </div>
 
                 <!-- Loading indicator -->
-                <div v-if="loadingPdf" class="absolute inset-0 flex items-center justify-center bg-dark-900/80">
+                <div v-if="loadingPdf" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded">
                   <div class="text-center">
                     <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -267,15 +267,24 @@ export default {
         // Get first page
         this.pdfPage = await this.pdfDoc.getPage(1);
         
-        // Set up viewport
-        const scale = 1.5;
+        // Calculate scale to fit container width (max-width of modal content area)
+        const containerWidth = this.$refs.pdfContainer?.clientWidth || 1000;
+        const pageViewport = this.pdfPage.getViewport({ scale: 1.0 });
+        const scale = Math.min(containerWidth / pageViewport.width, 2.0); // Max scale of 2.0
+        
         this.viewport = this.pdfPage.getViewport({ scale });
         
-        // Prepare canvas
+        // Prepare canvas with proper dimensions
         const canvas = this.$refs.pdfCanvas;
         const context = canvas.getContext('2d');
+        
+        // Set actual size in pixels
         canvas.height = this.viewport.height;
         canvas.width = this.viewport.width;
+        
+        // Set display size to match
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
         
         // Render PDF page
         const renderContext = {
@@ -287,12 +296,12 @@ export default {
         
       } catch (error) {
         console.error('Error rendering PDF:', error);
-        alert('Failed to render PDF');
+        alert('Failed to render PDF: ' + error.message);
       } finally {
         this.loadingPdf = false;
       }
     },
-    
+        
     async startEditing() {
       this.editMode = true;
       this.loadingPdf = true;
