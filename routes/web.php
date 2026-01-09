@@ -213,10 +213,13 @@ Route::middleware(['auth:web,account'])->group(function () {
 
     // Xero Export Routes
     Route::get('/invoices/{merchantName}/export-xero', [XeroExportController::class, 'exportMerchantInvoice'])
-    ->name('invoices.export-xero');
+        ->name('invoices.export-xero');
 
     Route::get('/invoices/export-all-xero', [XeroExportController::class, 'exportAllMerchantsInvoices'])
-    ->name('invoices.export-all-xero');
+        ->name('invoices.export-all-xero');
+
+    Route::get('/invoices/export-selected-xero', [XeroExportController::class, 'exportSelectedMerchantsInvoices'])
+        ->name('invoices.export-selected-xero');
 
     // Progress Tracker
     Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');

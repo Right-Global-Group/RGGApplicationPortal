@@ -123,17 +123,36 @@
                 <div class="text-sm text-gray-400">
                   {{ selectedImport?.imported_at }}
                 </div>
-                <button
-                  v-if="selectedImport?.status === 'completed' && merchantStats.length > 0"
-                  @click="exportAllToXero"
-                  class="btn-primary flex items-center gap-2"
-                  title="Export all merchant invoices to Xero CSV format"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 fill-current" viewBox="0 0 20 20">
-                    <path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/>
-                  </svg>
-                  <span>Export All to Xero</span>
-                </button>
+                <div v-if="selectedImport?.status === 'completed' && merchantStats.length > 0" class="flex items-center gap-3">
+                  <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      v-model="selectMerchantsMode"
+                      @change="onSelectModeChange"
+                      class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
+                    />
+                    <span class="text-sm text-gray-200 select-none">Choose</span>
+                  </label>
+                  
+                  <button
+                    @click="exportSelectedToXero"
+                    class="btn-primary flex items-center gap-2"
+                    :title="selectMerchantsMode ? 'Export selected merchant invoices to Xero CSV format' : 'Export all merchant invoices to Xero CSV format'"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 fill-current" viewBox="0 0 20 20">
+                      <path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/>
+                    </svg>
+                    <span v-if="selectMerchantsMode && selectedMerchants.length > 0">
+                      Export {{ selectedMerchants.length }} to Xero
+                    </span>
+                    <span v-else-if="selectMerchantsMode">
+                      Export Selected to Xero
+                    </span>
+                    <span v-else>
+                      Export All to Xero
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -182,16 +201,45 @@
                   :key="index"
                   :class="[
                     'border-b border-primary-800/20',
-                    stat.monthly_fee ? 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150' : ''
+                    stat.monthly_fee ? (selectMerchantsMode ? 'cursor-pointer transition-all duration-200' : 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150') : '',
+                    selectMerchantsMode && isMerchantSelected(stat.merchant_name) ? 'bg-magenta-900/40 hover:bg-magenta-900/50 border-l-4 border-l-magenta-500' : '',
+                    selectMerchantsMode && !isMerchantSelected(stat.merchant_name) && stat.monthly_fee ? 'hover:bg-primary-900/20' : ''
                   ]"
-                  @click="stat.monthly_fee ? navigateToMerchant(stat.merchant_name) : null"
+                  @click="handleRowClick(stat)"
                 >
                   <td class="px-3 py-2">
-                    <span 
-                      :class="stat.monthly_fee ? 'text-gray-200 hover:text-magenta-400 transition-colors duration-150' : 'text-gray-200'"
-                    >
-                      {{ stat.merchant_name }}
-                    </span>
+                    <div class="flex items-center gap-2">
+                      <div 
+                        v-if="selectMerchantsMode && stat.monthly_fee"
+                        class="flex-shrink-0"
+                      >
+                        <div 
+                          class="w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                          :class="isMerchantSelected(stat.merchant_name) 
+                            ? 'bg-magenta-500 border-magenta-500' 
+                            : 'border-gray-500 bg-transparent'"
+                        >
+                          <svg 
+                            v-if="isMerchantSelected(stat.merchant_name)"
+                            class="w-3 h-3 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                          </svg>
+                        </div>
+                      </div>
+                      <span 
+                        :class="[
+                          stat.monthly_fee ? 'text-gray-200 transition-colors duration-150' : 'text-gray-200',
+                          !selectMerchantsMode && stat.monthly_fee ? 'hover:text-magenta-400' : '',
+                          selectMerchantsMode && isMerchantSelected(stat.merchant_name) ? 'text-magenta-300 font-medium' : ''
+                        ]"
+                      >
+                        {{ stat.merchant_name }}
+                      </span>
+                    </div>
                   </td>
                   <td class="px-3 py-2 text-center">
                     <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-300">
@@ -313,6 +361,8 @@
     },
     setup(props) {
       const polling = ref(null)
+      const selectMerchantsMode = ref(false)
+      const selectedMerchants = ref([])
   
       const progressPercentage = computed(() => {
         if (!props.selectedImport?.estimated_total || props.selectedImport.estimated_total === 0) {
@@ -470,6 +520,54 @@
         window.location.href = `/invoices/${encodeURIComponent(merchantName)}?import_id=${props.selectedImportId}`
       }
       
+      const onSelectModeChange = () => {
+        if (!selectMerchantsMode.value) {
+          // When turning off select mode, clear selections
+          selectedMerchants.value = []
+        }
+      }
+      
+      const isMerchantSelected = (merchantName) => {
+        return selectedMerchants.value.includes(merchantName)
+      }
+      
+      const toggleMerchantSelection = (merchantName) => {
+        const index = selectedMerchants.value.indexOf(merchantName)
+        if (index > -1) {
+          selectedMerchants.value.splice(index, 1)
+        } else {
+          selectedMerchants.value.push(merchantName)
+        }
+      }
+      
+      const handleRowClick = (stat) => {
+        if (!stat.monthly_fee) {
+          return // Don't allow interaction with merchants that have no monthly fee
+        }
+        
+        if (selectMerchantsMode.value) {
+          toggleMerchantSelection(stat.merchant_name)
+        } else {
+          navigateToMerchant(stat.merchant_name)
+        }
+      }
+      
+      const exportSelectedToXero = () => {
+        if (selectMerchantsMode.value) {
+          // Export selected merchants
+          if (selectedMerchants.value.length === 0) {
+            alert('Please select at least one merchant to export')
+            return
+          }
+          
+          const merchantNames = encodeURIComponent(JSON.stringify(selectedMerchants.value))
+          window.location.href = `/invoices/export-selected-xero?import_id=${props.selectedImportId}&merchants=${merchantNames}`
+        } else {
+          // Export all merchants
+          window.location.href = `/invoices/export-all-xero?import_id=${props.selectedImportId}`
+        }
+      }
+      
       const exportAllToXero = () => {
         window.location.href = `/invoices/export-all-xero?import_id=${props.selectedImportId}`
       }
@@ -483,6 +581,12 @@
         navigateToMerchant,
         refreshPage,
         exportAllToXero,
+        exportSelectedToXero,
+        selectMerchantsMode,
+        selectedMerchants,
+        onSelectModeChange,
+        isMerchantSelected,
+        handleRowClick,
         polling,
       }
     },

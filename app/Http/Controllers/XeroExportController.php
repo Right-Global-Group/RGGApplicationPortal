@@ -107,6 +107,61 @@ class XeroExportController extends Controller
     }
     
     /**
+     * Export selected merchants' invoices in a single CSV
+     */
+    public function exportSelectedMerchantsInvoices(): Response
+    {
+        $importId = Request::input('import_id');
+        $merchantsJson = Request::input('merchants');
+        
+        if (!$importId) {
+            abort(400, 'Import ID is required');
+        }
+        
+        if (!$merchantsJson) {
+            abort(400, 'Merchant selection is required');
+        }
+        
+        // Decode the merchant names array
+        $selectedMerchantNames = json_decode($merchantsJson, true);
+        
+        if (!is_array($selectedMerchantNames) || empty($selectedMerchantNames)) {
+            abort(400, 'Invalid merchant selection');
+        }
+        
+        $import = CardstreamImport::where('id', $importId)
+            ->where('status', 'completed')
+            ->firstOrFail();
+        
+        // Get all merchant stats
+        $allMerchantStats = $import->getMerchantStats();
+        
+        // Filter to only selected merchants
+        $merchantStats = $allMerchantStats->filter(function ($stat) use ($selectedMerchantNames) {
+            return in_array($stat->merchant_name, $selectedMerchantNames);
+        });
+        
+        if ($merchantStats->isEmpty()) {
+            abort(404, 'No matching merchants found in this import');
+        }
+        
+        // Get all accounts with applications
+        $accounts = Account::with('applications')->get();
+        
+        // Generate CSV content for selected merchants
+        $csv = $this->generateBulkXeroInvoiceCSV($accounts, $merchantStats, $import);
+        
+        // Generate filename
+        $date = now()->format('Y-m-d');
+        $count = $merchantStats->count();
+        $filename = "invoices_selected_{$count}_merchants_{$date}.csv";
+        
+        return response($csv, 200)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+    
+    /**
      * Generate Xero CSV format for a single merchant
      */
     private function generateXeroInvoiceCSV(
