@@ -407,6 +407,11 @@ class EmailTemplatesController extends Controller
                 'submitted_by' => 'Admin User',
                 'contract_url' => URL::to('/docusign/contract/abc123'),
                 'transaction_percentage' => 2.5,
+                'account_email' => 'john.doe@example.com',
+                'account_mobile' => '+44 7700 900000',
+                'payout_option' => 'daily',
+                'payout_timing' => 'Daily (T+1)',
+                'document_count' => 5,
             ],
             'cardstream-credentials-reminder' => [
                 'username' => 'sample_merchant_user',

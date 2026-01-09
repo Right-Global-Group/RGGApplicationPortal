@@ -187,4 +187,48 @@ class ApplicationDocument extends Model
     {
         return !is_null($this->dumped_at);
     }
+
+    /**
+     * Get the parent document (if this is an edited version)
+     */
+    public function parentDocument()
+    {
+        return $this->belongsTo(ApplicationDocument::class, 'parent_document_id');
+    }
+
+    /**
+     * Get the document that superseded this one
+     */
+    public function supersededBy()
+    {
+        return $this->belongsTo(ApplicationDocument::class, 'superseded_by_id');
+    }
+
+    /**
+     * Get all versions of this document (if this is the original)
+     */
+    public function versions()
+    {
+        return $this->hasMany(ApplicationDocument::class, 'parent_document_id');
+    }
+
+    /**
+     * Check if this document is superseded
+     */
+    public function isSuperseded(): bool
+    {
+        return $this->is_superseded;
+    }
+
+    /**
+     * Get the most recent version of this document category
+     */
+    public static function getLatestVersion(int $applicationId, string $category)
+    {
+        return self::where('application_id', $applicationId)
+            ->where('document_category', $category)
+            ->where('is_superseded', false)
+            ->latest('created_at')
+            ->first();
+    }
 }

@@ -142,6 +142,19 @@
                   </svg>
                   Download
                 </a>
+                
+                <!-- Edit Button (Users Only, Contract & Application Form) -->
+                <button
+                  v-if="!is_account && !doc.dumped_at && (doc.category === 'contract' || doc.category === 'application_form')"
+                  @click="openEditModal(application.id, doc)"
+                  class="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm transition-colors flex items-center gap-1"
+                  title="Edit PDF fields"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                  Edit
+                </button>
               </div>
             </div>
           </div>
@@ -174,100 +187,95 @@
       :document="currentDocument"
       @close="showViewerModal = false"
     />
+
+    <!-- PDF Edit Modal -->
+    <edit-pdf-modal
+      :show="showEditModal"
+      :document="documentToEdit"
+      :application-id="editApplicationId"
+      @close="showEditModal = false"
+      @saved="handleEditSaved"
+    />
   </div>
 </template>
 
-<script>
-import { Head, Link } from '@inertiajs/vue3'
+<script setup>
+import { ref } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
 import Layout from '@/Shared/Layout.vue'
 import DocumentLibraryUploadModal from '@/Shared/DocumentLibraryUploadModal.vue'
 import DocumentViewerModal from '@/Shared/DocumentViewerModal.vue'
+import EditPdfModal from '@/Shared/EditPdfModal.vue'
 
-export default {
-  components: {
-    Head,
-    Link,
-    DocumentLibraryUploadModal,
-    DocumentViewerModal,
-  },
-  layout: Layout,
-  props: {
-    applications: Array,
-    allApplications: Array,
-    is_account: Boolean,
-    filters: Object,
-  },
-  data() {
-    return {
-      filterQuery: this.filters?.application || '',
-      showUploadModal: false,
-      selectedApplication: null,
-      showViewerModal: false,
-      currentDocument: null,
+defineOptions({ layout: Layout })
+
+const props = defineProps({
+  applications: Array,
+  allApplications: Array,
+  is_account: Boolean,
+  filters: Object,
+})
+
+const filterQuery = ref(props.filters?.application || '')
+const showUploadModal = ref(false)
+const selectedApplication = ref(null)
+const showViewerModal = ref(false)
+const currentDocument = ref(null)
+const showEditModal = ref(false)
+const documentToEdit = ref(null)
+const editApplicationId = ref(null)
+
+const openUploadModal = (application) => {
+  selectedApplication.value = application
+  showUploadModal.value = true
+}
+
+const applyFilter = () => {
+  router.get(
+    '/document-library',
+    { application: filterQuery.value },
+    {
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
     }
-  },
-  methods: {
-    openUploadModal(application) {
-      this.selectedApplication = application
-      this.showUploadModal = true
-    },
+  )
+}
 
-    applyFilter() {
-      this.$inertia.get(
-        '/document-library',
-        { application: this.filterQuery },
-        {
-          preserveState: true,
-          preserveScroll: true,
-          replace: true,
-        }
-      )
-    },
+const clearFilter = () => {
+  filterQuery.value = ''
+  applyFilter()
+}
 
-    clearFilter() {
-      this.filterQuery = ''
-      this.applyFilter()
-    },
+const viewDocument = async (applicationId, documentId) => {
+  try {
+    const response = await fetch(`/applications/${applicationId}/documents/${documentId}/view`)
+    const data = await response.json()
 
-    async viewDocument(applicationId, documentId) {
-      try {
-        const response = await fetch(`/applications/${applicationId}/documents/${documentId}/view`)
-        const data = await response.json()
-
-        if (data.success) {
-          this.currentDocument = {
-            filename: data.filename,
-            mime_type: data.mime_type,
-            content: data.content,
-          }
-          this.showViewerModal = true
-        } else {
-          alert('Failed to load document')
-        }
-      } catch (error) {
-        console.error('Failed to load document:', error)
-        alert('Failed to load document')
+    if (data.success) {
+      currentDocument.value = {
+        filename: data.filename,
+        mime_type: data.mime_type,
+        content: data.content,
       }
-    },
+      showViewerModal.value = true
+    } else {
+      alert('Failed to load document')
+    }
+  } catch (error) {
+    console.error('Failed to load document:', error)
+    alert('Failed to load document')
+  }
+}
 
-    async viewDocuSignContract(applicationId) {
-      try {
-        const response = await fetch(`/applications/${applicationId}/docusign/view`)
-        const data = await response.json()
+const openEditModal = (applicationId, document) => {
+  editApplicationId.value = applicationId
+  documentToEdit.value = document
+  showEditModal.value = true
+}
 
-        if (data.success) {
-          this.currentDocument = {
-            filename: data.filename,
-            mime_type: data.mime_type,
-            content: data.content,
-          }
-          this.showViewerModal = true
-        }
-      } catch (error) {
-        console.error('Failed to load contract:', error)
-        alert('Failed to load contract')
-      }
-    },
-  },
+const handleEditSaved = () => {
+  // Reload the page to show the new edited version
+  router.reload()
 }
 </script>

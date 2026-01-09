@@ -101,6 +101,7 @@ class ApplicationStatusController extends Controller
             'application' => [
                 'id' => $application->id,
                 'name' => $application->name,
+                'account_name' => $application->account?->name,
                 'trading_name' => $application->trading_name,
                 'scaling_fee' => $application->scaling_fee,
                 'transaction_percentage' => $application->transaction_percentage,
@@ -804,63 +805,87 @@ class ApplicationStatusController extends Controller
         if (auth()->guard('account')->check()) {
             abort(403, 'Accounts cannot submit applications to CardStream.');
         }
-
+    
         // Validate payout option
         $validated = Request::validate([
             'payout_option' => ['required', 'in:daily,every_3_days'],
         ]);
-
+    
         // Update application with payout option
         $application->update([
             'payout_option' => $validated['payout_option'],
         ]);
-
-        // Get the DocuSign envelope ID
-        $envelopeId = $application->status->docusign_envelope_id;
-        
-        if (!$envelopeId) {
-            return Redirect::back()->with('error', 'No signed contract found for this application.');
-        }
-
+    
         // Collect all uploaded documents with their files
         $documents = [];
         
-        // Download and attach the DocuSign document (the contract)
-        try {
-            $docusignPdf = $this->docuSignService->downloadEnvelopeDocument($envelopeId, '1');
-            $tempPath = storage_path('app/temp/docusign_contract_' . $application->id . '.pdf');
-            
-            // Ensure temp directory exists
-            if (!file_exists(dirname($tempPath))) {
-                mkdir(dirname($tempPath), 0755, true);
-            }
-            
-            // Save the base64 decoded PDF to temp file
-            file_put_contents($tempPath, base64_decode($docusignPdf));
-            
+        // Get the most recent (non-superseded) contract and application_form
+        $contractDoc = ApplicationDocument::where('application_id', $application->id)
+            ->where('document_category', 'contract')
+            ->where('is_superseded', false) // Get latest version only
+            ->latest('created_at')
+            ->first();
+        
+        $applicationFormDoc = ApplicationDocument::where('application_id', $application->id)
+            ->where('document_category', 'application_form')
+            ->where('is_superseded', false) // Get latest version only
+            ->latest('created_at')
+            ->first();
+    
+        \Log::info('CardStream submission - checking for latest document versions', [
+            'application_id' => $application->id,
+            'contract_found' => $contractDoc ? true : false,
+            'contract_id' => $contractDoc?->id,
+            'contract_filename' => $contractDoc?->original_filename,
+            'contract_is_edited' => $contractDoc?->parent_document_id ? true : false,
+            'application_form_found' => $applicationFormDoc ? true : false,
+            'application_form_id' => $applicationFormDoc?->id,
+            'application_form_is_edited' => $applicationFormDoc?->parent_document_id ? true : false,
+        ]);
+    
+        // Add contract (edited version if exists)
+        if ($contractDoc && \Storage::disk('public')->exists($contractDoc->file_path)) {
             $documents[] = [
-                'category' => 'Signed Contract',
-                'filename' => "Signed_Contract_{$application->name}.pdf",
-                'path' => $tempPath,
+                'category' => 'Signed Contract' . ($contractDoc->parent_document_id ? ' (Edited)' : ''),
+                'filename' => $contractDoc->original_filename,
+                'path' => storage_path('app/public/' . $contractDoc->file_path),
                 'mime' => 'application/pdf',
-                'is_temp' => true,
+                'is_temp' => false,
             ];
-            
-            \Log::info('DocuSign contract downloaded for CardStream submission', [
+    
+            \Log::info('Added contract to CardStream submission', [
+                'document_id' => $contractDoc->id,
+                'is_edited_version' => $contractDoc->parent_document_id ? true : false,
+            ]);
+        } else {
+            \Log::warning('Contract document not found in storage', [
                 'application_id' => $application->id,
-                'envelope_id' => $envelopeId,
             ]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to download DocuSign contract', [
-                'envelope_id' => $envelopeId,
-                'error' => $e->getMessage(),
+        }
+    
+        // Add application form (edited version if exists)
+        if ($applicationFormDoc && \Storage::disk('public')->exists($applicationFormDoc->file_path)) {
+            $documents[] = [
+                'category' => 'Application Form' . ($applicationFormDoc->parent_document_id ? ' (Edited)' : ''),
+                'filename' => $applicationFormDoc->original_filename,
+                'path' => storage_path('app/public/' . $applicationFormDoc->file_path),
+                'mime' => 'application/pdf',
+                'is_temp' => false,
+            ];
+    
+            \Log::info('Added application form to CardStream submission', [
+                'document_id' => $applicationFormDoc->id,
+                'is_edited_version' => $applicationFormDoc->parent_document_id ? true : false,
             ]);
-            
-            return Redirect::back()->with('error', 'Failed to download signed contract from DocuSign. Please try again.');
         }
         
-        // Get standard documents
-        foreach ($application->documents as $doc) {
+        // Get other standard documents (excluding superseded ones)
+        $otherDocs = $application->documents()
+            ->whereNotIn('document_category', ['contract', 'application_form'])
+            ->where('is_superseded', false)
+            ->get();
+    
+        foreach ($otherDocs as $doc) {
             try {
                 if (empty($doc->file_path)) {
                     \Log::warning('Document has no file path', [
@@ -886,32 +911,38 @@ class ApplicationStatusController extends Controller
                 ]);
             }
         }
-
-        $documentUrl = "https://app.docusign.com/documents/details/{$envelopeId}";
-
+    
+        // Get DocuSign URL for reference
+        $envelopeId = $application->status->docusign_envelope_id;
+        $documentUrl = $envelopeId 
+            ? "https://app.docusign.com/documents/details/{$envelopeId}"
+            : null;
+    
+        \Log::info('CardStream submission prepared', [
+            'application_id' => $application->id,
+            'total_documents' => count($documents),
+            'has_contract' => $contractDoc ? true : false,
+            'has_application_form' => $applicationFormDoc ? true : false,
+            'payout_option' => $validated['payout_option'],
+        ]);
+    
         // Update application status
         $application->status->transitionTo(
             'contract_submitted',
             'Application submitted to CardStream with ' . str_replace('_', ' ', $validated['payout_option']) . ' payout by ' . auth()->user()->name
         );
-
+    
         // Fire event to send email with documents
         event(new CardStreamSubmissionEvent(
             $application, 
             $documentUrl, 
             $documents, 
-            $validated['payout_option'] // Pass the payout option
+            $validated['payout_option']
         ));
-        // Clean up temporary DocuSign file
-        foreach ($documents as $doc) {
-            if (isset($doc['is_temp']) && $doc['is_temp'] && file_exists($doc['path'])) {
-                @unlink($doc['path']);
-            }
-        }
-
+    
         return Redirect::back()->with('success', 'Application submitted to CardStream successfully with ' . str_replace('_', ' ', $validated['payout_option']) . ' payout option.');
     }
-
+    
     private function formatDocumentCategory(string $category): string
     {
         if (str_starts_with($category, 'additional_requested_')) {

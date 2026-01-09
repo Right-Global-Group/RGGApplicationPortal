@@ -209,6 +209,13 @@ Route::middleware(['auth:web,account'])->group(function () {
             ->name('applications.docusign.view');
         Route::get('/{application}/docusign/download', [DocumentLibraryController::class, 'downloadDocuSignContract'])
             ->name('applications.docusign.download');
+
+        // PDF Editing Routes (for contract and application_form documents)
+        Route::get('/{application}/documents/{document}/pdf-fields', [ApplicationDocumentsController::class, 'getPdfFields'])
+        ->name('applications.documents.pdf-fields');
+
+        Route::post('/{application}/documents/{document}/save-pdf-edits', [ApplicationDocumentsController::class, 'savePdfEdits'])
+        ->name('applications.documents.save-pdf-edits');
     });
 
     // Xero Export Routes
@@ -220,6 +227,7 @@ Route::middleware(['auth:web,account'])->group(function () {
 
     Route::get('/invoices/export-selected-xero', [XeroExportController::class, 'exportSelectedMerchantsInvoices'])
         ->name('invoices.export-selected-xero');
+        
 
     // Progress Tracker
     Route::get('/progress-tracker', [ProgressTrackerController::class, 'index'])->name('progress-tracker');
