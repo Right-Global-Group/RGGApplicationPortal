@@ -234,6 +234,7 @@ export default {
       );
     },
   },
+  // Replace the entire mounted() section in DocumentViewerModal.vue with this:
   async mounted() {
       if (typeof window !== 'undefined' && !pdfjsInitialized) {
         try {
@@ -244,8 +245,12 @@ export default {
           
           console.log('✅ PDF.js version:', pdfjsLib.version);
           
-          // CRITICAL FIX: Use CDN worker with EXACT matching version
-          const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          // CRITICAL FIX: Use CDN worker with proper extension based on version
+          // Versions 3.x+ use .mjs, 2.x uses .js
+          const majorVersion = parseInt(pdfjsLib.version.split('.')[0]);
+          const extension = majorVersion >= 3 ? 'mjs' : 'js';
+          const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.${extension}`;
+          
           console.log('✅ Worker URL:', workerUrl);
           
           pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
