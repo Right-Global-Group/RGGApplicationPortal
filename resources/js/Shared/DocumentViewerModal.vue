@@ -25,61 +25,117 @@
 
             <!-- Header -->
             <div class="mb-4">
-              <h3 class="text-xl font-bold text-white">{{ document?.filename || 'Document' }}</h3>
-              <p class="text-sm text-gray-400 mt-1">{{ formatMimeType(document?.mime_type) }}</p>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xl font-bold text-white">{{ document?.filename || 'Document' }}</h3>
+                  <p class="text-sm text-gray-400 mt-1">{{ formatMimeType(document?.mime_type) }}</p>
+                </div>
+                
+                <!-- Edit button for editable PDFs -->
+                <button
+                  v-if="canEdit && !editMode"
+                  @click="startEditing"
+                  class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                  Edit Fields
+                </button>
+              </div>
             </div>
 
-            <!-- Document viewer -->
-            <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-2 overflow-auto" style="max-height: 70vh;">
+            <!-- Document viewer or editor -->
+            <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto" style="max-height: 70vh;">
 
-              <!-- PDF Viewer -->
-              <iframe
-                v-if="isPDF"
-                :src="`data:application/pdf;base64,${document.content}`"
-                class="w-full h-full"
-                style="min-height: 70vh;"
-              ></iframe>
+              <!-- EDIT MODE: Show editable fields -->
+              <div v-if="editMode">
+                <!-- Loading state -->
+                <div v-if="loadingFields" class="flex items-center justify-center py-12">
+                  <div class="text-center">
+                    <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-400">Loading PDF fields...</p>
+                  </div>
+                </div>
 
-              <!-- Image Viewer -->
-              <img
-                v-else-if="isImage"
-                :src="`data:${document.mime_type};base64,${document.content}`"
-                :alt="document.filename"
-                class="max-w-full max-h-[70vh] mx-auto rounded-lg"
-              />
+                <!-- Edit fields -->
+                <div v-else class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  <div
+                    v-for="(fieldValue, fieldName) in editableFields"
+                    :key="fieldName"
+                    class="bg-dark-800/50 border border-primary-800/30 rounded-lg p-4"
+                  >
+                    <label :for="`field-${fieldName}`" class="block text-sm font-medium text-gray-300 mb-2">
+                      {{ formatFieldName(fieldName) }}
+                    </label>
+                    <input
+                      :id="`field-${fieldName}`"
+                      v-model="editableFields[fieldName]"
+                      type="text"
+                      class="w-full px-4 py-2 bg-dark-900 border border-primary-800/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-magenta-500"
+                    />
+                  </div>
 
-              <!-- CSV Viewer -->
-              <div v-else-if="isCSV" class="overflow-auto max-h-[70vh]">
-                <table class="min-w-full text-left border-collapse text-gray-300 text-sm">
-                  <thead>
-                    <tr>
-                      <th
-                        v-for="(h, index) in csvHeaders"
-                        :key="index"
-                        class="border-b border-gray-700 px-3 py-2 font-semibold bg-dark-700"
-                      >
-                        {{ h }}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(row, rIndex) in csvRows" :key="rIndex">
-                      <td
-                        v-for="(col, cIndex) in row"
-                        :key="cIndex"
-                        class="border-b border-gray-800 px-3 py-2"
-                      >
-                        {{ col }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                  <div v-if="Object.keys(editableFields).length === 0" class="text-center py-8 text-gray-400">
+                    No editable fields found in this PDF
+                  </div>
+                </div>
               </div>
 
-              <!-- Unsupported -->
-              <div v-else class="p-8 text-center">
-                <p class="text-gray-400 mb-4">This file cannot be previewed in the browser.</p>
-                <p class="text-sm text-gray-500">{{ document.mime_type }}</p>
+              <!-- VIEW MODE: Show PDF -->
+              <div v-else>
+                <!-- PDF Viewer -->
+                <iframe
+                  v-if="isPDF"
+                  :src="`data:application/pdf;base64,${document.content}`"
+                  class="w-full h-full"
+                  style="min-height: 60vh;"
+                ></iframe>
+
+                <!-- Image Viewer -->
+                <img
+                  v-else-if="isImage"
+                  :src="`data:${document.mime_type};base64,${document.content}`"
+                  :alt="document.filename"
+                  class="max-w-full max-h-[60vh] mx-auto rounded-lg"
+                />
+
+                <!-- CSV Viewer -->
+                <div v-else-if="isCSV" class="overflow-auto max-h-[60vh]">
+                  <table class="min-w-full text-left border-collapse text-gray-300 text-sm">
+                    <thead>
+                      <tr>
+                        <th
+                          v-for="(h, index) in csvHeaders"
+                          :key="index"
+                          class="border-b border-gray-700 px-3 py-2 font-semibold bg-dark-700"
+                        >
+                          {{ h }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(row, rIndex) in csvRows" :key="rIndex">
+                        <td
+                          v-for="(col, cIndex) in row"
+                          :key="cIndex"
+                          class="border-b border-gray-800 px-3 py-2"
+                        >
+                          {{ col }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Unsupported -->
+                <div v-else class="p-8 text-center">
+                  <p class="text-gray-400 mb-4">This file cannot be previewed in the browser.</p>
+                  <p class="text-sm text-gray-500">{{ document.mime_type }}</p>
+                </div>
               </div>
 
             </div>
@@ -87,6 +143,26 @@
             <!-- Footer -->
             <div class="mt-6 flex justify-end gap-3">
               <button
+                v-if="editMode"
+                @click="cancelEditing"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                v-if="editMode"
+                @click="saveEdits"
+                :disabled="saving"
+                class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ saving ? 'Saving...' : 'Save Edited Version' }}</span>
+              </button>
+              <button
+                v-if="!editMode"
                 @click="close"
                 class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
               >
@@ -102,6 +178,8 @@
 </template>
 
 <script>
+import { router } from '@inertiajs/vue3'
+
 export default {
   emits: ["close"],
   props: {
@@ -110,11 +188,19 @@ export default {
       type: Object,
       default: null,
     },
+    applicationId: Number,
+    documentCategory: String,
+    isAccount: Boolean,
   },
   data() {
     return {
       csvRows: [],
       csvHeaders: [],
+      editMode: false,
+      loadingFields: false,
+      saving: false,
+      editableFields: {},
+      originalFields: {},
     };
   },
   computed: {
@@ -130,6 +216,17 @@ export default {
         this.document?.filename?.toLowerCase().endsWith(".csv")
       );
     },
+    canEdit() {
+      // Can edit if:
+      // 1. Not an account user
+      // 2. Is a PDF
+      // 3. Is contract or application_form category
+      return (
+        !this.isAccount &&
+        this.isPDF &&
+        (this.documentCategory === 'contract' || this.documentCategory === 'application_form')
+      );
+    },
   },
   watch: {
     show(value) {
@@ -141,6 +238,88 @@ export default {
     },
   },
   methods: {
+    async startEditing() {
+      this.editMode = true;
+      this.loadingFields = true;
+      
+      try {
+        const response = await fetch(
+          `/applications/${this.applicationId}/documents/${this.document.id}/pdf-fields`
+        );
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Invalid response from server');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Flatten all fields from all pages into single object
+          const allFields = {};
+          Object.values(data.fields).forEach(pageFields => {
+            pageFields.forEach(field => {
+              allFields[field.name] = field.value || '';
+            });
+          });
+          
+          this.editableFields = allFields;
+          this.originalFields = { ...allFields };
+        } else {
+          alert('Failed to load PDF fields: ' + data.message);
+          this.editMode = false;
+        }
+      } catch (error) {
+        console.error('Failed to load PDF fields:', error);
+        alert('Failed to load PDF fields. Please try again.');
+        this.editMode = false;
+      } finally {
+        this.loadingFields = false;
+      }
+    },
+    
+    cancelEditing() {
+      this.editMode = false;
+      this.editableFields = {};
+      this.originalFields = {};
+    },
+    
+    async saveEdits() {
+      this.saving = true;
+      
+      try {
+        const response = await fetch(
+          `/applications/${this.applicationId}/documents/${this.document.id}/save-pdf-edits`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ field_values: this.editableFields })
+          }
+        );
+
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ Document edited successfully! A new version has been created.');
+          this.editMode = false;
+          this.close();
+          
+          // Reload the page to show the new version
+          router.reload({ preserveScroll: true });
+        } else {
+          alert('❌ Failed to save: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to save edits:', error);
+        alert('❌ Failed to save edits. Please try again.');
+      } finally {
+        this.saving = false;
+      }
+    },
+
     parseIfNeeded() {
       if (this.isCSV && this.document?.content) {
         this.parseCSV(atob(this.document.content));
@@ -158,6 +337,9 @@ export default {
     reset() {
       this.csvRows = [];
       this.csvHeaders = [];
+      this.editMode = false;
+      this.editableFields = {};
+      this.originalFields = {};
     },
 
     close() {
@@ -173,6 +355,14 @@ export default {
         "text/csv": "CSV File",
       };
       return map[type] || type;
+    },
+    
+    formatFieldName(fieldName) {
+      // Convert field names like "merchant_name" to "Merchant Name"
+      return fieldName
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
     },
   },
 };

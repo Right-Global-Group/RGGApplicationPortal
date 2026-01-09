@@ -67,7 +67,7 @@ class BackfillDocuSignDocuments extends Command
             $envelopeId = $application->status->docusign_envelope_id;
             
             $this->line('');
-            $this->info("📄 Processing: {$application->name} (ID: {$application->id})");
+            $this->info("Processing: {$application->name} (ID: {$application->id})");
             $this->line("   Envelope ID: {$envelopeId}");
 
             // Check what documents are missing
@@ -82,7 +82,7 @@ class BackfillDocuSignDocuments extends Command
                 ->exists();
 
             if ($hasContract && $hasApplicationForm) {
-                $this->line('   ✅ All documents already present - skipping');
+                $this->line('All documents already present - skipping');
                 $skippedCount++;
                 continue;
             }
@@ -101,36 +101,35 @@ class BackfillDocuSignDocuments extends Command
 
             // Download and store missing documents
             try {
-                if (!$hasContract) {
-                    $this->line('   📥 Downloading contract (document 1)...');
+                if (!$hasApplicationForm) {
+                    $this->line('Downloading application form (document 2)...');
                     $this->downloadAndStoreDocument(
                         $application,
                         $envelopeId,
                         '1',
-                        'contract',
-                        "Signed_Contract_{$application->name}.pdf"
+                        'application_form',
+                        "Application_Form_{$application->name}.pdf"
                     );
-                    $this->line('   ✅ Contract stored');
+                    $this->line('Application form stored');
                 }
-
-                if (!$hasApplicationForm) {
-                    $this->line('   📥 Downloading application form (document 2)...');
+                if (!$hasContract) {
+                    $this->line('Downloading contract (document 1)...');
                     $this->downloadAndStoreDocument(
                         $application,
                         $envelopeId,
                         '2',
-                        'application_form',
-                        "Application_Form_{$application->name}.pdf"
+                        'contract',
+                        "Signed_Contract_{$application->name}.pdf"
                     );
-                    $this->line('   ✅ Application form stored');
+                    $this->line('Contract stored');
                 }
 
                 $processedCount++;
-                $this->info('   ✅ Successfully backfilled documents');
+                $this->info('Successfully backfilled documents');
 
             } catch (\Exception $e) {
                 $errorCount++;
-                $this->error('   ❌ Error: ' . $e->getMessage());
+                $this->error('Error: ' . $e->getMessage());
                 
                 // Log the full error for debugging
                 \Log::error('Backfill DocuSign documents failed', [

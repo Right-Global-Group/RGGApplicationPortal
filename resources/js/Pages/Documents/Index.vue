@@ -121,9 +121,10 @@
               </div>
 
               <div class="flex items-center gap-2 ml-4">
+                <!-- View button (opens modal with optional edit) -->
                 <button
                   v-if="!doc.dumped_at"
-                  @click="viewDocument(application.id, doc.id)"
+                  @click="viewDocument(application.id, doc)"
                   class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded text-sm transition-colors flex items-center gap-1"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,6 +133,8 @@
                   </svg>
                   View
                 </button>
+                
+                <!-- Download button -->
                 <a
                   v-if="!doc.dumped_at"
                   :href="doc.download_url"
@@ -142,19 +145,6 @@
                   </svg>
                   Download
                 </a>
-                
-                <!-- Edit Button (Users Only, Contract & Application Form) -->
-                <button
-                  v-if="!is_account && !doc.dumped_at && (doc.category === 'contract' || doc.category === 'application_form')"
-                  @click="openEditModal(application.id, doc)"
-                  class="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm transition-colors flex items-center gap-1"
-                  title="Edit PDF fields"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                  </svg>
-                  Edit
-                </button>
               </div>
             </div>
           </div>
@@ -181,20 +171,14 @@
       @close="showUploadModal = false"
     />
 
-    <!-- Document Viewer Modal -->
+    <!-- Document Viewer Modal (now with inline editing) -->
     <document-viewer-modal
       :show="showViewerModal"
       :document="currentDocument"
+      :application-id="currentApplicationId"
+      :document-category="currentDocumentCategory"
+      :is-account="is_account"
       @close="showViewerModal = false"
-    />
-
-    <!-- PDF Edit Modal -->
-    <edit-pdf-modal
-      :show="showEditModal"
-      :document="documentToEdit"
-      :application-id="editApplicationId"
-      @close="showEditModal = false"
-      @saved="handleEditSaved"
     />
   </div>
 </template>
@@ -205,7 +189,6 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import Layout from '@/Shared/Layout.vue'
 import DocumentLibraryUploadModal from '@/Shared/DocumentLibraryUploadModal.vue'
 import DocumentViewerModal from '@/Shared/DocumentViewerModal.vue'
-import EditPdfModal from '@/Shared/EditPdfModal.vue'
 
 defineOptions({ layout: Layout })
 
@@ -221,9 +204,8 @@ const showUploadModal = ref(false)
 const selectedApplication = ref(null)
 const showViewerModal = ref(false)
 const currentDocument = ref(null)
-const showEditModal = ref(false)
-const documentToEdit = ref(null)
-const editApplicationId = ref(null)
+const currentApplicationId = ref(null)
+const currentDocumentCategory = ref(null)
 
 const openUploadModal = (application) => {
   selectedApplication.value = application
@@ -247,17 +229,20 @@ const clearFilter = () => {
   applyFilter()
 }
 
-const viewDocument = async (applicationId, documentId) => {
+const viewDocument = async (applicationId, doc) => {
   try {
-    const response = await fetch(`/applications/${applicationId}/documents/${documentId}/view`)
+    const response = await fetch(`/applications/${applicationId}/documents/${doc.id}/view`)
     const data = await response.json()
 
     if (data.success) {
       currentDocument.value = {
+        id: doc.id,
         filename: data.filename,
         mime_type: data.mime_type,
         content: data.content,
       }
+      currentApplicationId.value = applicationId
+      currentDocumentCategory.value = doc.category
       showViewerModal.value = true
     } else {
       alert('Failed to load document')
@@ -266,16 +251,5 @@ const viewDocument = async (applicationId, documentId) => {
     console.error('Failed to load document:', error)
     alert('Failed to load document')
   }
-}
-
-const openEditModal = (applicationId, document) => {
-  editApplicationId.value = applicationId
-  documentToEdit.value = document
-  showEditModal.value = true
-}
-
-const handleEditSaved = () => {
-  // Reload the page to show the new edited version
-  router.reload()
 }
 </script>
