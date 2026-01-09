@@ -90,9 +90,6 @@ class ApplicationDocumentsController extends Controller
             }
         }
     
-        // Fire individual document uploaded event
-        // event(new DocumentUploadedEvent($document));
-    
         // Refresh the application to get updated relationships
         $application->load('documents', 'additionalDocuments');
         
@@ -135,23 +132,317 @@ class ApplicationDocumentsController extends Controller
         return Redirect::back()->with('success', 'Document uploaded successfully.');
     }
 
+    /**
+     * Get PDF form fields for editing
+     */
+    public function getPdfFields(Application $application, ApplicationDocument $document): JsonResponse
+    {
+        // Check permissions
+        $this->checkDocumentAccess($application, $document);
+
+        // Verify this is an editable document type
+        if (!in_array($document->document_category, ['contract', 'application_form'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only contract and application_form documents can be edited',
+            ], 400);
+        }
+
+        // Check if document is dumped
+        if ($document->isDumped()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This document has been removed',
+            ], 410);
+        }
+
+        try {
+            $filePath = storage_path('app/public/' . $document->file_path);
+            
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Document file not found',
+                ], 404);
+            }
+
+            // Extract form fields using pdf-forms library
+            $fields = $this->extractPdfFormFields($filePath);
+
+            return response()->json([
+                'success' => true,
+                'fields' => $fields,
+                'page_count' => count($fields),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to extract PDF fields', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to extract PDF fields: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Save edited PDF with new field values
+     */
+    public function savePdfEdits(Application $application, ApplicationDocument $document): JsonResponse
+    {
+        // Check permissions - only users (not accounts) can edit
+        if (auth()->guard('account')->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Accounts cannot edit documents',
+            ], 403);
+        }
+
+        $user = auth()->guard('web')->user();
+        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only edit documents for applications you manage',
+            ], 403);
+        }
+
+        // Verify this is an editable document type
+        if (!in_array($document->document_category, ['contract', 'application_form'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only contract and application_form documents can be edited',
+            ], 400);
+        }
+
+        $validated = Request::validate([
+            'field_values' => ['required', 'array'],
+        ]);
+
+        try {
+            $originalPath = storage_path('app/public/' . $document->file_path);
+            
+            if (!file_exists($originalPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Original document not found',
+                ], 404);
+            }
+
+            // Create edited version
+            $editedFilename = time() . '_edited_' . $document->original_filename;
+            $editedPath = 'applications/' . $application->id . '/documents/' . $editedFilename;
+            $editedFullPath = storage_path('app/public/' . $editedPath);
+
+            // Fill PDF form fields with new values
+            $this->fillPdfFormFields($originalPath, $editedFullPath, $validated['field_values']);
+
+            // Create new document record for the edited version
+            $editedDocument = ApplicationDocument::create([
+                'application_id' => $application->id,
+                'document_type' => 'application/pdf',
+                'document_category' => $document->document_category,
+                'file_path' => $editedPath,
+                'original_filename' => 'Edited_' . $document->original_filename,
+                'uploaded_by' => $user->id,
+                'uploaded_by_type' => 'user',
+                'status' => 'uploaded',
+                'external_id' => $document->external_id, // Link to original DocuSign envelope
+                'external_system' => $document->external_system,
+                'parent_document_id' => $document->id, // Track which document this is an edit of
+            ]);
+
+            // Mark the old document as superseded (but don't delete it)
+            $document->update([
+                'is_superseded' => true,
+                'superseded_by_id' => $editedDocument->id,
+                'superseded_at' => now(),
+            ]);
+
+            Log::info('PDF document edited successfully', [
+                'application_id' => $application->id,
+                'original_document_id' => $document->id,
+                'edited_document_id' => $editedDocument->id,
+                'edited_by' => $user->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document edited successfully',
+                'edited_document_id' => $editedDocument->id,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to save PDF edits', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save edits: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Extract form fields from PDF
+     */
+    private function extractPdfFormFields(string $pdfPath): array
+    {
+        // Try to find pdftk - use config or auto-detect
+        $pdftk = config('app.pdftk_path', 'pdftk');
+        
+        // If just 'pdftk', try to find full path
+        if ($pdftk === 'pdftk') {
+            exec('which pdftk 2>&1', $whichOutput, $whichCode);
+            if ($whichCode === 0 && !empty($whichOutput[0])) {
+                $pdftk = trim($whichOutput[0]);
+            }
+        }
+        
+        // Use pdf-forms library to extract fields
+        $command = sprintf(
+            '%s %s dump_data_fields_utf8 2>&1',
+            escapeshellarg($pdftk),
+            escapeshellarg($pdfPath)
+        );
+
+        exec($command, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            Log::error('pdftk command failed', [
+                'command' => $command,
+                'return_code' => $returnCode,
+                'output' => $output,
+            ]);
+            throw new \Exception('Failed to extract PDF fields. pdftk may not be accessible. Output: ' . implode("\n", $output));
+        }
+
+        // Parse pdftk output
+        $fields = [];
+        $currentField = null;
+        $pageNumber = 1;
+
+        foreach ($output as $line) {
+            if (str_starts_with($line, 'FieldType:')) {
+                if ($currentField) {
+                    $fields[$pageNumber][] = $currentField;
+                }
+                $currentField = [
+                    'type' => trim(str_replace('FieldType:', '', $line)),
+                ];
+            } elseif (str_starts_with($line, 'FieldName:')) {
+                if ($currentField) {
+                    $currentField['name'] = trim(str_replace('FieldName:', '', $line));
+                }
+            } elseif (str_starts_with($line, 'FieldValue:')) {
+                if ($currentField) {
+                    $currentField['value'] = trim(str_replace('FieldValue:', '', $line));
+                }
+            } elseif (str_starts_with($line, 'FieldFlags:')) {
+                if ($currentField) {
+                    $flags = trim(str_replace('FieldFlags:', '', $line));
+                    $currentField['readonly'] = str_contains($flags, 'ReadOnly');
+                }
+            } elseif (str_starts_with($line, 'FieldPage:')) {
+                $pageNumber = (int) trim(str_replace('FieldPage:', '', $line));
+            }
+        }
+
+        // Add last field
+        if ($currentField) {
+            $fields[$pageNumber][] = $currentField;
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Fill PDF form fields with new values
+     */
+    private function fillPdfFormFields(string $inputPath, string $outputPath, array $fieldValues): void
+    {
+        // Create FDF file with field values
+        $fdfPath = sys_get_temp_dir() . '/' . uniqid() . '.fdf';
+        $this->createFdfFile($fdfPath, $fieldValues);
+
+        try {
+            // Try to find pdftk - use config or auto-detect
+            $pdftk = config('app.pdftk_path', 'pdftk');
+            
+            // If just 'pdftk', try to find full path
+            if ($pdftk === 'pdftk') {
+                exec('which pdftk 2>&1', $whichOutput, $whichCode);
+                if ($whichCode === 0 && !empty($whichOutput[0])) {
+                    $pdftk = trim($whichOutput[0]);
+                }
+            }
+            
+            // Use pdftk to fill the form
+            $command = sprintf(
+                '%s %s fill_form %s output %s flatten 2>&1',
+                escapeshellarg($pdftk),
+                escapeshellarg($inputPath),
+                escapeshellarg($fdfPath),
+                escapeshellarg($outputPath)
+            );
+
+            exec($command, $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                Log::error('pdftk fill_form failed', [
+                    'command' => $command,
+                    'return_code' => $returnCode,
+                    'output' => $output,
+                ]);
+                throw new \Exception('Failed to fill PDF form fields. Output: ' . implode("\n", $output));
+            }
+
+            // Verify output file was created
+            if (!file_exists($outputPath)) {
+                throw new \Exception('Output PDF was not created');
+            }
+
+        } finally {
+            // Clean up FDF file
+            if (file_exists($fdfPath)) {
+                @unlink($fdfPath);
+            }
+        }
+    }
+
+    /**
+     * Create FDF file for form data
+     */
+    private function createFdfFile(string $fdfPath, array $fieldValues): void
+    {
+        $fdfContent = "%FDF-1.2\n1 0 obj\n<<\n/FDF << /Fields [\n";
+
+        foreach ($fieldValues as $fieldName => $fieldValue) {
+            $fdfContent .= "<< /T (" . $this->escapeFdfString($fieldName) . ") /V (" . $this->escapeFdfString($fieldValue) . ") >>\n";
+        }
+
+        $fdfContent .= "] >>\n>>\nendobj\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF";
+
+        file_put_contents($fdfPath, $fdfContent);
+    }
+
+    /**
+     * Escape string for FDF format
+     */
+    private function escapeFdfString(string $string): string
+    {
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $string);
+    }
+
     public function download(Application $application, ApplicationDocument $document): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         // Check permissions
-        $isAccount = auth()->guard('account')->check();
-        
-        if ($isAccount) {
-            if ($application->account_id !== auth()->guard('account')->id()) {
-                abort(403);
-            }
-        } elseif (auth()->guard('web')->check()) {
-            $user = auth()->guard('web')->user();
-            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
-                abort(403);
-            }
-        } else {
-            abort(403);
-        }
+        $this->checkDocumentAccess($application, $document);
     
         // Verify document belongs to application
         if ($document->application_id !== $application->id) {
@@ -172,20 +463,7 @@ class ApplicationDocumentsController extends Controller
     public function view(Application $application, ApplicationDocument $document): JsonResponse
     {
         // Check permissions
-        $isAccount = auth()->guard('account')->check();
-        
-        if ($isAccount) {
-            if ($application->account_id !== auth()->guard('account')->id()) {
-                abort(403);
-            }
-        } elseif (auth()->guard('web')->check()) {
-            $user = auth()->guard('web')->user();
-            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
-                abort(403);
-            }
-        } else {
-            abort(403);
-        }
+        $this->checkDocumentAccess($application, $document);
 
         // Verify document belongs to application
         if ($document->application_id !== $application->id) {
@@ -305,5 +583,26 @@ class ApplicationDocumentsController extends Controller
         }
 
         return Redirect::back()->with('success', 'Document requirement removed successfully.');
+    }
+
+    /**
+     * Check document access permissions
+     */
+    private function checkDocumentAccess(Application $application, ApplicationDocument $document): void
+    {
+        $isAccount = auth()->guard('account')->check();
+        
+        if ($isAccount) {
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403);
+            }
+        } elseif (auth()->guard('web')->check()) {
+            $user = auth()->guard('web')->user();
+            if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403);
+            }
+        } else {
+            abort(403);
+        }
     }
 }
