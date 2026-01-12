@@ -1105,6 +1105,16 @@ class DocuSignService
                 route('applications.docusign-callback', ['application' => $application->id])
             );
     
+            // Store document record
+            ApplicationDocument::create([
+                'application_id' => $application->id,
+                'document_type' => 'contract',
+                'external_id' => $envelopeId,
+                'external_system' => 'docusign',
+                'status' => 'sent',
+                'sent_at' => now(),
+            ]);
+    
             // Update status
             $application->status->update([
                 'docusign_envelope_id' => $envelopeId,

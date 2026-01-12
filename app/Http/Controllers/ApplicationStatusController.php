@@ -1069,11 +1069,11 @@ class ApplicationStatusController extends Controller
     {
         $status = $application->status;
         
-        // // First check: contract must be sent but not signed
-        // if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
-        //     \Log::info('Merchant cannot sign yet');
-        //     return false;
-        // }
+        // First check: contract must be sent but not signed
+        if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
+            \Log::info('Merchant cannot sign yet');
+            return false;
+        }
                 
         // Second check: verify routing order using DocuSign
         $envelopeId = $status->docusign_envelope_id;

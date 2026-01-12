@@ -404,7 +404,7 @@ class EmailTemplatesController extends Controller
                 // Uses common data (application_name, account_name, application_url)
             ],
             'document-upload-ready' => [
-                // Uses common data only
+                'upload_url' => URL::to('/email-templates'),
             ],
             'cardstream-submission' => [
                 'submitted_by' => 'Admin User',
