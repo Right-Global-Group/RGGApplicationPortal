@@ -49,7 +49,6 @@
             padding: 12px 30px;
             text-decoration: none;
             border-radius: 5px;
-            margin: 20px 0;
             font-weight: bold;
         }
         .button:hover {
@@ -97,12 +96,17 @@
             <strong>⚠️ Important:</strong> Please keep these credentials secure and change your password after your first login.
         </div>
         
-        <center>
-            <a href="{{ $login_url }}" class="button">Login to Your Account</a>
-        </center>
+        <!-- Button using table for Gmail compatibility -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+            <tr>
+                <td align="center">
+                    <a href="{{ $login_url }}" style="display: inline-block; background: #667eea; color: white !important; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login to Your Account</a>
+                </td>
+            </tr>
+        </table>
         
         <p style="text-align: center; color: #666; font-size: 14px; margin-top: 10px;">
-            Or copy this link: <a href="{{ $login_url }}">{{ $login_url }}</a>
+            Or copy this link: <a href="{{ $login_url }}" style="color: #667eea; word-break: break-all;">{{ $login_url }}</a>
         </p>
         
         <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
