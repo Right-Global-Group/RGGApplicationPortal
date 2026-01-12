@@ -95,9 +95,7 @@
         <h1>Please Upload Documents</h1>
     </div>
     
-    <div class="content">
-        <div class="success-icon">🎉</div>
-        
+    <div class="content">        
         <p>Hello {{ $account_name }},</p>
         
         <div class="login-warning">
