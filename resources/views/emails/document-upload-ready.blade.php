@@ -79,14 +79,14 @@
             color: #667eea;
             font-weight: bold;
         }
-        .login-note {
+        .login-warning {
             background: #fff3cd;
-            border: 1px solid #ffc107;
+            border: 2px solid #ffc107;
             border-radius: 5px;
-            padding: 10px;
-            margin: 15px 0;
+            padding: 15px;
+            margin: 20px 0;
             color: #856404;
-            font-size: 14px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -99,9 +99,13 @@
         <div class="success-icon">🎉</div>
         
         <p>Hello {{ $account_name }},</p>
+        
+        <div class="login-warning">
+            ⚠️ <strong>IMPORTANT:</strong> You must <a href="{{ $login_url }}" style="color: #667eea; font-weight: bold;">log in to your account</a> first before uploading documents. If you're not logged in, you'll get an access denied error.
+        </div>
                 
         <div class="info-box">
-            <h3 style="margin-top: 0; color: #667eea;">An application step is awaitng your completion:</h3>
+            <h3 style="margin-top: 0; color: #667eea;">An application step is awaiting your completion:</h3>
             <p>To continue processing your application, please upload the required documents. This is a crucial step in completing your merchant account setup.</p>
         </div>
         
@@ -117,17 +121,21 @@
             </ul>
         </div>
         
-        <div class="login-note">
-            <strong>📌 Note:</strong> If you're not already logged in, please <a href="{{ $login_url }}" style="color: #667eea; font-weight: bold;">log in to your account</a> first, then click the button below to upload your documents.
+        <div style="text-align: center; margin: 30px 0;">
+            <p style="font-size: 16px; font-weight: bold; color: #667eea; margin-bottom: 15px;">Step 1: Log In First</p>
+            <a href="{{ $login_url }}" class="button">Login to Your Account</a>
+            <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                Login URL: <a href="{{ $login_url }}">{{ $login_url }}</a>
+            </p>
         </div>
         
-        <center>
+        <div style="text-align: center; margin: 30px 0;">
+            <p style="font-size: 16px; font-weight: bold; color: #667eea; margin-bottom: 15px;">Step 2: Upload Documents</p>
             <a href="{{ $upload_url }}" class="button">Upload Documents Now</a>
-        </center>
-        
-        <p style="text-align: center; color: #666; font-size: 14px; margin-top: 10px;">
-            Or copy this link: <a href="{{ $upload_url }}">{{ $upload_url }}</a>
-        </p>
+            <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                Upload URL: <a href="{{ $upload_url }}">{{ $upload_url }}</a>
+            </p>
+        </div>
         
         <p style="margin-top: 30px;">Once all documents are uploaded and approved, we'll move forward with the application and inform you of the next steps required.</p>
         

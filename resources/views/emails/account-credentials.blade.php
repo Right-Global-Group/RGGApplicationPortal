@@ -52,6 +52,9 @@
             margin: 20px 0;
             font-weight: bold;
         }
+        .button:hover {
+            background: #5568d3;
+        }
         .footer {
             margin-top: 30px;
             padding-top: 20px;
@@ -98,7 +101,7 @@
             <a href="{{ $login_url }}" class="button">Login to Your Account</a>
         </center>
         
-        <p style="text-align: center; color: #666; font-size: 14px;">
+        <p style="text-align: center; color: #666; font-size: 14px; margin-top: 10px;">
             Or copy this link: <a href="{{ $login_url }}">{{ $login_url }}</a>
         </p>
         

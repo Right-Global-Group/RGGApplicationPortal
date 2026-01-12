@@ -403,6 +403,9 @@ class EmailTemplatesController extends Controller
             'wordpress-credentials-reminder' => [
                 // Uses common data (application_name, account_name, application_url)
             ],
+            'document-upload-ready' => [
+                // Uses common data only
+            ],
             'cardstream-submission' => [
                 'submitted_by' => 'Admin User',
                 'contract_url' => URL::to('/docusign/contract/abc123'),
