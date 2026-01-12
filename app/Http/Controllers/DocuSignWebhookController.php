@@ -44,7 +44,7 @@ class DocuSignWebhookController extends Controller
     
             $document = ApplicationDocument::where('external_id', $envelopeId)
                 ->where('external_system', 'docusign')
-                ->where('document_category', 'contract')
+                ->where('document_type', 'contract')
                 ->first();
         
             // For imported applications, there might not be a document record yet
@@ -568,7 +568,7 @@ class DocuSignWebhookController extends Controller
 
             $document = ApplicationDocument::where('external_id', $envelopeId)
                 ->where('external_system', 'docusign')
-                ->where('document_category', 'gateway_contract')
+                ->where('document_type', 'gateway_contract')
                 ->first();
 
             if (!$document) {
