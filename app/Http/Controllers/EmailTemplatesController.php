@@ -290,9 +290,6 @@ class EmailTemplatesController extends Controller
         return ucwords(str_replace(['-', '_'], ' ', $name));
     }
 
-    /**
-     * Get sample data for template preview
-     */
     private function getSampleData(string $template): array
     {
         // Common sample data that many templates use
@@ -321,7 +318,7 @@ class EmailTemplatesController extends Controller
             'confirmed_at' => now()->format('Y-m-d H:i'),
             'due_date' => now()->addDays(30)->format('Y-m-d'),
         ];
-
+    
         // Template-specific sample data
         $specificData = match($template) {
             'account-credentials' => [
@@ -389,6 +386,9 @@ class EmailTemplatesController extends Controller
             'merchant-contract-ready' => [
                 'signing_url' => URL::to('/docusign/sign/abc123'),
             ],
+            'director-signed-contract' => [
+                'signing_url' => URL::to('/docusign/sign/abc123'),
+            ],
             'gateway-partner-contract-ready' => [
                 'gateway_partner_name' => 'Cardstream',
                 'signing_url' => URL::to('/docusign/sign/xyz789'),
@@ -434,7 +434,7 @@ class EmailTemplatesController extends Controller
             ],
             default => [],
         };
-
+    
         return array_merge($commonData, $specificData);
     }
 }
