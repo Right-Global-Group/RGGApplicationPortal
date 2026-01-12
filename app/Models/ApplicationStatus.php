@@ -216,12 +216,13 @@ class ApplicationStatus extends Model
     /**
      * Manually transition to a specific step without triggering automated actions.
      * When going backwards, this will clear all timestamps for steps that came after the target step.
+     * When going forwards, this will ONLY mark the target step as complete (no intermediate steps).
      * 
      * @param string $newStep The target step to transition to
      * @param string|null $notes Optional notes about the transition
      * @param bool $logActivity Whether to log this transition
      * @param array|null $currentOrder Optional array of step IDs in their actual display order
-    */
+     */
     public function manualTransitionTo(string $newStep, ?string $notes = null, bool $logActivity = true, ?array $currentOrder = null): void
     {
         $oldStep = $this->current_step;
@@ -290,11 +291,18 @@ class ApplicationStatus extends Model
                 }
             }
         } else {
-            // Going forward - set timestamp for target step if it doesn't exist
+            // Going forward - ONLY set timestamp for the target step (no intermediate steps)
             $timestampField = $this->getTimestampField($newStep);
             
             if ($timestampField && is_null($this->$timestampField)) {
                 $updateData[$timestampField] = now();
+                
+                \Log::info('Setting timestamp for target step only', [
+                    'application_id' => $this->application_id,
+                    'step' => $newStep,
+                    'field' => $timestampField,
+                    'note' => 'No intermediate steps will be completed',
+                ]);
             }
         }
 
@@ -307,10 +315,14 @@ class ApplicationStatus extends Model
         // Log the activity if requested
         if ($logActivity) {
             $direction = $isBackwardTransition ? 'backwards' : 'forwards';
+            $actionDesc = $isBackwardTransition 
+                ? "Status manually changed {$direction} from {$oldStep} to {$newStep}"
+                : "Status manually jumped {$direction} to {$newStep} (intermediate steps skipped)";
+                
             ActivityLog::create([
                 'application_id' => $this->application_id,
                 'action' => 'manual_status_change',
-                'description' => "Status manually changed {$direction} from {$oldStep} to {$newStep}",
+                'description' => $actionDesc,
             ]);
         }
 

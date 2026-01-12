@@ -578,13 +578,38 @@
       </div>
     </div>
 
+    <!-- In the merchant actions section, update the Sign Contract button -->
     <div v-if="is_account" id="section-actions" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
       <h2 class="text-xl font-bold text-white mb-4">Your Actions</h2>
+      
+      <!-- Refresh Notice (Merchant Only) -->
+      <div v-if="canAccountSignContract && !hasRefreshed" class="mb-4">
+        <div class="inline-flex p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+          <div class="flex items-center gap-4">
+            <p class="text-sm text-blue-300">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Refresh the page to activate the Sign Contract button
+            </p>
+            <button
+              @click="refreshPage"
+              class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <div class="flex flex-wrap gap-3">
 
         <!-- Sign Contract Button - generates fresh signing URL -->
         <a      
-          v-if="canAccountSignContract && application.is_imported && application.docusign_envelope_url"
+          v-if="canAccountSignContract && application.is_imported && application.docusign_envelope_url && hasRefreshed"
           :href="application.docusign_envelope_url"
           target="_blank"
           class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
@@ -595,12 +620,26 @@
           View Contract in DocuSign
         </a>
 
+        <!-- Disabled version for imported contracts -->
+        <button
+          v-else-if="canAccountSignContract && application.is_imported && application.docusign_envelope_url && !hasRefreshed"
+          disabled
+          class="px-4 py-2 bg-green-600/50 text-white rounded-lg flex items-center gap-2 opacity-50 cursor-not-allowed"
+          title="Please refresh the page first"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          View Contract (Refresh Required)
+        </button>
+
         <!-- G2Pay-created contracts: generate signing URL -->
         <button
           v-else-if="canAccountSignContract && !application.is_imported"
           @click="openContractForAccount"
-          :disabled="isLoadingContract"
+          :disabled="isLoadingContract || !hasRefreshed"
           class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2"
+          :title="!hasRefreshed ? 'Please refresh the page first' : ''"
         >
           <svg 
             v-if="isLoadingContract" 
@@ -615,6 +654,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           <span v-if="isLoadingContract">Opening Contract...</span>
+          <span v-else-if="!hasRefreshed">Sign Contract (Refresh Required)</span>
           <span v-else>Sign Contract</span>
         </button>
 
@@ -1828,8 +1868,7 @@ export default {
         const stepsToUnmark = currentIndex - targetIndex
         message = `Transition backwards from "${currentStepLabel}" to "${stepLabel}"?\n\nThis will move the application back to an earlier step and unmark ${stepsToUnmark} completed step(s).`
       } else {
-        const stepsToComplete = targetIndex - currentIndex
-        message = `Manually transition to "${stepLabel}"?\n\nThis will complete ${stepsToComplete} step(s) WITHOUT triggering automated actions like emails or submissions.\n\nAll intermediate steps will be marked as completed.`
+        message = `Manually jump to "${stepLabel}"?\n\nThis will mark ONLY this step as complete WITHOUT triggering automated actions like emails or submissions.\n\nIntermediate steps will remain incomplete and appear in the timeline after the target step.`
       }
       
       if (confirm(message)) {

@@ -45,7 +45,7 @@ class DocuSignWebhookController extends Controller
             // Find the document by envelope ID
             $document = ApplicationDocument::where('external_id', $envelopeId)
                 ->where('external_system', 'docusign')
-                ->where('document_type', 'contract')
+                ->where('document_category', 'contract')
                 ->first();
     
             if (!$document) {
@@ -378,22 +378,19 @@ class DocuSignWebhookController extends Controller
                 'envelope_id' => $envelopeId,
             ]);
             
-            // Document 1: The main contract (signed by all parties)
             $this->downloadAndStoreSingleDocument(
                 $application,
                 $envelopeId,
-                '1', // Document ID 1 is the main contract
-                'contract',
-                "Signed_Contract_{$application->name}.pdf"
-            );
-            
-            // Document 2: The application form (second document in template)
-            $this->downloadAndStoreSingleDocument(
-                $application,
-                $envelopeId,
-                '2', // Document ID 2 is the application form
+                '1',
                 'application_form',
                 "Application_Form_{$application->name}.pdf"
+            );
+            $this->downloadAndStoreSingleDocument(
+                $application,
+                $envelopeId,
+                '2',
+                'contract',
+                "Signed_Contract_{$application->name}.pdf"
             );
             
             Log::info('Successfully downloaded and stored all DocuSign documents', [
@@ -561,7 +558,7 @@ class DocuSignWebhookController extends Controller
 
             $document = ApplicationDocument::where('external_id', $envelopeId)
                 ->where('external_system', 'docusign')
-                ->where('document_type', 'gateway_contract')
+                ->where('document_category', 'gateway_contract')
                 ->first();
 
             if (!$document) {
