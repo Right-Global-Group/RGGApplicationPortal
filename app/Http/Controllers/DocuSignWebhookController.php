@@ -42,25 +42,35 @@ class DocuSignWebhookController extends Controller
                 return response()->noContent();
             }
     
-            // Find the document by envelope ID
             $document = ApplicationDocument::where('external_id', $envelopeId)
                 ->where('external_system', 'docusign')
                 ->where('document_category', 'contract')
                 ->first();
-    
-            if (!$document) {
-                Log::warning('DocuSign webhook: document not found', [
-                    'envelope_id' => $envelopeId
+        
+            // For imported applications, there might not be a document record yet
+            // So we need to find the application by envelope ID in the status table
+            $application = null;
+            
+            if ($document) {
+                $application = $document->application;
+            } else {
+                // Try to find application by envelope ID in application_statuses
+                $application = Application::whereHas('status', function($query) use ($envelopeId) {
+                    $query->where('docusign_envelope_id', $envelopeId);
+                })->first();
+                
+                if (!$application) {
+                    Log::warning('DocuSign webhook: application not found for envelope', [
+                        'envelope_id' => $envelopeId
+                    ]);
+                    return response()->noContent();
+                }
+                
+                Log::info('Found imported application without document record', [
+                    'application_id' => $application->id,
+                    'envelope_id' => $envelopeId,
                 ]);
-                return response()->noContent();
             }
-    
-            $application = $document->application;
-    
-            Log::info('Found application for envelope', [
-                'application_id' => $application->id,
-                'application_name' => $application->name,
-            ]);
     
             // Handle different event types
             switch ($event) {
