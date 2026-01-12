@@ -102,9 +102,15 @@
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{{ $signing_url }}" class="button">
-                📝 Sign Contract Now
-            </a>
+            <table cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                    <td align="center" bgcolor="#10b981" style="border-radius: 8px; background-color: #10b981;">
+                        <a href="{{ $signing_url }}" target="_blank" style="font-size: 16px; font-weight: bold; color: #ffffff; text-decoration: none; display: inline-block; padding: 16px 32px; border-radius: 8px;">
+                            📝 Sign Contract Now
+                        </a>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <p style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 15px; margin: 20px 0;">
