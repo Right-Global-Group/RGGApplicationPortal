@@ -196,6 +196,41 @@ class XeroExportController extends Controller
         // Monthly Fee
         $monthlyFeePrice = (float) ($application->monthly_fee ?? 0);
         
+        // Calculate totals
+        $subtotal = $transactionFeeSubtotal + $monthlyFeePrice;
+        if ($monthlyMiniTopUpPrice > 0) {
+            $subtotal += $monthlyMiniTopUpPrice;
+        }
+        if (!$removeDeclineFee && $declineFeeQty > 0) {
+            $subtotal += $declineFeePrice;
+        }
+        if ($addChargebackFee) {
+            $subtotal += 15.00;
+        }
+        
+        $totalTax = $subtotal * $TAX_RATE;
+        $total = $subtotal + $totalTax;
+        
+        // Build combined description
+        $descriptionParts = [];
+        $descriptionParts[] = "Transaction Fee: {$transactionFeeQty} x £" . number_format($transactionFeePrice, 2);
+        
+        if ($monthlyMiniTopUpPrice > 0) {
+            $descriptionParts[] = "Monthly Mini Top Up: 1 x £" . number_format($monthlyMiniTopUpPrice, 2);
+        }
+        
+        if (!$removeDeclineFee && $declineFeeQty > 0) {
+            $descriptionParts[] = "Decline Fee: {$declineFeeQty} x £0.10";
+        }
+        
+        if ($addChargebackFee) {
+            $descriptionParts[] = "Chargeback Fee: 1 x £15.00";
+        }
+        
+        $descriptionParts[] = "Monthly Fee: 1 x £" . number_format($monthlyFeePrice, 2);
+        
+        $combinedDescription = implode("\n", $descriptionParts);
+        
         // Invoice metadata
         $invoiceNumber = 'INV-' . str_pad($import->id, 4, '0', STR_PAD_LEFT);
         $issueDate = now()->format('d/m/Y');
@@ -204,7 +239,7 @@ class XeroExportController extends Controller
         // Start CSV generation
         $output = fopen('php://temp', 'r+');
         
-        // Write header row (Xero's required format)
+        // Write header row
         fputcsv($output, [
             'ContactName',
             'EmailAddress',
@@ -240,200 +275,41 @@ class XeroExportController extends Controller
             'BrandingTheme'
         ]);
         
-        $rows = [];
-        
-        // FIRST ROW ONLY: Full invoice details
-        $rows[] = [
-            'ContactName' => $account->name,
-            'EmailAddress' => $account->email,
-            'POAddressLine1' => '',
-            'POAddressLine2' => '',
-            'POAddressLine3' => '',
-            'POAddressLine4' => '',
-            'POCity' => '',
-            'PORegion' => '',
-            'POPostalCode' => '',
-            'POCountry' => '',
-            'InvoiceNumber' => $invoiceNumber,
-            'Reference' => '',
-            'InvoiceDate' => $issueDate,
-            'DueDate' => $dueDate,
-            'Total' => '',
-            'TaxTotal' => '',
-            'InvoiceAmountPaid' => '',
-            'InvoiceAmountDue' => '',
-            'InventoryItemCode' => '004',
-            'Description' => 'Transaction Fee',
-            'Quantity' => $transactionFeeQty,
-            'UnitAmount' => number_format($transactionFeePrice, 2, '.', ''),
-            'Discount' => '',
-            'AccountCode' => '200',
-            'TaxType' => '20% (VAT on Income)',
-            'TaxAmount' => number_format($transactionFeeSubtotal * $TAX_RATE, 2, '.', ''),
-            'TrackingName1' => '',
-            'TrackingOption1' => '',
-            'TrackingName2' => '',
-            'TrackingOption2' => '',
-            'Currency' => 'GBP',
-            'BrandingTheme' => 'Standard'
-        ];
-        
-        // SUBSEQUENT ROWS: Empty invoice fields, only line item data
-        // Monthly Mini Top Up Row (only if needed)
-        if ($monthlyMiniTopUpPrice > 0) {
-            $rows[] = [
-                'ContactName' => '',
-                'EmailAddress' => '',
-                'POAddressLine1' => '',
-                'POAddressLine2' => '',
-                'POAddressLine3' => '',
-                'POAddressLine4' => '',
-                'POCity' => '',
-                'PORegion' => '',
-                'POPostalCode' => '',
-                'POCountry' => '',
-                'InvoiceNumber' => '',
-                'Reference' => '',
-                'InvoiceDate' => '',
-                'DueDate' => '',
-                'Total' => '',
-                'TaxTotal' => '',
-                'InvoiceAmountPaid' => '',
-                'InvoiceAmountDue' => '',
-                'InventoryItemCode' => '',
-                'Description' => 'Monthly Mini Top Up',
-                'Quantity' => '1',
-                'UnitAmount' => number_format($monthlyMiniTopUpPrice, 2, '.', ''),
-                'Discount' => '',
-                'AccountCode' => '200',
-                'TaxType' => '20% (VAT on Income)',
-                'TaxAmount' => number_format($monthlyMiniTopUpPrice * $TAX_RATE, 2, '.', ''),
-                'TrackingName1' => '',
-                'TrackingOption1' => '',
-                'TrackingName2' => '',
-                'TrackingOption2' => '',
-                'Currency' => '',
-                'BrandingTheme' => ''
-            ];
-        }
-        
-        // Decline Fee Row (if not removed and has charges)
-        if (!$removeDeclineFee && $declineFeeQty > 0) {
-            $rows[] = [
-                'ContactName' => '',
-                'EmailAddress' => '',
-                'POAddressLine1' => '',
-                'POAddressLine2' => '',
-                'POAddressLine3' => '',
-                'POAddressLine4' => '',
-                'POCity' => '',
-                'PORegion' => '',
-                'POPostalCode' => '',
-                'POCountry' => '',
-                'InvoiceNumber' => '',
-                'Reference' => '',
-                'InvoiceDate' => '',
-                'DueDate' => '',
-                'Total' => '',
-                'TaxTotal' => '',
-                'InvoiceAmountPaid' => '',
-                'InvoiceAmountDue' => '',
-                'InventoryItemCode' => '005',
-                'Description' => 'Decline Fee',
-                'Quantity' => $declineFeeQty,
-                'UnitAmount' => '0.10',
-                'Discount' => '',
-                'AccountCode' => '200',
-                'TaxType' => '20% (VAT on Income)',
-                'TaxAmount' => number_format($declineFeePrice * $TAX_RATE, 2, '.', ''),
-                'TrackingName1' => '',
-                'TrackingOption1' => '',
-                'TrackingName2' => '',
-                'TrackingOption2' => '',
-                'Currency' => '',
-                'BrandingTheme' => ''
-            ];
-        }
-        
-        // Chargeback Fee Row (if added)
-        if ($addChargebackFee) {
-            $chargebackFeePrice = 15.00;
-            $rows[] = [
-                'ContactName' => '',
-                'EmailAddress' => '',
-                'POAddressLine1' => '',
-                'POAddressLine2' => '',
-                'POAddressLine3' => '',
-                'POAddressLine4' => '',
-                'POCity' => '',
-                'PORegion' => '',
-                'POPostalCode' => '',
-                'POCountry' => '',
-                'InvoiceNumber' => '',
-                'Reference' => '',
-                'InvoiceDate' => '',
-                'DueDate' => '',
-                'Total' => '',
-                'TaxTotal' => '',
-                'InvoiceAmountPaid' => '',
-                'InvoiceAmountDue' => '',
-                'InventoryItemCode' => '',
-                'Description' => 'Chargeback Fee',
-                'Quantity' => '1',
-                'UnitAmount' => '15.00',
-                'Discount' => '',
-                'AccountCode' => '200',
-                'TaxType' => '20% (VAT on Income)',
-                'TaxAmount' => number_format($chargebackFeePrice * $TAX_RATE, 2, '.', ''),
-                'TrackingName1' => '',
-                'TrackingOption1' => '',
-                'TrackingName2' => '',
-                'TrackingOption2' => '',
-                'Currency' => '',
-                'BrandingTheme' => ''
-            ];
-        }
-        
-        // Monthly Fee Row
-        $rows[] = [
-            'ContactName' => '',
-            'EmailAddress' => '',
-            'POAddressLine1' => '',
-            'POAddressLine2' => '',
-            'POAddressLine3' => '',
-            'POAddressLine4' => '',
-            'POCity' => '',
-            'PORegion' => '',
-            'POPostalCode' => '',
-            'POCountry' => '',
-            'InvoiceNumber' => '',
-            'Reference' => '',
-            'InvoiceDate' => '',
-            'DueDate' => '',
-            'Total' => '',
-            'TaxTotal' => '',
-            'InvoiceAmountPaid' => '',
-            'InvoiceAmountDue' => '',
-            'InventoryItemCode' => '003',
-            'Description' => 'Monthly Fee',
-            'Quantity' => '1',
-            'UnitAmount' => number_format($monthlyFeePrice, 2, '.', ''),
-            'Discount' => '',
-            'AccountCode' => '200',
-            'TaxType' => '20% (VAT on Income)',
-            'TaxAmount' => number_format($monthlyFeePrice * $TAX_RATE, 2, '.', ''),
-            'TrackingName1' => '',
-            'TrackingOption1' => '',
-            'TrackingName2' => '',
-            'TrackingOption2' => '',
-            'Currency' => '',
-            'BrandingTheme' => ''
-        ];
-        
-        // Write all rows
-        foreach ($rows as $row) {
-            fputcsv($output, $row);
-        }
+        // Single row with all items combined in description
+        fputcsv($output, [
+            $account->name,
+            $account->email,
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            $invoiceNumber,
+            '',
+            $issueDate,
+            $dueDate,
+            '',
+            '',
+            '',
+            '',
+            '',
+            $combinedDescription,
+            '1',
+            number_format($subtotal, 2, '.', ''),
+            '',
+            '200',
+            '20% (VAT on Income)',
+            number_format($totalTax, 2, '.', ''),
+            '',
+            '',
+            '',
+            '',
+            'GBP',
+            'Standard'
+        ]);
         
         rewind($output);
         $csv = stream_get_contents($output);
@@ -441,7 +317,7 @@ class XeroExportController extends Controller
         
         return $csv;
     }
-    
+
     /**
      * Generate bulk Xero CSV for all merchants
      */
