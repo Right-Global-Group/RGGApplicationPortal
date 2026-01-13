@@ -324,7 +324,8 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
-     * Save edited PDF by actually modifying the PDF content
+     * Save edited PDF by creating an amendment document
+     * This preserves the original signed PDF and creates a separate amendment record
      */
     public function savePdfEdits(Application $application, ApplicationDocument $document): JsonResponse
     {
@@ -355,81 +356,90 @@ class ApplicationDocumentsController extends Controller
         ]);
 
         try {
-            $originalPath = storage_path('app/public/' . $document->file_path);
+            // Get original field values for comparison
+            $originalFields = $document->document_category === 'contract' 
+                ? $this->getContractEditableFields($application)
+                : $this->getApplicationFormEditableFields($application);
             
-            if (!file_exists($originalPath)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Original document not found',
-                ], 404);
+            $originalValues = [];
+            foreach ($originalFields as $field) {
+                $originalValues[$field['name']] = $field['value'];
             }
 
-            // Use PdfEditorService to actually edit the PDF
-            $pdfEditor = new \App\Services\PdfEditorService();
-            $tempEditedPath = $pdfEditor->editPdf(
-                $originalPath,
+            // Create amendment PDF showing the changes
+            $amendmentService = new \App\Services\PdfAmendmentService();
+            $tempAmendmentPath = $amendmentService->createAmendmentPdf(
+                $application,
                 $validated['field_values'],
+                $originalValues,
                 $document->document_category
             );
 
-            // Move edited PDF to permanent location
-            $editedFilename = time() . '_edited_' . $document->original_filename;
-            $editedPath = 'applications/' . $application->id . '/documents/' . $editedFilename;
-            $editedFullPath = storage_path('app/public/' . $editedPath);
+            // Move amendment PDF to permanent location
+            $amendmentFilename = time() . '_amendment_' . $document->original_filename;
+            $amendmentPath = 'applications/' . $application->id . '/documents/' . $amendmentFilename;
+            $amendmentFullPath = storage_path('app/public/' . $amendmentPath);
 
             // Ensure directory exists
-            $directory = dirname($editedFullPath);
+            $directory = dirname($amendmentFullPath);
             if (!file_exists($directory)) {
                 mkdir($directory, 0755, true);
             }
 
             // Move temp file to permanent location
-            rename($tempEditedPath, $editedFullPath);
+            rename($tempAmendmentPath, $amendmentFullPath);
 
-            // Create new document record
-            $editedDocument = ApplicationDocument::create([
+            // Create amendment document record
+            $amendmentDocument = ApplicationDocument::create([
                 'application_id' => $application->id,
                 'document_type' => 'application/pdf',
-                'document_category' => $document->document_category,
-                'file_path' => $editedPath,
-                'original_filename' => 'Edited_' . $document->original_filename,
+                'document_category' => $document->document_category . '_amendment',
+                'file_path' => $amendmentPath,
+                'original_filename' => 'Amendment_' . $document->original_filename,
                 'uploaded_by' => $user->id,
                 'uploaded_by_type' => 'user',
                 'status' => 'uploaded',
-                'external_id' => $document->external_id,
-                'external_system' => $document->external_system,
                 'parent_document_id' => $document->id,
                 'metadata' => json_encode([
-                    'edited_fields' => $validated['field_values'],
-                    'edited_at' => now()->toISOString(),
-                    'edited_by' => $user->name,
+                    'amendment' => true,
+                    'original_document_id' => $document->id,
+                    'changed_fields' => $validated['field_values'],
+                    'original_values' => $originalValues,
+                    'amended_at' => now()->toISOString(),
+                    'amended_by' => $user->name,
                 ]),
             ]);
 
-            // Mark old document as superseded
+            // Add note to original document
             $document->update([
-                'is_superseded' => true,
-                'superseded_by_id' => $editedDocument->id,
-                'superseded_at' => now(),
+                'metadata' => json_encode(array_merge(
+                    json_decode($document->metadata ?? '{}', true),
+                    [
+                        'has_amendment' => true,
+                        'amendment_document_id' => $amendmentDocument->id,
+                        'amended_at' => now()->toISOString(),
+                    ]
+                )),
             ]);
 
-            Log::info('PDF document edited successfully', [
+            Log::info('PDF amendment created successfully', [
                 'application_id' => $application->id,
                 'original_document_id' => $document->id,
-                'edited_document_id' => $editedDocument->id,
+                'amendment_document_id' => $amendmentDocument->id,
                 'field_count' => count($validated['field_values']),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Document edited successfully',
-                'edited_document_id' => $editedDocument->id,
+                'message' => 'Amendment created successfully. The original signed document has been preserved.',
+                'amendment_document_id' => $amendmentDocument->id,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to save PDF edits', [
+            Log::error('Failed to create PDF amendment', [
                 'document_id' => $document->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
