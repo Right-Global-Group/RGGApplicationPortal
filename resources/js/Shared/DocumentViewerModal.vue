@@ -53,11 +53,10 @@
             <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto relative" style="max-height: 70vh;">
               
               <div v-if="isPDF" class="relative">
-                <!-- Show form fields in edit mode -->
                 <div v-if="editMode" class="bg-white rounded p-6 space-y-4 max-h-[60vh] overflow-auto">
                   <div class="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
                     <p class="text-sm text-blue-300">
-                      💡 <strong>Edit the fields below.</strong> When you save, a new PDF will be generated with your changes.
+                      💡 <strong>Edit the fields below.</strong> The PDF will be modified in your browser and uploaded to the server.
                     </p>
                   </div>
                   
@@ -75,7 +74,6 @@
                   </div>
                 </div>
 
-                <!-- Show PDF in view mode -->
                 <div v-else class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
                   <embed
                     :src="`data:${document.mime_type};base64,${document.content}`"
@@ -85,13 +83,13 @@
                   />
                 </div>
 
-                <div v-if="loadingFields" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded">
+                <div v-if="loadingFields || processing" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded">
                   <div class="text-center">
                     <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="text-gray-400">Loading edit fields...</p>
+                    <p class="text-gray-400">{{ processing ? 'Processing PDF...' : 'Loading edit fields...' }}</p>
                   </div>
                 </div>
               </div>
@@ -142,14 +140,14 @@
                 <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                 </svg>
-                Edit the fields above and click Save Changes to create a new version.
+                Edit fields and save. The PDF will be modified with your changes.
               </div>
               <div v-else></div>
               
               <div class="flex gap-3">
                 <button
                   v-if="editMode"
-                  @click="saveEdits"
+                  @click="saveEditsClientSide"
                   :disabled="saving || !hasModifications"
                   class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
@@ -178,6 +176,7 @@
 
 <script>
 import { router } from '@inertiajs/vue3'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 export default {
   emits: ["close"],
@@ -198,7 +197,9 @@ export default {
       editMode: false,
       loadingFields: false,
       saving: false,
+      processing: false,
       editableFields: [],
+      pdfDoc: null,
     };
   },
   computed: {
@@ -256,6 +257,9 @@ export default {
               });
             });
           });
+          
+          // Load PDF into memory for editing
+          await this.loadPdfForEditing();
         } else {
           alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
           this.editMode = false;
@@ -269,38 +273,86 @@ export default {
       }
     },
     
-    cancelEditing() {
-      this.editMode = false;
-      this.editableFields = [];
+    async loadPdfForEditing() {
+      try {
+        // Convert base64 to array buffer
+        const pdfBytes = Uint8Array.from(atob(this.document.content), c => c.charCodeAt(0));
+        this.pdfDoc = await PDFDocument.load(pdfBytes);
+        console.log('PDF loaded successfully for editing');
+      } catch (error) {
+        console.error('Failed to load PDF:', error);
+        throw error;
+      }
     },
     
-    async saveEdits() {
+    async saveEditsClientSide() {
       this.saving = true;
-      
-      const fieldValues = {};
-      this.editableFields.forEach(field => {
-        if (field.modified) {
-          fieldValues[field.name] = field.value;
-        }
-      });
+      this.processing = true;
       
       try {
+        // Get field positions for this document type
+        const fieldPositions = this.getFieldPositions();
+        
+        // Get the first page
+        const pages = this.pdfDoc.getPages();
+        const firstPage = pages[0];
+        
+        // Embed font
+        const font = await this.pdfDoc.embedFont(StandardFonts.Helvetica);
+        const boldFont = await this.pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        
+        // Draw white rectangles and new text for each modified field
+        for (const field of this.editableFields) {
+          if (!field.modified) continue;
+          
+          const position = fieldPositions[field.name];
+          if (!position) continue;
+          
+          // Draw white rectangle to cover old text
+          firstPage.drawRectangle({
+            x: position.x,
+            y: position.y,
+            width: position.width,
+            height: position.height,
+            color: rgb(1, 1, 1),
+          });
+          
+          // Draw new text
+          firstPage.drawText(field.value, {
+            x: position.x + 2,
+            y: position.y + 2,
+            size: position.fontSize || 10,
+            font: position.bold ? boldFont : font,
+            color: rgb(0, 0, 0),
+          });
+        }
+        
+        // Save the PDF
+        const pdfBytes = await this.pdfDoc.save();
+        
+        // Convert to base64
+        const base64 = btoa(String.fromCharCode(...pdfBytes));
+        
+        // Upload to server
         const response = await fetch(
-          `/applications/${this.applicationId}/documents/${this.document.id}/save-pdf-edits`,
+          `/applications/${this.applicationId}/documents/${this.document.id}/upload-edited-pdf`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({ field_values: fieldValues })
+            body: JSON.stringify({
+              pdf_content: base64,
+              original_filename: this.document.filename
+            })
           }
         );
 
         const data = await response.json();
         
         if (data.success) {
-          alert('✅ Document edited successfully! A new version has been created.');
+          alert('✅ Document edited successfully! The PDF has been updated.');
           this.editMode = false;
           this.close();
           router.reload({ preserveScroll: true });
@@ -308,11 +360,39 @@ export default {
           alert('❌ Failed to save: ' + data.message);
         }
       } catch (error) {
-        console.error('Failed to save edits:', error);
-        alert('❌ Failed to save edits. Please try again.');
+        console.error('Failed to edit PDF:', error);
+        alert('❌ Failed to edit PDF. Error: ' + error.message);
       } finally {
         this.saving = false;
+        this.processing = false;
       }
+    },
+    
+    getFieldPositions() {
+      // PDF coordinates are from BOTTOM-LEFT corner
+      // You'll need to calibrate these based on your PDF
+      
+      if (this.documentCategory === 'contract') {
+        return {
+          'merchant_name': { x: 50, y: 700, width: 200, height: 15, fontSize: 10, bold: true },
+          'transaction_fixed_fee': { x: 400, y: 400, width: 80, height: 15, fontSize: 9 },
+          'monthly_minimum': { x: 400, y: 380, width: 100, height: 15, fontSize: 8 },
+          'monthly_fee': { x: 400, y: 360, width: 80, height: 15, fontSize: 9 },
+          'transaction_percentage': { x: 400, y: 340, width: 80, height: 15, fontSize: 9 },
+        };
+      } else {
+        return {
+          'registered_company_name': { x: 100, y: 700, width: 200, height: 15, fontSize: 10 },
+          'trading_name': { x: 100, y: 680, width: 200, height: 15, fontSize: 10 },
+          'registration_number': { x: 100, y: 660, width: 200, height: 15, fontSize: 10 },
+        };
+      }
+    },
+    
+    cancelEditing() {
+      this.editMode = false;
+      this.editableFields = [];
+      this.pdfDoc = null;
     },
 
     parseIfNeeded() {
@@ -333,6 +413,7 @@ export default {
       this.csvHeaders = [];
       this.editMode = false;
       this.editableFields = [];
+      this.pdfDoc = null;
     },
 
     close() {

@@ -216,6 +216,9 @@ Route::middleware(['auth:web,account'])->group(function () {
         
         Route::post('/{application}/documents/{document}/save-pdf-edits', [ApplicationDocumentsController::class, 'savePdfEdits'])
             ->name('applications.documents.save-pdf-edits');
+
+        Route::post('/{application}/documents/{document}/upload-edited-pdf', [ApplicationDocumentsController::class, 'uploadEditedPdf'])
+            ->name('applications.documents.upload-edited-pdf');
     });
 
     // Xero Export Routes

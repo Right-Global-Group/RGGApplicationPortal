@@ -324,6 +324,106 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
+     * Upload edited PDF from client (pdf-lib edited in browser)
+     */
+    public function uploadEditedPdf(Application $application, ApplicationDocument $document): JsonResponse
+    {
+        if (auth()->guard('account')->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Accounts cannot edit documents',
+            ], 403);
+        }
+
+        $user = auth()->guard('web')->user();
+        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only edit documents for applications you manage',
+            ], 403);
+        }
+
+        $validated = Request::validate([
+            'pdf_content' => ['required', 'string'],
+            'original_filename' => ['required', 'string'],
+        ]);
+
+        try {
+            // Decode base64 PDF
+            $pdfContent = base64_decode($validated['pdf_content']);
+            
+            if (!$pdfContent) {
+                throw new \Exception('Invalid PDF content');
+            }
+
+            // Save edited PDF
+            $editedFilename = time() . '_edited_' . $validated['original_filename'];
+            $editedPath = 'applications/' . $application->id . '/documents/' . $editedFilename;
+            $editedFullPath = storage_path('app/public/' . $editedPath);
+
+            // Ensure directory exists
+            $directory = dirname($editedFullPath);
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
+
+            // Write PDF to file
+            file_put_contents($editedFullPath, $pdfContent);
+
+            // Create new document record
+            $editedDocument = ApplicationDocument::create([
+                'application_id' => $application->id,
+                'document_type' => 'application/pdf',
+                'document_category' => $document->document_category,
+                'file_path' => $editedPath,
+                'original_filename' => 'Edited_' . $validated['original_filename'],
+                'uploaded_by' => $user->id,
+                'uploaded_by_type' => 'user',
+                'status' => 'uploaded',
+                'external_id' => $document->external_id,
+                'external_system' => $document->external_system,
+                'parent_document_id' => $document->id,
+                'metadata' => json_encode([
+                    'edited_client_side' => true,
+                    'edited_at' => now()->toISOString(),
+                    'edited_by' => $user->name,
+                ]),
+            ]);
+
+            // Mark old document as superseded
+            $document->update([
+                'is_superseded' => true,
+                'superseded_by_id' => $editedDocument->id,
+                'superseded_at' => now(),
+            ]);
+
+            Log::info('PDF edited successfully via client-side', [
+                'application_id' => $application->id,
+                'original_document_id' => $document->id,
+                'edited_document_id' => $editedDocument->id,
+                'file_size' => strlen($pdfContent),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document edited successfully',
+                'edited_document_id' => $editedDocument->id,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to upload edited PDF', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save edited PDF: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Save edited PDF by creating an amendment document
      * This preserves the original signed PDF and creates a separate amendment record
      */
