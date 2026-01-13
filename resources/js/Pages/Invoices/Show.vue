@@ -180,7 +180,7 @@
       const TAX_RATE = 0.20 // 20% VAT
 
       // Transaction Fee Calculations
-      const transactionFeeQty = computed(() => props.merchantStats.accepted)
+      const transactionFeeQty = computed(() => props.merchantStats.total_transactions)
       const transactionFeePrice = computed(() => parseFloat(props.applicationData.transaction_fixed_fee || 0))
       const transactionFeeSubtotal = computed(() => transactionFeeQty.value * transactionFeePrice.value)
       const transactionFeeTax = computed(() => transactionFeeSubtotal.value * TAX_RATE)
@@ -221,7 +221,7 @@
       const monthlyMiniTopUpAmount = computed(() => monthlyMiniTopUpPrice.value)
 
       // Decline Fee Calculations
-      const declineFeeQty = computed(() => props.merchantStats.declined)
+      const declineFeeQty = computed(() => props.merchantStats.declined + props.merchantStats.received)
       const declineFeePrice = computed(() => {
         const declined = props.merchantStats.declined
         return declined * 0.10
