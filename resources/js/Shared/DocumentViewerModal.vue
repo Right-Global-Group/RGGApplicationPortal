@@ -58,33 +58,29 @@
             <!-- Document viewer -->
             <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto relative" style="max-height: 70vh;">
               
-              <!-- PDF Viewer with Inline Editing -->
+              <!-- PDF Viewer with Overlay Fields -->
               <div v-if="isPDF" class="relative">
-                <!-- Canvas Container for PDF rendering -->
+                <!-- PDF Display using embed - ALWAYS VISIBLE -->
                 <div class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
-                  <canvas 
-                    ref="pdfCanvas" 
-                    class="w-full cursor-pointer"
-                    @click="handleCanvasClick"
-                  ></canvas>
+                  <embed
+                    :src="`data:${document.mime_type};base64,${document.content}`"
+                    type="application/pdf"
+                    class="w-full"
+                    style="min-height: 600px;"
+                  />
                   
-                  <!-- Overlay input fields in edit mode -->
+                  <!-- Overlay input fields in edit mode - positioned absolutely -->
                   <div v-if="editMode && editableFields.length > 0" class="absolute inset-0 pointer-events-none">
                     <div
                       v-for="field in editableFields"
                       :key="field.name"
                       class="absolute pointer-events-auto"
-                      :style="{
-                        left: field.rect.x + 'px',
-                        top: field.rect.y + 'px',
-                        width: field.rect.width + 'px',
-                        height: field.rect.height + 'px'
-                      }"
+                      :style="getFieldStyle(field)"
                     >
                       <input
                         v-model="field.value"
                         type="text"
-                        class="w-full h-full px-2 text-sm border-2 border-yellow-500 bg-white/95 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:bg-white"
+                        class="w-full h-full px-2 text-sm border-2 border-yellow-500 bg-yellow-50/90 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:bg-white"
                         :placeholder="formatFieldName(field.name)"
                         @input="field.modified = true"
                       />
@@ -93,13 +89,13 @@
                 </div>
 
                 <!-- Loading indicator -->
-                <div v-if="loadingPdf" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded">
+                <div v-if="loadingFields" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded">
                   <div class="text-center">
                     <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p class="text-gray-400">{{ pdfError || 'Loading PDF...' }}</p>
+                    <p class="text-gray-400">Loading edit fields...</p>
                   </div>
                 </div>
               </div>
@@ -150,8 +146,11 @@
 
             <!-- Footer -->
             <div class="mt-6 flex justify-between items-center">
-              <div v-if="editMode" class="text-sm text-gray-400">
-                💡 Tip: Click on highlighted fields in the document to edit them directly.
+              <div v-if="editMode" class="text-sm text-gray-400 flex items-center gap-2">
+                <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                Tip: Click on highlighted fields in the document to edit them directly.
               </div>
               <div v-else></div>
               
@@ -205,13 +204,9 @@ export default {
       csvRows: [],
       csvHeaders: [],
       editMode: false,
-      loadingPdf: false,
+      loadingFields: false,
       saving: false,
       editableFields: [],
-      pdfError: null,
-      pdfDoc: null,
-      currentPage: 1,
-      scale: 1.5,
     };
   },
   computed: {
@@ -242,84 +237,15 @@ export default {
     show(value) {
       if (value && this.document) {
         this.parseIfNeeded();
-        if (this.isPDF) {
-          this.$nextTick(() => {
-            this.loadPDF();
-          });
-        }
       } else if (!value) {
         this.reset();
       }
     },
   },
   methods: {
-    async loadPDF() {
-      if (!this.document?.content) return;
-      
-      this.loadingPdf = true;
-      
-      try {
-        // Load PDF.js
-        if (!window.pdfjsLib) {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-          document.head.appendChild(script);
-          await new Promise((resolve) => {
-            script.onload = resolve;
-          });
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
-        
-        // Convert base64 to ArrayBuffer
-        const binaryString = atob(this.document.content);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        // Load PDF document
-        const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
-        this.pdfDoc = await loadingTask.promise;
-        
-        // Render first page
-        await this.renderPage(this.currentPage);
-        
-      } catch (error) {
-        console.error('Failed to load PDF:', error);
-        this.pdfError = 'Failed to load PDF';
-      } finally {
-        this.loadingPdf = false;
-      }
-    },
-    
-    async renderPage(pageNum) {
-      if (!this.pdfDoc) return;
-      
-      try {
-        const page = await this.pdfDoc.getPage(pageNum);
-        const canvas = this.$refs.pdfCanvas;
-        if (!canvas) return;
-        
-        const viewport = page.getViewport({ scale: this.scale });
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport
-        };
-        
-        await page.render(renderContext).promise;
-      } catch (error) {
-        console.error('Failed to render page:', error);
-      }
-    },
-    
     async startEditing() {
       this.editMode = true;
-      this.loadingPdf = true;
+      this.loadingFields = true;
       
       try {
         const response = await fetch(
@@ -336,7 +262,6 @@ export default {
               this.editableFields.push({
                 ...field,
                 modified: false,
-                rect: this.calculateFieldRect(field)
               });
             });
           });
@@ -349,57 +274,28 @@ export default {
         alert('Failed to load PDF fields');
         this.editMode = false;
       } finally {
-        this.loadingPdf = false;
+        this.loadingFields = false;
       }
     },
     
-    calculateFieldRect(field) {
-      // This is a simplified calculation - you'll need to adjust based on actual PDF coordinates
-      const canvas = this.$refs.pdfCanvas;
-      if (!canvas) return { x: 0, y: 0, width: 200, height: 30 };
-      
-      // Map field names to approximate positions (you'll need to adjust these based on your actual PDF layout)
-      const fieldPositions = {
-        'merchant_name': { x: 100, y: 150, width: 300, height: 30 },
-        'trading_name': { x: 100, y: 200, width: 300, height: 30 },
-        'company_number': { x: 100, y: 250, width: 300, height: 30 },
-        'registered_address': { x: 100, y: 300, width: 300, height: 30 },
-        'contact_email': { x: 100, y: 350, width: 300, height: 30 },
-        'contact_phone': { x: 100, y: 400, width: 300, height: 30 },
-        'transaction_percentage': { x: 100, y: 450, width: 150, height: 30 },
-        'transaction_fixed_fee': { x: 300, y: 450, width: 150, height: 30 },
-        'monthly_fee': { x: 100, y: 500, width: 150, height: 30 },
-        'monthly_minimum': { x: 300, y: 500, width: 150, height: 30 },
-        'setup_fee': { x: 100, y: 550, width: 150, height: 30 },
+    getFieldStyle(field) {
+      // Field positions relative to PDF viewer (you'll need to calibrate these)
+      const positions = {
+        'merchant_name': { top: '18%', left: '15%', width: '50%', height: '30px' },
+        'trading_name': { top: '23%', left: '15%', width: '50%', height: '30px' },
+        'company_number': { top: '28%', left: '15%', width: '30%', height: '30px' },
+        'registered_address': { top: '33%', left: '15%', width: '50%', height: '30px' },
+        'contact_email': { top: '38%', left: '15%', width: '50%', height: '30px' },
+        'contact_phone': { top: '43%', left: '15%', width: '30%', height: '30px' },
+        'transaction_percentage': { top: '48%', left: '15%', width: '15%', height: '30px' },
+        'transaction_fixed_fee': { top: '48%', left: '35%', width: '15%', height: '30px' },
+        'monthly_fee': { top: '53%', left: '15%', width: '15%', height: '30px' },
+        'monthly_minimum': { top: '53%', left: '35%', width: '15%', height: '30px' },
+        'setup_fee': { top: '58%', left: '15%', width: '15%', height: '30px' },
       };
       
-      return fieldPositions[field.name] || { x: 100, y: 100, width: 200, height: 30 };
-    },
-    
-    handleCanvasClick(event) {
-      if (!this.editMode) return;
-      
-      // Focus the input field at the clicked position
-      const rect = event.target.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      
-      // Find the closest field to the click
-      const field = this.editableFields.find(f => {
-        return x >= f.rect.x && x <= f.rect.x + f.rect.width &&
-               y >= f.rect.y && y <= f.rect.y + f.rect.height;
-      });
-      
-      if (field) {
-        // Focus the corresponding input
-        this.$nextTick(() => {
-          const inputs = this.$el.querySelectorAll('input');
-          const index = this.editableFields.indexOf(field);
-          if (inputs[index]) {
-            inputs[index].focus();
-          }
-        });
-      }
+      const defaultPos = { top: '10%', left: '10%', width: '30%', height: '30px' };
+      return positions[field.name] || defaultPos;
     },
     
     cancelEditing() {
@@ -467,8 +363,6 @@ export default {
       this.csvHeaders = [];
       this.editMode = false;
       this.editableFields = [];
-      this.pdfError = null;
-      this.pdfDoc = null;
     },
 
     close() {
