@@ -282,7 +282,7 @@ class XeroExportController extends Controller
         
         // Monthly Mini Top Up Row
         $rows[] = [
-            'ContactName' => '',
+            'ContactName' => $account->name,
             'EmailAddress' => '',
             'POAddressLine1' => '',
             'POAddressLine2' => '',
@@ -319,7 +319,7 @@ class XeroExportController extends Controller
         // Decline Fee Row (if not removed)
         if (!$removeDeclineFee && $merchantStat->declined > 0) {
             $rows[] = [
-                'ContactName' => '',
+                'ContactName' => $account->name,
                 'EmailAddress' => '',
                 'POAddressLine1' => '',
                 'POAddressLine2' => '',
@@ -358,7 +358,7 @@ class XeroExportController extends Controller
         if ($addChargebackFee) {
             $chargebackFeePrice = 15.00;
             $rows[] = [
-                'ContactName' => '',
+                'ContactName' => $account->name,
                 'EmailAddress' => '',
                 'POAddressLine1' => '',
                 'POAddressLine2' => '',
@@ -395,7 +395,7 @@ class XeroExportController extends Controller
         
         // Monthly Fee Row
         $rows[] = [
-            'ContactName' => '',
+            'ContactName' => $account->name,
             'EmailAddress' => '',
             'POAddressLine1' => '',
             'POAddressLine2' => '',
@@ -556,7 +556,7 @@ class XeroExportController extends Controller
             
             // Monthly Mini Top Up
             fputcsv($output, [
-                '', '', '', '', '', '', '', '', '', '',
+                $account->name, '', '', '', '', '', '', '', '', '',
                 '', '', '', '', '', '', '', '',
                 '',
                 'Monthly Mini Top Up',
@@ -572,7 +572,7 @@ class XeroExportController extends Controller
             // Decline Fee (if any)
             if ($merchantStat->declined > 0) {
                 fputcsv($output, [
-                    '', '', '', '', '', '', '', '', '', '',
+                    $account->name, '', '', '', '', '', '', '', '', '',
                     '', '', '', '', '', '', '', '',
                     '005',
                     'Decline Fee',
@@ -588,7 +588,7 @@ class XeroExportController extends Controller
             
             // Monthly Fee
             fputcsv($output, [
-                '', '', '', '', '', '', '', '', '', '',
+                $account->name, '', '', '', '', '', '', '', '', '',
                 '', '', '', '', '', '', '', '',
                 '003',
                 'Monthly Fee',
