@@ -42,36 +42,53 @@
                   </svg>
                   Edit Fields
                 </button>
+                <button
+                  v-if="canEdit && editMode"
+                  @click="cancelEditing"
+                  class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                  Cancel Edit
+                </button>
               </div>
             </div>
 
             <!-- Document viewer -->
-            <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto" style="max-height: 70vh;">
+            <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto relative" style="max-height: 70vh;">
               
-              <!-- PDF Viewer -->
+              <!-- PDF Viewer with Inline Editing -->
               <div v-if="isPDF" class="relative">
-                <!-- PDF Display using embed (most reliable) -->
-                <div v-if="!editMode" class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
-                  <embed
-                    :src="`data:${document.mime_type};base64,${document.content}`"
-                    type="application/pdf"
-                    class="w-full"
-                    style="min-height: 600px;"
-                  />
-                </div>
-
-                <!-- Edit Mode - Show form fields -->
-                <div v-if="editMode" class="bg-white rounded p-6 space-y-4">
-                  <div v-for="field in overlayFields" :key="field.name" class="space-y-2">
-                    <label class="block text-sm font-semibold text-gray-700">
-                      {{ formatFieldName(field.name) }}
-                    </label>
-                    <input
-                      v-model="field.value"
-                      type="text"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                      :placeholder="formatFieldName(field.name)"
-                    />
+                <!-- Canvas Container for PDF rendering -->
+                <div class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
+                  <canvas 
+                    ref="pdfCanvas" 
+                    class="w-full cursor-pointer"
+                    @click="handleCanvasClick"
+                  ></canvas>
+                  
+                  <!-- Overlay input fields in edit mode -->
+                  <div v-if="editMode && editableFields.length > 0" class="absolute inset-0 pointer-events-none">
+                    <div
+                      v-for="field in editableFields"
+                      :key="field.name"
+                      class="absolute pointer-events-auto"
+                      :style="{
+                        left: field.rect.x + 'px',
+                        top: field.rect.y + 'px',
+                        width: field.rect.width + 'px',
+                        height: field.rect.height + 'px'
+                      }"
+                    >
+                      <input
+                        v-model="field.value"
+                        type="text"
+                        class="w-full h-full px-2 text-sm border-2 border-yellow-500 bg-white/95 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:bg-white"
+                        :placeholder="formatFieldName(field.name)"
+                        @input="field.modified = true"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -134,29 +151,22 @@
             <!-- Footer -->
             <div class="mt-6 flex justify-between items-center">
               <div v-if="editMode" class="text-sm text-gray-400">
-                💡 Tip: Fill in the fields below and save your changes.
+                💡 Tip: Click on highlighted fields in the document to edit them directly.
               </div>
               <div v-else></div>
               
               <div class="flex gap-3">
                 <button
                   v-if="editMode"
-                  @click="cancelEditing"
-                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  v-if="editMode"
                   @click="saveEdits"
-                  :disabled="saving"
+                  :disabled="saving || !hasModifications"
                   class="px-6 py-2 bg-magenta-600 hover:bg-magenta-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <svg v-if="saving" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>{{ saving ? 'Saving...' : 'Save Edited Version' }}</span>
+                  <span>{{ saving ? 'Saving...' : 'Save Changes' }}</span>
                 </button>
                 <button
                   v-if="!editMode"
@@ -197,8 +207,11 @@ export default {
       editMode: false,
       loadingPdf: false,
       saving: false,
-      overlayFields: [],
+      editableFields: [],
       pdfError: null,
+      pdfDoc: null,
+      currentPage: 1,
+      scale: 1.5,
     };
   },
   computed: {
@@ -221,17 +234,89 @@ export default {
         (this.documentCategory === 'contract' || this.documentCategory === 'application_form')
       );
     },
+    hasModifications() {
+      return this.editableFields.some(field => field.modified);
+    },
   },
   watch: {
     show(value) {
       if (value && this.document) {
         this.parseIfNeeded();
+        if (this.isPDF) {
+          this.$nextTick(() => {
+            this.loadPDF();
+          });
+        }
       } else if (!value) {
         this.reset();
       }
     },
   },
   methods: {
+    async loadPDF() {
+      if (!this.document?.content) return;
+      
+      this.loadingPdf = true;
+      
+      try {
+        // Load PDF.js
+        if (!window.pdfjsLib) {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+          document.head.appendChild(script);
+          await new Promise((resolve) => {
+            script.onload = resolve;
+          });
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        
+        // Convert base64 to ArrayBuffer
+        const binaryString = atob(this.document.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Load PDF document
+        const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+        this.pdfDoc = await loadingTask.promise;
+        
+        // Render first page
+        await this.renderPage(this.currentPage);
+        
+      } catch (error) {
+        console.error('Failed to load PDF:', error);
+        this.pdfError = 'Failed to load PDF';
+      } finally {
+        this.loadingPdf = false;
+      }
+    },
+    
+    async renderPage(pageNum) {
+      if (!this.pdfDoc) return;
+      
+      try {
+        const page = await this.pdfDoc.getPage(pageNum);
+        const canvas = this.$refs.pdfCanvas;
+        if (!canvas) return;
+        
+        const viewport = page.getViewport({ scale: this.scale });
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        
+        await page.render(renderContext).promise;
+      } catch (error) {
+        console.error('Failed to render page:', error);
+      }
+    },
+    
     async startEditing() {
       this.editMode = true;
       this.loadingPdf = true;
@@ -244,10 +329,16 @@ export default {
         const data = await response.json();
         
         if (data.success && data.fields) {
-          // Flatten fields from all pages
-          this.overlayFields = [];
+          // Convert fields to editable format with positions
+          this.editableFields = [];
           Object.values(data.fields).forEach(pageFields => {
-            this.overlayFields.push(...pageFields);
+            pageFields.forEach(field => {
+              this.editableFields.push({
+                ...field,
+                modified: false,
+                rect: this.calculateFieldRect(field)
+              });
+            });
           });
         } else {
           alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
@@ -262,9 +353,58 @@ export default {
       }
     },
     
+    calculateFieldRect(field) {
+      // This is a simplified calculation - you'll need to adjust based on actual PDF coordinates
+      const canvas = this.$refs.pdfCanvas;
+      if (!canvas) return { x: 0, y: 0, width: 200, height: 30 };
+      
+      // Map field names to approximate positions (you'll need to adjust these based on your actual PDF layout)
+      const fieldPositions = {
+        'merchant_name': { x: 100, y: 150, width: 300, height: 30 },
+        'trading_name': { x: 100, y: 200, width: 300, height: 30 },
+        'company_number': { x: 100, y: 250, width: 300, height: 30 },
+        'registered_address': { x: 100, y: 300, width: 300, height: 30 },
+        'contact_email': { x: 100, y: 350, width: 300, height: 30 },
+        'contact_phone': { x: 100, y: 400, width: 300, height: 30 },
+        'transaction_percentage': { x: 100, y: 450, width: 150, height: 30 },
+        'transaction_fixed_fee': { x: 300, y: 450, width: 150, height: 30 },
+        'monthly_fee': { x: 100, y: 500, width: 150, height: 30 },
+        'monthly_minimum': { x: 300, y: 500, width: 150, height: 30 },
+        'setup_fee': { x: 100, y: 550, width: 150, height: 30 },
+      };
+      
+      return fieldPositions[field.name] || { x: 100, y: 100, width: 200, height: 30 };
+    },
+    
+    handleCanvasClick(event) {
+      if (!this.editMode) return;
+      
+      // Focus the input field at the clicked position
+      const rect = event.target.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      // Find the closest field to the click
+      const field = this.editableFields.find(f => {
+        return x >= f.rect.x && x <= f.rect.x + f.rect.width &&
+               y >= f.rect.y && y <= f.rect.y + f.rect.height;
+      });
+      
+      if (field) {
+        // Focus the corresponding input
+        this.$nextTick(() => {
+          const inputs = this.$el.querySelectorAll('input');
+          const index = this.editableFields.indexOf(field);
+          if (inputs[index]) {
+            inputs[index].focus();
+          }
+        });
+      }
+    },
+    
     cancelEditing() {
       this.editMode = false;
-      this.overlayFields = [];
+      this.editableFields = [];
     },
     
     async saveEdits() {
@@ -272,8 +412,10 @@ export default {
       
       // Convert fields to simple object
       const fieldValues = {};
-      this.overlayFields.forEach(field => {
-        fieldValues[field.name] = field.value;
+      this.editableFields.forEach(field => {
+        if (field.modified) {
+          fieldValues[field.name] = field.value;
+        }
       });
       
       try {
@@ -324,8 +466,9 @@ export default {
       this.csvRows = [];
       this.csvHeaders = [];
       this.editMode = false;
-      this.overlayFields = [];
+      this.editableFields = [];
       this.pdfError = null;
+      this.pdfDoc = null;
     },
 
     close() {
