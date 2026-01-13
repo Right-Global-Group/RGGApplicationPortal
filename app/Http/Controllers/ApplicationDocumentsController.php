@@ -135,8 +135,7 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
-     * Get PDF form fields for editing
-     * Returns simple text-based fields that work with any PDF
+     * Get PDF form fields for editing - returns fields based on document category
      */
     public function getPdfFields(Application $application, ApplicationDocument $document): JsonResponse
     {
@@ -157,8 +156,12 @@ class ApplicationDocumentsController extends Controller
         }
 
         try {
-            // Return predefined editable fields based on your contract structure
-            $fields = $this->getEditableFields($application);
+            // Get fields based on document category
+            if ($document->document_category === 'contract') {
+                $fields = $this->getContractEditableFields($application);
+            } else {
+                $fields = $this->getApplicationFormEditableFields($application);
+            }
 
             return response()->json([
                 'success' => true,
@@ -177,6 +180,147 @@ class ApplicationDocumentsController extends Controller
                 'message' => 'Failed to load fields: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get editable fields for CONTRACT document
+     * Based on DocuSignService locked text tabs
+     */
+    private function getContractEditableFields(Application $application): array
+    {
+        return [
+            [
+                'name' => 'merchant_name',
+                'value' => $application->account->name ?? $application->trading_name,
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'before_incorporated', // Page 1, before "incorporated"
+            ],
+            [
+                'name' => 'transaction_fixed_fee',
+                'value' => '£' . number_format($application->transaction_fixed_fee, 2),
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'all_request_types', // Page 1, "All request types" row
+            ],
+            [
+                'name' => 'monthly_minimum',
+                'value' => $application->scaling_fee > 0 
+                    ? '£' . number_format($application->monthly_minimum, 2) . ' first month. £' . number_format($application->scaling_fee, 2) . ' thereafter'
+                    : '£' . number_format($application->monthly_minimum, 2),
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'service_fee', // Page 1, "Service fee/monthly minimum" row
+            ],
+            [
+                'name' => 'monthly_fee',
+                'value' => '£' . number_format($application->monthly_fee, 2),
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'monthly_fee_pci', // Page 1, "Monthly Fee (inc PCI)" row
+            ],
+            [
+                'name' => 'transaction_percentage',
+                'value' => number_format($application->transaction_percentage, 2) . '%',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'uk_debit', // Page 1, "UK Consumer Debit" row
+            ],
+        ];
+    }
+
+    /**
+     * Get editable fields for APPLICATION FORM document
+     * Based on DocuSignService fillable form tabs
+     */
+    private function getApplicationFormEditableFields(Application $application): array
+    {
+        return [
+            [
+                'name' => 'registered_company_name',
+                'value' => $application->account->name,
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'top_page1',
+            ],
+            [
+                'name' => 'trading_name',
+                'value' => $application->trading_name ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'trading_name_field',
+            ],
+            [
+                'name' => 'registration_number',
+                'value' => $application->company_number ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'registration_number',
+            ],
+            [
+                'name' => 'registered_address_street',
+                'value' => $application->registered_address ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'registered_address_street',
+            ],
+            [
+                'name' => 'registered_address_city',
+                'value' => $application->city ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'registered_address_city',
+            ],
+            [
+                'name' => 'registered_address_country',
+                'value' => $application->country ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'registered_address_country',
+            ],
+            [
+                'name' => 'registered_address_postcode',
+                'value' => $application->postcode ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'registered_address_postcode',
+            ],
+            [
+                'name' => 'contact_email',
+                'value' => $application->account->email,
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'contact_email',
+            ],
+            [
+                'name' => 'contact_phone',
+                'value' => $application->account->mobile ?? '',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'contact_phone',
+            ],
+            [
+                'name' => 'transaction_percentage',
+                'value' => number_format($application->transaction_percentage, 2) . '%',
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'transaction_percentage',
+            ],
+            [
+                'name' => 'transaction_fixed_fee',
+                'value' => '£' . number_format($application->transaction_fixed_fee, 2),
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'transaction_fixed_fee',
+            ],
+            [
+                'name' => 'monthly_fee',
+                'value' => '£' . number_format($application->monthly_fee, 2),
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'monthly_fee',
+            ],
+        ];
     }
 
     /**
@@ -280,81 +424,6 @@ class ApplicationDocumentsController extends Controller
                 'message' => 'Failed to save edits: ' . $e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * Get editable fields based on application data
-     */
-    private function getEditableFields(Application $application): array
-    {
-        return [
-            [
-                'name' => 'merchant_name',
-                'value' => $application->name ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'trading_name',
-                'value' => $application->trading_name ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'company_number',
-                'value' => $application->company_number ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'registered_address',
-                'value' => $application->registered_address ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'contact_email',
-                'value' => $application->account->email ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'contact_phone',
-                'value' => $application->account->mobile ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'transaction_percentage',
-                'value' => $application->transaction_percentage ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'transaction_fixed_fee',
-                'value' => $application->transaction_fixed_fee ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'monthly_fee',
-                'value' => $application->monthly_fee ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'monthly_minimum',
-                'value' => $application->monthly_minimum ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-            [
-                'name' => 'setup_fee',
-                'value' => $application->setup_fee ?? '',
-                'type' => 'Text',
-                'readonly' => false,
-            ],
-        ];
     }
 
     /**

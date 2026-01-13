@@ -80,7 +80,7 @@
                       <input
                         v-model="field.value"
                         type="text"
-                        class="w-full h-full px-2 text-sm border-2 border-yellow-500 bg-yellow-50/90 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:bg-white"
+                        class="w-full h-full px-2 text-xs border-2 border-yellow-500 bg-yellow-50/90 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:bg-white"
                         :placeholder="formatFieldName(field.name)"
                         @input="field.modified = true"
                       />
@@ -150,7 +150,7 @@
                 <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                 </svg>
-                Tip: Click on highlighted fields in the document to edit them directly.
+                Tip: Edit the highlighted fields and click Save Changes.
               </div>
               <div v-else></div>
               
@@ -265,6 +265,8 @@ export default {
               });
             });
           });
+          
+          console.log('Loaded fields:', this.editableFields);
         } else {
           alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
           this.editMode = false;
@@ -279,22 +281,37 @@ export default {
     },
     
     getFieldStyle(field) {
-      // Field positions relative to PDF viewer (you'll need to calibrate these)
-      const positions = {
-        'merchant_name': { top: '18%', left: '15%', width: '50%', height: '30px' },
-        'trading_name': { top: '23%', left: '15%', width: '50%', height: '30px' },
-        'company_number': { top: '28%', left: '15%', width: '30%', height: '30px' },
-        'registered_address': { top: '33%', left: '15%', width: '50%', height: '30px' },
-        'contact_email': { top: '38%', left: '15%', width: '50%', height: '30px' },
-        'contact_phone': { top: '43%', left: '15%', width: '30%', height: '30px' },
-        'transaction_percentage': { top: '48%', left: '15%', width: '15%', height: '30px' },
-        'transaction_fixed_fee': { top: '48%', left: '35%', width: '15%', height: '30px' },
-        'monthly_fee': { top: '53%', left: '15%', width: '15%', height: '30px' },
-        'monthly_minimum': { top: '53%', left: '35%', width: '15%', height: '30px' },
-        'setup_fee': { top: '58%', left: '15%', width: '15%', height: '30px' },
+      // Contract positions (based on DocuSign coordinates)
+      const contractPositions = {
+        'merchant_name': { top: '12.8%', left: '10%', width: '35%', height: '20px' },
+        'transaction_fixed_fee': { top: '39.5%', left: '65%', width: '15%', height: '20px' },
+        'monthly_minimum': { top: '42.3%', left: '65%', width: '30%', height: '20px' },
+        'monthly_fee': { top: '44.8%', left: '65%', width: '15%', height: '20px' },
+        'transaction_percentage': { top: '47.5%', left: '65%', width: '15%', height: '20px' },
       };
       
-      const defaultPos = { top: '10%', left: '10%', width: '30%', height: '30px' };
+      // Application form positions (based on DocuSign form field coordinates)
+      const applicationFormPositions = {
+        'registered_company_name': { top: '7%', left: '12%', width: '45%', height: '22px' },
+        'trading_name': { top: '10%', left: '12%', width: '45%', height: '22px' },
+        'registration_number': { top: '13.5%', left: '12%', width: '45%', height: '22px' },
+        'registered_address_street': { top: '17.5%', left: '12%', width: '45%', height: '22px' },
+        'registered_address_city': { top: '23%', left: '12%', width: '45%', height: '22px' },
+        'registered_address_country': { top: '28%', left: '12%', width: '45%', height: '22px' },
+        'registered_address_postcode': { top: '33%', left: '12%', width: '45%', height: '22px' },
+        'contact_email': { top: '41%', left: '12%', width: '45%', height: '22px' },
+        'contact_phone': { top: '45%', left: '12%', width: '45%', height: '22px' },
+        'transaction_percentage': { top: '49.5%', left: '12%', width: '20%', height: '22px' },
+        'transaction_fixed_fee': { top: '49.5%', left: '38%', width: '20%', height: '22px' },
+        'monthly_fee': { top: '53%', left: '12%', width: '20%', height: '22px' },
+      };
+      
+      // Select positions based on document category
+      const positions = this.documentCategory === 'contract' 
+        ? contractPositions 
+        : applicationFormPositions;
+      
+      const defaultPos = { top: '10%', left: '10%', width: '30%', height: '20px' };
       return positions[field.name] || defaultPos;
     },
     
