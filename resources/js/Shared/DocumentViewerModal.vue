@@ -26,7 +26,7 @@
                   <h3 class="text-xl font-bold text-white">{{ document?.filename || 'Document' }}</h3>
                   <p class="text-sm text-gray-400 mt-1">{{ formatMimeType(document?.mime_type) }}</p>
                 </div>
-                
+<!--                 
                 <button
                   v-if="canEdit && !editMode"
                   @click="startEditing"
@@ -46,7 +46,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                   Cancel Edit
-                </button>
+                </button> -->
               </div>
             </div>
 
