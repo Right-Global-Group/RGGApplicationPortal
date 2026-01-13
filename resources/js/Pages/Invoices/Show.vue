@@ -1,4 +1,4 @@
-<template>
+ <template>
     <div>
       <Head :title="`Invoice - ${merchantName}`" />
       
@@ -90,8 +90,8 @@
                 <td class="px-6 py-4 text-right text-gray-200 font-medium">{{ formatCurrency(transactionFeeAmount) }}</td>
               </tr>
 
-              <!-- Monthly Mini Top Up Row -->
-              <tr class="border-b border-primary-800/20">
+              <!-- Monthly Mini Top Up Row - Only show if there's a shortfall -->
+              <tr v-if="shouldShowMonthlyMiniTopUp" class="border-b border-primary-800/20">
                 <td class="px-6 py-4 text-gray-200">Monthly Mini Top Up</td>
                 <td class="px-6 py-4 text-gray-300 text-sm">Monthly Mini Top Up</td>
                 <td class="px-6 py-4 text-center text-gray-200">1</td>
@@ -205,12 +205,17 @@
       const monthlyMiniTopUpPrice = computed(() => {
         const basePrice = monthlyMiniTopUpBasePrice.value
         
+        // Only return a top-up amount if transaction fees are below the minimum
         if (transactionFeeSubtotal.value < basePrice) {
           return Math.max(0, basePrice - transactionFeeSubtotal.value)
         }
         
-        return basePrice
+        // No top-up needed
+        return 0
       })
+
+      // Computed property to determine if the Monthly Mini Top Up row should be shown
+      const shouldShowMonthlyMiniTopUp = computed(() => monthlyMiniTopUpPrice.value > 0)
 
       const monthlyMiniTopUpTax = computed(() => monthlyMiniTopUpPrice.value * TAX_RATE)
       const monthlyMiniTopUpAmount = computed(() => monthlyMiniTopUpPrice.value)
@@ -237,8 +242,12 @@
       // Totals
       const subtotal = computed(() => {
         let total = transactionFeeSubtotal.value + 
-                    monthlyMiniTopUpPrice.value + 
                     monthlyFeePrice.value
+        
+        // Only add Monthly Mini Top Up if it should be shown
+        if (shouldShowMonthlyMiniTopUp.value) {
+          total += monthlyMiniTopUpPrice.value
+        }
         
         if (!removeDeclineFee.value) {
           total += declineFeePrice.value
@@ -253,8 +262,12 @@
 
       const totalTax = computed(() => {
         let total = transactionFeeTax.value + 
-                    monthlyMiniTopUpTax.value + 
                     monthlyFeeTax.value
+        
+        // Only add Monthly Mini Top Up tax if it should be shown
+        if (shouldShowMonthlyMiniTopUp.value) {
+          total += monthlyMiniTopUpTax.value
+        }
         
         if (!removeDeclineFee.value) {
           total += declineFeeTax.value
@@ -298,6 +311,7 @@
         monthlyMiniTopUpPrice,
         monthlyMiniTopUpTax,
         monthlyMiniTopUpAmount,
+        shouldShowMonthlyMiniTopUp,
         declineFeeQty,
         declineFeePrice,
         declineFeeTax,
