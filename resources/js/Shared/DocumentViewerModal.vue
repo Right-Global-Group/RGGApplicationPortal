@@ -7,13 +7,10 @@
         @click.self="close"
       >
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <!-- Background overlay -->
           <div class="fixed inset-0 transition-opacity bg-gray-900 bg-opacity-75" @click="close"></div>
 
-          <!-- Modal panel -->
           <div class="inline-block w-full max-w-6xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-dark-800 shadow-2xl rounded-2xl border border-primary-700/50 relative">
             
-            <!-- Close button -->
             <button
               @click="close"
               class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
@@ -23,7 +20,6 @@
               </svg>
             </button>
 
-            <!-- Header -->
             <div class="mb-4">
               <div class="flex items-center justify-between">
                 <div>
@@ -31,7 +27,6 @@
                   <p class="text-sm text-gray-400 mt-1">{{ formatMimeType(document?.mime_type) }}</p>
                 </div>
                 
-                <!-- Edit button for editable PDFs -->
                 <button
                   v-if="canEdit && !editMode"
                   @click="startEditing"
@@ -55,40 +50,41 @@
               </div>
             </div>
 
-            <!-- Document viewer -->
             <div v-if="document?.content" class="bg-dark-900/50 rounded-lg p-4 overflow-auto relative" style="max-height: 70vh;">
               
-              <!-- PDF Viewer with Overlay Fields -->
               <div v-if="isPDF" class="relative">
-                <!-- PDF Display using embed - ALWAYS VISIBLE -->
-                <div class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
+                <!-- Show form fields in edit mode -->
+                <div v-if="editMode" class="bg-white rounded p-6 space-y-4 max-h-[60vh] overflow-auto">
+                  <div class="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                    <p class="text-sm text-blue-300">
+                      💡 <strong>Edit the fields below.</strong> When you save, a new PDF will be generated with your changes.
+                    </p>
+                  </div>
+                  
+                  <div v-for="field in editableFields" :key="field.name" class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">
+                      {{ formatFieldName(field.name) }}
+                    </label>
+                    <input
+                      v-model="field.value"
+                      type="text"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      :placeholder="formatFieldName(field.name)"
+                      @input="field.modified = true"
+                    />
+                  </div>
+                </div>
+
+                <!-- Show PDF in view mode -->
+                <div v-else class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
                   <embed
                     :src="`data:${document.mime_type};base64,${document.content}`"
                     type="application/pdf"
                     class="w-full"
                     style="min-height: 600px;"
                   />
-                  
-                  <!-- Overlay input fields in edit mode - positioned absolutely -->
-                  <div v-if="editMode && editableFields.length > 0" class="absolute inset-0 pointer-events-none">
-                    <div
-                      v-for="field in editableFields"
-                      :key="field.name"
-                      class="absolute pointer-events-auto"
-                      :style="getFieldStyle(field)"
-                    >
-                      <input
-                        v-model="field.value"
-                        type="text"
-                        class="w-full h-full px-2 text-xs border-2 border-yellow-500 bg-yellow-50/90 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:bg-white"
-                        :placeholder="formatFieldName(field.name)"
-                        @input="field.modified = true"
-                      />
-                    </div>
-                  </div>
                 </div>
 
-                <!-- Loading indicator -->
                 <div v-if="loadingFields" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded">
                   <div class="text-center">
                     <svg class="animate-spin h-12 w-12 text-magenta-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
@@ -100,7 +96,6 @@
                 </div>
               </div>
 
-              <!-- Image Viewer -->
               <img
                 v-else-if="isImage"
                 :src="`data:${document.mime_type};base64,${document.content}`"
@@ -108,7 +103,6 @@
                 class="max-w-full max-h-[60vh] mx-auto rounded-lg"
               />
 
-              <!-- CSV Viewer -->
               <div v-else-if="isCSV" class="overflow-auto max-h-[60vh]">
                 <table class="min-w-full text-left border-collapse text-gray-300 text-sm">
                   <thead>
@@ -136,7 +130,6 @@
                 </table>
               </div>
 
-              <!-- Unsupported -->
               <div v-else class="p-8 text-center">
                 <p class="text-gray-400 mb-4">This file cannot be previewed in the browser.</p>
                 <p class="text-sm text-gray-500">{{ document.mime_type }}</p>
@@ -144,13 +137,12 @@
 
             </div>
 
-            <!-- Footer -->
             <div class="mt-6 flex justify-between items-center">
               <div v-if="editMode" class="text-sm text-gray-400 flex items-center gap-2">
                 <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                 </svg>
-                Tip: Edit the highlighted fields and click Save Changes.
+                Edit the fields above and click Save Changes to create a new version.
               </div>
               <div v-else></div>
               
@@ -255,7 +247,6 @@ export default {
         const data = await response.json();
         
         if (data.success && data.fields) {
-          // Convert fields to editable format with positions
           this.editableFields = [];
           Object.values(data.fields).forEach(pageFields => {
             pageFields.forEach(field => {
@@ -265,8 +256,6 @@ export default {
               });
             });
           });
-          
-          console.log('Loaded fields:', this.editableFields);
         } else {
           alert('Failed to load PDF fields: ' + (data.message || 'Unknown error'));
           this.editMode = false;
@@ -280,41 +269,6 @@ export default {
       }
     },
     
-    getFieldStyle(field) {
-      // Contract positions (based on DocuSign coordinates)
-      const contractPositions = {
-        'merchant_name': { top: '12.8%', left: '10%', width: '35%', height: '20px' },
-        'transaction_fixed_fee': { top: '39.5%', left: '65%', width: '15%', height: '20px' },
-        'monthly_minimum': { top: '42.3%', left: '65%', width: '30%', height: '20px' },
-        'monthly_fee': { top: '44.8%', left: '65%', width: '15%', height: '20px' },
-        'transaction_percentage': { top: '47.5%', left: '65%', width: '15%', height: '20px' },
-      };
-      
-      // Application form positions (based on DocuSign form field coordinates)
-      const applicationFormPositions = {
-        'registered_company_name': { top: '7%', left: '12%', width: '45%', height: '22px' },
-        'trading_name': { top: '10%', left: '12%', width: '45%', height: '22px' },
-        'registration_number': { top: '13.5%', left: '12%', width: '45%', height: '22px' },
-        'registered_address_street': { top: '17.5%', left: '12%', width: '45%', height: '22px' },
-        'registered_address_city': { top: '23%', left: '12%', width: '45%', height: '22px' },
-        'registered_address_country': { top: '28%', left: '12%', width: '45%', height: '22px' },
-        'registered_address_postcode': { top: '33%', left: '12%', width: '45%', height: '22px' },
-        'contact_email': { top: '41%', left: '12%', width: '45%', height: '22px' },
-        'contact_phone': { top: '45%', left: '12%', width: '45%', height: '22px' },
-        'transaction_percentage': { top: '49.5%', left: '12%', width: '20%', height: '22px' },
-        'transaction_fixed_fee': { top: '49.5%', left: '38%', width: '20%', height: '22px' },
-        'monthly_fee': { top: '53%', left: '12%', width: '20%', height: '22px' },
-      };
-      
-      // Select positions based on document category
-      const positions = this.documentCategory === 'contract' 
-        ? contractPositions 
-        : applicationFormPositions;
-      
-      const defaultPos = { top: '10%', left: '10%', width: '30%', height: '20px' };
-      return positions[field.name] || defaultPos;
-    },
-    
     cancelEditing() {
       this.editMode = false;
       this.editableFields = [];
@@ -323,7 +277,6 @@ export default {
     async saveEdits() {
       this.saving = true;
       
-      // Convert fields to simple object
       const fieldValues = {};
       this.editableFields.forEach(field => {
         if (field.modified) {

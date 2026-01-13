@@ -324,7 +324,7 @@ class ApplicationDocumentsController extends Controller
     }
 
     /**
-     * Save edited PDF by creating annotations or overlay
+     * Save edited PDF by actually modifying the PDF content
      */
     public function savePdfEdits(Application $application, ApplicationDocument $document): JsonResponse
     {
@@ -364,16 +364,29 @@ class ApplicationDocumentsController extends Controller
                 ], 404);
             }
 
-            // For now, just copy the original and store the field values in database
-            // The edited values will be stored in a JSON field
+            // Use PdfEditorService to actually edit the PDF
+            $pdfEditor = new \App\Services\PdfEditorService();
+            $tempEditedPath = $pdfEditor->editPdf(
+                $originalPath,
+                $validated['field_values'],
+                $document->document_category
+            );
+
+            // Move edited PDF to permanent location
             $editedFilename = time() . '_edited_' . $document->original_filename;
             $editedPath = 'applications/' . $application->id . '/documents/' . $editedFilename;
             $editedFullPath = storage_path('app/public/' . $editedPath);
 
-            // Copy original file
-            copy($originalPath, $editedFullPath);
+            // Ensure directory exists
+            $directory = dirname($editedFullPath);
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
 
-            // Create new document record with edited field values stored
+            // Move temp file to permanent location
+            rename($tempEditedPath, $editedFullPath);
+
+            // Create new document record
             $editedDocument = ApplicationDocument::create([
                 'application_id' => $application->id,
                 'document_type' => 'application/pdf',
@@ -400,7 +413,7 @@ class ApplicationDocumentsController extends Controller
                 'superseded_at' => now(),
             ]);
 
-            Log::info('PDF document marked as edited', [
+            Log::info('PDF document edited successfully', [
                 'application_id' => $application->id,
                 'original_document_id' => $document->id,
                 'edited_document_id' => $editedDocument->id,
