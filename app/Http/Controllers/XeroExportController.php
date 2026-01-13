@@ -229,7 +229,7 @@ class XeroExportController extends Controller
         
         $descriptionParts[] = "Monthly Fee: 1 x £" . number_format($monthlyFeePrice, 2);
         
-        $combinedDescription = implode("\n", $descriptionParts);
+        $combinedDescription = implode(" | ", $descriptionParts);
         
         // Invoice metadata
         $invoiceNumber = 'INV-' . str_pad($import->id, 4, '0', STR_PAD_LEFT);
