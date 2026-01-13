@@ -292,7 +292,7 @@ class XeroExportController extends Controller
             'PORegion' => '',
             'POPostalCode' => '',
             'POCountry' => '',
-            'InvoiceNumber' => '',
+            'InvoiceNumber' => $invoiceNumber,
             'Reference' => '',
             'InvoiceDate' => '',
             'DueDate' => '',
@@ -329,7 +329,7 @@ class XeroExportController extends Controller
                 'PORegion' => '',
                 'POPostalCode' => '',
                 'POCountry' => '',
-                'InvoiceNumber' => '',
+                'InvoiceNumber' => $invoiceNumber,
                 'Reference' => '',
                 'InvoiceDate' => '',
                 'DueDate' => '',
@@ -368,7 +368,7 @@ class XeroExportController extends Controller
                 'PORegion' => '',
                 'POPostalCode' => '',
                 'POCountry' => '',
-                'InvoiceNumber' => '',
+                'InvoiceNumber' => $invoiceNumber,
                 'Reference' => '',
                 'InvoiceDate' => '',
                 'DueDate' => '',
@@ -405,7 +405,7 @@ class XeroExportController extends Controller
             'PORegion' => '',
             'POPostalCode' => '',
             'POCountry' => '',
-            'InvoiceNumber' => '',
+            'InvoiceNumber' => $invoiceNumber,
             'Reference' => '',
             'InvoiceDate' => '',
             'DueDate' => '',
@@ -503,7 +503,7 @@ class XeroExportController extends Controller
             }
             
             // Calculate fees (default: not first month, include decline fee, no chargeback)
-            $transactionFeeQty = $merchantStat->accepted;
+            $transactionFeeQty = $merchantStat->total_transactions;
             $transactionFeePrice = (float) ($application->transaction_fixed_fee ?? 0);
             $transactionFeeSubtotal = $transactionFeeQty * $transactionFeePrice;
             
@@ -512,7 +512,8 @@ class XeroExportController extends Controller
             $monthlyMiniTopUpBasePrice = $scalingFee === 0 ? $monthlyMinimum : $scalingFee;
             $monthlyMiniTopUpPrice = max(0, $monthlyMiniTopUpBasePrice - $transactionFeeSubtotal);
             
-            $declineFeePrice = $merchantStat->declined * 0.10;
+            $declineFeeQty = $merchantStat->declined + $merchantStat->received;
+            $declineFeePrice = $declineFeeQty * 0.10;
             
             $invoiceNumber = 'INV-' . str_pad($import->id, 4, '0', STR_PAD_LEFT) . '-' . str_pad($invoiceCounter++, 3, '0', STR_PAD_LEFT);
             $issueDate = now()->format('d/m/Y');
@@ -554,29 +555,31 @@ class XeroExportController extends Controller
                 'BrandingTheme' => 'Standard'
             ]);
             
-            // Monthly Mini Top Up
-            fputcsv($output, [
-                $account->name, '', '', '', '', '', '', '', '', '',
-                '', '', '', '', '', '', '', '',
-                '',
-                'Monthly Mini Top Up',
-                '1',
-                number_format($monthlyMiniTopUpPrice, 2, '.', ''),
-                '',
-                '200',
-                '20% (VAT on Income)',
-                number_format($monthlyMiniTopUpPrice * $TAX_RATE, 2, '.', ''),
-                '', '', '', '', '', ''
-            ]);
-            
-            // Decline Fee (if any)
-            if ($merchantStat->declined > 0) {
+            // Monthly Mini Top Up (only if there's a shortfall)
+            if ($monthlyMiniTopUpPrice > 0) {
                 fputcsv($output, [
                     $account->name, '', '', '', '', '', '', '', '', '',
-                    '', '', '', '', '', '', '', '',
+                    $invoiceNumber, '', '', '', '', '', '', '',
+                    '',
+                    'Monthly Mini Top Up',
+                    '1',
+                    number_format($monthlyMiniTopUpPrice, 2, '.', ''),
+                    '',
+                    '200',
+                    '20% (VAT on Income)',
+                    number_format($monthlyMiniTopUpPrice * $TAX_RATE, 2, '.', ''),
+                    '', '', '', '', '', ''
+                ]);
+            }
+            
+            // Decline Fee (if any)
+            if ($declineFeeQty > 0) {
+                fputcsv($output, [
+                    $account->name, '', '', '', '', '', '', '', '', '',
+                    $invoiceNumber, '', '', '', '', '', '', '',
                     '005',
                     'Decline Fee',
-                    $merchantStat->declined,
+                    $declineFeeQty,
                     '0.10',
                     '',
                     '200',
@@ -589,7 +592,7 @@ class XeroExportController extends Controller
             // Monthly Fee
             fputcsv($output, [
                 $account->name, '', '', '', '', '', '', '', '', '',
-                '', '', '', '', '', '', '', '',
+                $invoiceNumber, '', '', '', '', '', '', '',
                 '003',
                 'Monthly Fee',
                 '1',
