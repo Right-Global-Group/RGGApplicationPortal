@@ -35,9 +35,13 @@
           <div class="text-sm text-gray-400 mb-1">Application Name</div>
           <div class="text-lg font-semibold text-white">{{ application.name }}</div>
         </div>
-        <div v-if="application.trading_name">
-          <div class="text-sm text-gray-400 mb-1">Trading Name</div>
-          <div class="text-lg font-semibold text-white">{{ application.trading_name }}</div>
+        <div v-if="application.account_name">
+          <div class="text-sm text-gray-400 mb-1">Merchant Account Name</div>
+          <div class="text-lg font-semibold text-white">{{ application.account_name }}</div>
+        </div>
+        <div v-if="application.account_recipient_name">
+          <div class="text-sm text-gray-400 mb-1">Merchant Recipient Name</div>
+          <div class="text-lg font-semibold text-white">{{ application.account_recipient_name }}</div>
         </div>
         <Link
           :href="`/applications/${application.id}/edit`"

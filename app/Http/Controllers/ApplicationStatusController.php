@@ -102,6 +102,7 @@ class ApplicationStatusController extends Controller
                 'id' => $application->id,
                 'name' => $application->name,
                 'account_name' => $application->account?->name,
+                'account_recipient_name' => $application->account?->recipient_name,
                 'trading_name' => $application->trading_name,
                 'scaling_fee' => $application->scaling_fee,
                 'transaction_percentage' => $application->transaction_percentage,
