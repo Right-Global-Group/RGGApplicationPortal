@@ -808,7 +808,6 @@
         <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
 
         <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
-          <!-- Document list remains the same -->
           <div 
             v-for="doc in getDocumentsByCategory(category)"
             :key="doc.id"
@@ -854,6 +853,15 @@
             </div>
           </div>
         </div>
+        
+        <!-- Only show "No documents" for BASE categories, not additional requested ones -->
+        <div 
+          v-else-if="!category.startsWith('additional_requested_')" 
+          class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3"
+        >
+          <p class="text-yellow-300 text-sm">No documents uploaded yet</p>
+        </div>
+      </div>
         <!-- Extra Documents (Library Uploads) - No Upload Button -->
         <div v-if="hasExtraDocuments" class="mt-8 pt-6 border-t border-primary-800/30">
           <h3 class="text-lg font-semibold text-gray-300 mb-4">
