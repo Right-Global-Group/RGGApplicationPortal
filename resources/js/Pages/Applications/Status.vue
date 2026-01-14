@@ -931,9 +931,6 @@
             </div>
           </div>
         </div>
-        <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
-          <p class="text-yellow-300 text-sm">No documents uploaded yet</p>
-        </div>
       </div>
     </div>
 
