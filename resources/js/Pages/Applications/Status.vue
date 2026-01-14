@@ -808,7 +808,6 @@
         <p class="text-sm text-gray-400 mb-3">{{ categoryDescriptionsWithAdditional[category] }}</p>
 
         <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
-          <!-- Document list remains the same -->
           <div 
             v-for="doc in getDocumentsByCategory(category)"
             :key="doc.id"
@@ -854,81 +853,90 @@
             </div>
           </div>
         </div>
-        <!-- Extra Documents (Library Uploads) - No Upload Button -->
-        <div v-if="hasExtraDocuments" class="mt-8 pt-6 border-t border-primary-800/30">
-          <h3 class="text-lg font-semibold text-gray-300 mb-4">
-            📁 Extra Documents
-            <span class="text-sm text-gray-500 font-normal ml-2">(Uploaded from Document Library)</span>
-          </h3>
+        
+        <!-- Only show "No documents" for BASE categories, not additional requested ones -->
+        <div 
+          v-else-if="!category.startsWith('additional_requested_')" 
+          class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3"
+        >
+          <p class="text-yellow-300 text-sm">No documents uploaded yet</p>
+        </div>
+      </div>
+      
+      <!-- Extra Documents (Library Uploads) - No Upload Button -->
+      <div v-if="hasExtraDocuments" class="mt-8 pt-6 border-t border-primary-800/30">
+        <h3 class="text-lg font-semibold text-gray-300 mb-4">
+          📁 Extra Documents
+          <span class="text-sm text-gray-500 font-normal ml-2">(Uploaded from Document Library)</span>
+        </h3>
+        
+        <div 
+          v-for="(label, category) in application.extra_document_categories" 
+          :key="category"
+          class="mb-6 last:mb-0"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-md font-semibold text-gray-400">{{ label }}</h4>
+            <!-- NO UPLOAD BUTTON -->
+          </div>
           
-          <div 
-            v-for="(label, category) in application.extra_document_categories" 
-            :key="category"
-            class="mb-6 last:mb-0"
-          >
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="text-md font-semibold text-gray-400">{{ label }}</h4>
-              <!-- NO UPLOAD BUTTON -->
-            </div>
-            
-            <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
-              <div 
-                v-for="doc in getDocumentsByCategory(category)"
-                :key="doc.id"
-                class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
-                :class="{ 'opacity-60': doc.dumped_at }"
-              >
-                <div class="flex items-center flex-1">
-                  <svg 
-                    v-if="doc.dumped_at"
-                    class="w-5 h-5 text-yellow-400 mr-3" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <svg 
-                    v-else
-                    class="w-5 h-5 text-green-400 mr-3" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
-                    <div v-if="doc.dumped_at" class="text-xs text-yellow-400 mt-1">
-                      ⚠️ File removed {{ formatDate(doc.dumped_at) }} - {{ doc.dumped_reason }}
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <template v-if="!doc.dumped_at">
-                    <a 
-                      :href="`/applications/${application.id}/documents/${doc.id}/download`"
-                      class="text-blue-400 hover:text-blue-300 text-sm"
-                    >
-                      Download
-                    </a>
-                    <button 
-                      v-if="canChangeFees"
-                      @click="deleteDocument(doc.id)"
-                      class="text-red-400 hover:text-red-300 text-sm"
-                    >
-                      Delete File
-                    </button>
-                  </template>
-                  <div v-else class="px-3 py-1 bg-yellow-900/20 border border-yellow-700/30 rounded text-xs text-yellow-300">
-                    File Removed
+          <div v-if="getDocumentsByCategory(category).length > 0" class="space-y-2">
+            <div 
+              v-for="doc in getDocumentsByCategory(category)"
+              :key="doc.id"
+              class="flex items-center justify-between bg-dark-900/50 border border-primary-800/30 rounded-lg p-3"
+              :class="{ 'opacity-60': doc.dumped_at }"
+            >
+              <div class="flex items-center flex-1">
+                <svg 
+                  v-if="doc.dumped_at"
+                  class="w-5 h-5 text-yellow-400 mr-3" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <svg 
+                  v-else
+                  class="w-5 h-5 text-green-400 mr-3" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <span class="text-gray-300">{{ doc.original_filename || 'Document' }}</span>
+                  <div v-if="doc.dumped_at" class="text-xs text-yellow-400 mt-1">
+                    ⚠️ File removed {{ formatDate(doc.dumped_at) }} - {{ doc.dumped_reason }}
                   </div>
                 </div>
               </div>
+              <div class="flex items-center gap-2">
+                <template v-if="!doc.dumped_at">
+                  <a 
+                    :href="`/applications/${application.id}/documents/${doc.id}/download`"
+                    class="text-blue-400 hover:text-blue-300 text-sm"
+                  >
+                    Download
+                  </a>
+                  <button 
+                    v-if="canChangeFees"
+                    @click="deleteDocument(doc.id)"
+                    class="text-red-400 hover:text-red-300 text-sm"
+                  >
+                    Delete File
+                  </button>
+                </template>
+                <div v-else class="px-3 py-1 bg-yellow-900/20 border border-yellow-700/30 rounded text-xs text-yellow-300">
+                  File Removed
+                </div>
+              </div>
             </div>
-            <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
-              <p class="text-yellow-300 text-sm">No documents in this category yet</p>
-            </div>
+          </div>
+          <div v-else class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
+            <p class="text-yellow-300 text-sm">No documents in this category yet</p>
           </div>
         </div>
       </div>

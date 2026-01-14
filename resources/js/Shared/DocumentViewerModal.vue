@@ -176,7 +176,7 @@
 
 <script>
 import { router } from '@inertiajs/vue3'
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+// import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 export default {
   emits: ["close"],
@@ -273,100 +273,100 @@ export default {
       }
     },
     
-    async loadPdfForEditing() {
-      try {
-        // Convert base64 to array buffer
-        const pdfBytes = Uint8Array.from(atob(this.document.content), c => c.charCodeAt(0));
-        this.pdfDoc = await PDFDocument.load(pdfBytes);
-        console.log('PDF loaded successfully for editing');
-      } catch (error) {
-        console.error('Failed to load PDF:', error);
-        throw error;
-      }
-    },
+    // async loadPdfForEditing() {
+    //   try {
+    //     // Convert base64 to array buffer
+    //     const pdfBytes = Uint8Array.from(atob(this.document.content), c => c.charCodeAt(0));
+    //     this.pdfDoc = await PDFDocument.load(pdfBytes);
+    //     console.log('PDF loaded successfully for editing');
+    //   } catch (error) {
+    //     console.error('Failed to load PDF:', error);
+    //     throw error;
+    //   }
+    // },
     
-    async saveEditsClientSide() {
-      this.saving = true;
-      this.processing = true;
+    // async saveEditsClientSide() {
+    //   this.saving = true;
+    //   this.processing = true;
       
-      try {
-        // Get field positions for this document type
-        const fieldPositions = this.getFieldPositions();
+    //   try {
+    //     // Get field positions for this document type
+    //     const fieldPositions = this.getFieldPositions();
         
-        // Get the first page
-        const pages = this.pdfDoc.getPages();
-        const firstPage = pages[0];
+    //     // Get the first page
+    //     const pages = this.pdfDoc.getPages();
+    //     const firstPage = pages[0];
         
-        // Embed font
-        const font = await this.pdfDoc.embedFont(StandardFonts.Helvetica);
-        const boldFont = await this.pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    //     // Embed font
+    //     const font = await this.pdfDoc.embedFont(StandardFonts.Helvetica);
+    //     const boldFont = await this.pdfDoc.embedFont(StandardFonts.HelveticaBold);
         
-        // Draw white rectangles and new text for each modified field
-        for (const field of this.editableFields) {
-          if (!field.modified) continue;
+    //     // Draw white rectangles and new text for each modified field
+    //     for (const field of this.editableFields) {
+    //       if (!field.modified) continue;
           
-          const position = fieldPositions[field.name];
-          if (!position) continue;
+    //       const position = fieldPositions[field.name];
+    //       if (!position) continue;
           
-          // Draw white rectangle to cover old text
-          firstPage.drawRectangle({
-            x: position.x,
-            y: position.y,
-            width: position.width,
-            height: position.height,
-            color: rgb(1, 1, 1),
-          });
+    //       // Draw white rectangle to cover old text
+    //       firstPage.drawRectangle({
+    //         x: position.x,
+    //         y: position.y,
+    //         width: position.width,
+    //         height: position.height,
+    //         color: rgb(1, 1, 1),
+    //       });
           
-          // Draw new text
-          firstPage.drawText(field.value, {
-            x: position.x + 2,
-            y: position.y + 2,
-            size: position.fontSize || 10,
-            font: position.bold ? boldFont : font,
-            color: rgb(0, 0, 0),
-          });
-        }
+    //       // Draw new text
+    //       firstPage.drawText(field.value, {
+    //         x: position.x + 2,
+    //         y: position.y + 2,
+    //         size: position.fontSize || 10,
+    //         font: position.bold ? boldFont : font,
+    //         color: rgb(0, 0, 0),
+    //       });
+    //     }
         
-        // Save the PDF
-        const pdfBytes = await this.pdfDoc.save();
+    //     // Save the PDF
+    //     const pdfBytes = await this.pdfDoc.save();
         
-        // Convert to base64
-        const base64 = btoa(String.fromCharCode(...pdfBytes));
+    //     // Convert to base64
+    //     const base64 = btoa(String.fromCharCode(...pdfBytes));
         
-        // Upload to server
-        const response = await fetch(
-          `/applications/${this.applicationId}/documents/${this.document.id}/upload-edited-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-              pdf_content: base64,
-              original_filename: this.document.filename
-            })
-          }
-        );
+    //     // Upload to server
+    //     const response = await fetch(
+    //       `/applications/${this.applicationId}/documents/${this.document.id}/upload-edited-pdf`,
+    //       {
+    //         method: 'POST',
+    //         headers: {
+    //           'Content-Type': 'application/json',
+    //           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    //         },
+    //         body: JSON.stringify({
+    //           pdf_content: base64,
+    //           original_filename: this.document.filename
+    //         })
+    //       }
+    //     );
 
-        const data = await response.json();
+    //     const data = await response.json();
         
-        if (data.success) {
-          alert('✅ Document edited successfully! The PDF has been updated.');
-          this.editMode = false;
-          this.close();
-          router.reload({ preserveScroll: true });
-        } else {
-          alert('❌ Failed to save: ' + data.message);
-        }
-      } catch (error) {
-        console.error('Failed to edit PDF:', error);
-        alert('❌ Failed to edit PDF. Error: ' + error.message);
-      } finally {
-        this.saving = false;
-        this.processing = false;
-      }
-    },
+    //     if (data.success) {
+    //       alert('✅ Document edited successfully! The PDF has been updated.');
+    //       this.editMode = false;
+    //       this.close();
+    //       router.reload({ preserveScroll: true });
+    //     } else {
+    //       alert('❌ Failed to save: ' + data.message);
+    //     }
+    //   } catch (error) {
+    //     console.error('Failed to edit PDF:', error);
+    //     alert('❌ Failed to edit PDF. Error: ' + error.message);
+    //   } finally {
+    //     this.saving = false;
+    //     this.processing = false;
+    //   }
+    // },
     
     getFieldPositions() {
       // PDF coordinates are from BOTTOM-LEFT corner
