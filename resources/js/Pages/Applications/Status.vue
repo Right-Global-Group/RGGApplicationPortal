@@ -587,7 +587,7 @@
       <h2 class="text-xl font-bold text-white mb-4">Your Actions</h2>
       
       <!-- Refresh Notice (Merchant Only) -->
-      <div v-if="application.status?.contract_sent_at && !application.status?.contract_signed_at && !hasRefreshed" class="mb-4">
+      <div v-if="shouldShowMerchantRefreshNotice" class="mb-4">
         <div class="inline-flex p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
           <div class="flex items-center gap-4">
             <p class="text-sm text-blue-300">
@@ -1387,6 +1387,18 @@ export default {
       return [...completed, ...pending]
     },
 
+    shouldShowMerchantRefreshNotice() {
+      // Only show if:
+      // 1. User is a merchant (is_account)
+      // 2. Contract has been sent
+      // 3. Contract has NOT been signed yet
+      // 4. Page has NOT been refreshed yet in this session
+      return this.is_account &&
+            this.application.status?.contract_sent_at &&
+            !this.application.status?.contract_signed_at &&
+            !this.hasRefreshed
+    },
+
     canSendContractReminder() {
       // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
@@ -2103,6 +2115,17 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
+
+          // Check if page has been loaded before (refresh check)
+    const refreshFlag = sessionStorage.getItem('statusPageRefreshed')
+    console.log('Refresh check:', refreshFlag) // DEBUG
+    
+    if (refreshFlag) {
+      this.hasRefreshed = true
+      console.log('Page has been refreshed, hasRefreshed =', this.hasRefreshed) // DEBUG
+    } else {
+      console.log('First visit, hasRefreshed =', this.hasRefreshed) // DEBUG
+    }
 
       // Check if page has been loaded before (refresh check)
       if (sessionStorage.getItem('statusPageRefreshed')) {
