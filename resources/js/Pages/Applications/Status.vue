@@ -587,7 +587,7 @@
       <h2 class="text-xl font-bold text-white mb-4">Your Actions</h2>
       
       <!-- Refresh Notice (Merchant Only) -->
-      <div v-if="canAccountSignContract && !hasRefreshed" class="mb-4">
+      <div v-if="application.status?.contract_sent_at && !application.status?.contract_signed_at && !hasRefreshed" class="mb-4">
         <div class="inline-flex p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
           <div class="flex items-center gap-4">
             <p class="text-sm text-blue-300">
