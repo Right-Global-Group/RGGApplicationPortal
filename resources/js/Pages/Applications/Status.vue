@@ -1617,10 +1617,15 @@ export default {
         window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     },
-
     refreshPage() {
+      console.log('Setting refresh flag and reloading...')
+      
+      // Set multiple flags for redundancy
       sessionStorage.setItem('statusPageRefreshed', 'true')
-      window.location.reload()
+      sessionStorage.setItem('statusPageRefreshedTime', Date.now().toString())
+      
+      // Use replace() instead of reload() - this forces a fresh load
+      window.location.replace(window.location.href)
     },
 
     openUploadModal(category = null) {
@@ -2116,16 +2121,22 @@ export default {
   mounted() {
     this.$nextTick(() => {
 
-          // Check if page has been loaded before (refresh check)
-    const refreshFlag = sessionStorage.getItem('statusPageRefreshed')
-    console.log('Refresh check:', refreshFlag) // DEBUG
-    
-    if (refreshFlag) {
-      this.hasRefreshed = true
-      console.log('Page has been refreshed, hasRefreshed =', this.hasRefreshed) // DEBUG
-    } else {
-      console.log('First visit, hasRefreshed =', this.hasRefreshed) // DEBUG
-    }
+      // Check if page has been refreshed
+      const refreshFlag = sessionStorage.getItem('statusPageRefreshed')
+      const refreshTime = sessionStorage.getItem('statusPageRefreshedTime')
+      
+      console.log('Refresh check:', {
+        refreshFlag,
+        refreshTime,
+        timeSinceRefresh: refreshTime ? Date.now() - parseInt(refreshTime) : 'N/A'
+      })
+      
+      if (refreshFlag || refreshTime) {
+        this.hasRefreshed = true
+        console.log('Page has been refreshed')
+      } else {
+        console.log('First visit')
+      }
 
       // Check if page has been loaded before (refresh check)
       if (sessionStorage.getItem('statusPageRefreshed')) {
