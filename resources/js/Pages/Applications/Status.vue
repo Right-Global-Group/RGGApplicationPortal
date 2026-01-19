@@ -1286,7 +1286,7 @@ export default {
       showAccountMessageModal: false,
       showDocumentUploadModal: false,
       preselectedCategory: null,
-      hasRefreshed: false,
+      hasRefreshed: typeof window !== 'undefined' && sessionStorage.getItem('statusPageRefreshed') === 'true',  // CHANGED THIS LINE
       isManualTransitioning: false,
     }
   },
@@ -2103,11 +2103,6 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
-
-      // Check if page has been loaded before (refresh check)
-      if (sessionStorage.getItem('statusPageRefreshed')) {
-        this.hasRefreshed = true
-      }
 
       const mainContent = document.querySelector('[scroll-region]')
 
