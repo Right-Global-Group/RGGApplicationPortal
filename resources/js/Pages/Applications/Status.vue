@@ -1618,15 +1618,32 @@ export default {
       }
     },
     refreshPage() {
-      console.log('Setting refresh flag and reloading...')
-      
-      // Set multiple flags for redundancy
-      sessionStorage.setItem('statusPageRefreshed', 'true')
-      sessionStorage.setItem('statusPageRefreshedTime', Date.now().toString())
-      
-      // Use replace() instead of reload() - this forces a fresh load
-      window.location.replace(window.location.href)
-    },
+  console.log('🔄 Setting refresh flag with multiple methods...')
+  
+  // Method 1: sessionStorage
+  try {
+    sessionStorage.setItem('statusPageRefreshed', 'true')
+    sessionStorage.setItem('statusPageRefreshedTime', Date.now().toString())
+    console.log('✓ sessionStorage set')
+  } catch (e) {
+    console.error('❌ sessionStorage failed:', e)
+  }
+  
+  // Method 2: Cookie (works even in private mode)
+  try {
+    document.cookie = `statusPageRefreshed=true; path=/; max-age=3600`
+    console.log('✓ Cookie set')
+  } catch (e) {
+    console.error('❌ Cookie failed:', e)
+  }
+  
+  // Method 3: URL parameter (most reliable)
+  const currentUrl = new URL(window.location.href)
+  currentUrl.searchParams.set('refreshed', '1')
+  
+  console.log('🔄 Reloading to:', currentUrl.href)
+  window.location.href = currentUrl.href
+},
 
     openUploadModal(category = null) {
       this.preselectedCategory = category
@@ -2119,49 +2136,65 @@ export default {
     },
   },
   mounted() {
-    this.$nextTick(() => {
-
-      // Check if page has been refreshed
-      const refreshFlag = sessionStorage.getItem('statusPageRefreshed')
-      const refreshTime = sessionStorage.getItem('statusPageRefreshedTime')
-      
-      console.log('Refresh check:', {
-        refreshFlag,
-        refreshTime,
-        timeSinceRefresh: refreshTime ? Date.now() - parseInt(refreshTime) : 'N/A'
-      })
-      
-      if (refreshFlag || refreshTime) {
-        this.hasRefreshed = true
-        console.log('Page has been refreshed')
-      } else {
-        console.log('First visit')
-      }
-
-      // Check if page has been loaded before (refresh check)
-      if (sessionStorage.getItem('statusPageRefreshed')) {
-        this.hasRefreshed = true
-      }
-
-      const mainContent = document.querySelector('[scroll-region]')
-
-      if (mainContent) {
-        mainContent.addEventListener('scroll', this.handleScroll, { passive: true })
-        this.scrollContainer = mainContent
-      } else {
-        window.addEventListener('scroll', this.handleScroll, { passive: true })
-      }
-
-      setTimeout(() => this.handleScroll(), 100)
-
-      if (this.is_account) {
-        this.scrollToAccountActions()
-      } else {
-        // Otherwise handle hash scroll
-        this.scrollToHashOnLoad()
-      }
+  this.$nextTick(() => {
+    // Check MULTIPLE sources for refresh flag
+    const urlParams = new URLSearchParams(window.location.search)
+    const urlRefreshed = urlParams.get('refreshed')
+    
+    const sessionRefreshFlag = sessionStorage.getItem('statusPageRefreshed')
+    const sessionRefreshTime = sessionStorage.getItem('statusPageRefreshedTime')
+    
+    // Check cookie
+    const cookieRefreshed = document.cookie.split('; ')
+      .find(row => row.startsWith('statusPageRefreshed='))
+      ?.split('=')[1]
+    
+    console.log('🔍 Refresh check from ALL sources:', {
+      urlRefreshed,
+      sessionRefreshFlag,
+      sessionRefreshTime,
+      cookieRefreshed,
+      is_account: this.is_account,
+      contract_sent: !!this.application.status?.contract_sent_at,
+      contract_signed: !!this.application.status?.contract_signed_at,
     })
-  },
+    
+    // If ANY method indicates refresh, set hasRefreshed to true
+    if (urlRefreshed || sessionRefreshFlag || sessionRefreshTime || cookieRefreshed) {
+      this.hasRefreshed = true
+      console.log('✅ Page has been refreshed (detected via:', 
+        urlRefreshed ? 'URL' : sessionRefreshFlag ? 'sessionStorage' : cookieRefreshed ? 'cookie' : 'time', 
+        ')')
+      
+      // Clean up URL parameter if present (optional - for cleaner URLs)
+      if (urlRefreshed) {
+        const cleanUrl = new URL(window.location.href)
+        cleanUrl.searchParams.delete('refreshed')
+        window.history.replaceState({}, '', cleanUrl.href)
+      }
+    } else {
+      console.log('🆕 First visit - no refresh detected')
+    }
+
+    // ... rest of mounted code
+    const mainContent = document.querySelector('[scroll-region]')
+
+    if (mainContent) {
+      mainContent.addEventListener('scroll', this.handleScroll, { passive: true })
+      this.scrollContainer = mainContent
+    } else {
+      window.addEventListener('scroll', this.handleScroll, { passive: true })
+    }
+
+    setTimeout(() => this.handleScroll(), 100)
+
+    if (this.is_account) {
+      this.scrollToAccountActions()
+    } else {
+      this.scrollToHashOnLoad()
+    }
+  })
+},
   beforeUnmount() {
     if (this.scrollContainer) {
       this.scrollContainer.removeEventListener('scroll', this.handleScroll)
