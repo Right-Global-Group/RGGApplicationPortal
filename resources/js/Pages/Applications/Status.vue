@@ -1239,6 +1239,7 @@ export default {
   props: {
     application: Object,
     is_account: Boolean,
+    justLoggedIn: Boolean, 
     additionalInfoReminder: Object,
     credentialsReminder: Object,
     accountId: Number,
@@ -2102,6 +2103,17 @@ export default {
     },
   },
   mounted() {
+    // Clear refresh flag on fresh login
+    if (this.justLoggedIn) {
+      sessionStorage.removeItem('statusPageRefreshed')
+      this.hasRefreshed = false
+      
+      // Clear the session flag so it doesn't affect subsequent visits
+      this.$inertia.post('/clear-login-flag', {}, { 
+          preserveState: true,
+          preserveScroll: true 
+      })
+    }
     this.$nextTick(() => {
 
       const mainContent = document.querySelector('[scroll-region]')

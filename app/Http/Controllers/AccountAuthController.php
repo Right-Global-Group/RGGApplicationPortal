@@ -23,13 +23,13 @@ class AccountAuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
-
+    
         Log::info('Account login attempt', [
             'email' => $validated['email'],
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
-
+    
         // Ensure no web guard session exists (prevent guard conflicts)
         if (Auth::guard('web')->check()) {
             Log::warning('Web guard session detected during account login, logging out web guard', [
@@ -38,21 +38,24 @@ class AccountAuthController extends Controller
             ]);
             Auth::guard('web')->logout();
         }
-
+    
         $credentials = [
             'email' => strtolower($validated['email']),
             'password' => $validated['password'],
         ];
-
+    
         Log::info('Attempting authentication with account guard', [
             'email' => $credentials['email'],
             'normalized_email' => $credentials['email'],
             'original_email' => $validated['email'],
         ]);
-
+    
         if (Auth::guard('account')->attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-
+    
+            // Set a session flag to clear the status page refresh indicator
+            $request->session()->put('just_logged_in', true);
+    
             $account = Auth::guard('account')->user();
             
             Log::info('Account login successful', [
@@ -61,7 +64,7 @@ class AccountAuthController extends Controller
                 'is_confirmed' => $account->isConfirmed(),
                 'session_id' => $request->session()->getId(),
             ]);
-
+    
             // Mark account as confirmed on first login
             if (!$account->isConfirmed()) {
                 Log::info('Marking account as confirmed on first login', [
@@ -69,23 +72,23 @@ class AccountAuthController extends Controller
                 ]);
                 $account->markAsConfirmed();
             }
-
+    
             // Redirect to intended URL (from email link) or default to account edit page
             $intendedUrl = redirect()->intended(route('accounts.edit', $account))->getTargetUrl();
             Log::info('Redirecting after successful login', [
                 'account_id' => $account->id,
                 'intended_url' => $intendedUrl,
             ]);
-
+    
             return redirect()->intended(route('accounts.edit', $account));
         }
-
+    
         Log::warning('Account login failed - credentials mismatch', [
             'email' => $credentials['email'],
             'ip' => $request->ip(),
             'session_id' => $request->session()->getId(),
         ]);
-
+    
         return back()->withErrors([
             'email' => 'The provided credentials do not match our records.',
         ])->onlyInput('email');

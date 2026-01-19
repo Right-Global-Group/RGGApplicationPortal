@@ -18,6 +18,11 @@ use App\Http\Controllers\XeroExportController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/clear-login-flag', function () {
+    session()->forget('just_logged_in');
+    return response()->json(['success' => true]);
+})->middleware(['auth:web,account']);
+
 // Account Authentication Routes
 Route::get('/account/login', [AccountAuthController::class, 'showLoginForm'])->name('account.login');
 Route::post('/account/login', [AccountAuthController::class, 'login']);

@@ -219,6 +219,7 @@ class ApplicationStatusController extends Controller
                         'created_at' => $log->created_at->format('Y-m-d H:i'),
                     ]),
             ],
+            'justLoggedIn' => session('just_logged_in', false),
             'docusignRecipientStatus' => $liveRecipientStatus,
             'is_account' => $isAccount,
             'is_admin' => $isAdmin,
