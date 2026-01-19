@@ -645,7 +645,7 @@
           target="_blank"
           @submit="handleContractFormSubmit"
         >
-          <input type="hidden" name="_token" :value="csrfToken">
+          <input type="hidden" name="_token" :value="getCsrfToken()">
           
           <button
             type="submit"
@@ -1407,10 +1407,6 @@ export default {
       return [...completed, ...pending]
     },
 
-    csrfToken() {
-      return document.querySelector('meta[name="csrf-token"]')?.content || ''
-    },
-
     canSendContractReminder() {
       // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
@@ -1615,6 +1611,15 @@ export default {
     },
   },
   methods: {
+
+    getCsrfToken() {
+      const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      if (!token) {
+        console.error('CSRF token not found in meta tag')
+      }
+      return token || ''
+    },
+
     scrollToSection(sectionId) {
       const element = document.getElementById(sectionId)
       if (element) {
