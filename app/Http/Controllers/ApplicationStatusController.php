@@ -566,53 +566,58 @@ class ApplicationStatusController extends Controller
         ]);
     }
 
-    /**
-     * Send contract link via DocuSign - returns JSON with signing URL
-     */
-    public function sendContractLink(Application $application): JsonResponse
+    public function sendContractLink(Application $application)
     {
         try {
-            // Send contract via DocuSign
             $result = $this->docuSignService->sendDocuSignContract($application);
             
             $application->status->update([
                 'docusign_envelope_id' => $result['envelope_id'],
                 'docusign_status' => 'sent',
             ]);
-
-            // Send document upload ready email if documents haven't been uploaded yet
+    
             if (!$application->status->documents_uploaded_at && $application->account->first_login_at) {
                 event(new \App\Events\DocumentUploadReadyEvent($application));
-                \Log::info('Sent document upload ready email to merchant', [
-                    'application_id' => $application->id,
-                    'merchant_email' => $application->account->email,
-                    'account_has_logged_in' => true,
-                ]);
-            } elseif (!$application->account->first_login_at) {
-                \Log::info('Skipped document upload ready email - account has not logged in yet', [
-                    'application_id' => $application->id,
-                    'merchant_email' => $application->account->email,
-                    'account_has_logged_in' => false,
+            }
+    
+            // Simple check: Are you a merchant?
+            if (auth()->guard('account')->check()) {
+                // YES - You're a merchant, go straight to DocuSign
+                return redirect()->away($result['signing_url']);
+            }
+    
+            // NO - You're an admin/user
+            // Check if they want JSON (AJAX request)
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Contract sent successfully',
+                    'signing_url' => $result['signing_url'],
+                    'envelope_id' => $result['envelope_id'],
                 ]);
             }
     
-            return response()->json([
-                'success' => true,
-                'message' => 'Contract sent successfully',
-                'signing_url' => $result['signing_url'],
-                'envelope_id' => $result['envelope_id'],
-            ]);
+            // They don't want JSON, just redirect them too
+            return redirect()->away($result['signing_url']);
+    
         } catch (\Exception $e) {
             \Log::error('Failed to send DocuSign contract', [
                 'application_id' => $application->id,
-                'error_message' => $e->getMessage(),
-                'error_trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage(),
             ]);
             
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send contract: ' . $e->getMessage(),
-            ], 500);
+            if (auth()->guard('account')->check()) {
+                return redirect()->back()->with('error', 'Failed to open contract: ' . $e->getMessage());
+            }
+            
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send contract: ' . $e->getMessage(),
+                ], 500);
+            }
+    
+            return redirect()->back()->with('error', 'Failed to send contract: ' . $e->getMessage());
         }
     }
 
