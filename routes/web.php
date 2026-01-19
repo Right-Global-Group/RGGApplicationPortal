@@ -104,7 +104,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/update-step', [ApplicationStatusController::class, 'updateStep']);
         
         // Merchant Contract (DocuSign)
-        Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
+        Route::match(['GET', 'POST'], '/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
         Route::get('/{application}/docusign-callback', [ApplicationStatusController::class, 'docusignCallback'])->name('applications.docusign-callback');
         
         // Contract reminder routes
