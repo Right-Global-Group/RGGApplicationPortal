@@ -653,7 +653,7 @@ class MerchantImportController extends Controller
             }
 
             // Fire event to send credentials email to newly created account
-            event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
+            // event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
 
             // Create application with extracted fees
             $application = Application::create([
