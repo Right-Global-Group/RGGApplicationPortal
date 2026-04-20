@@ -71,12 +71,20 @@ class ProcessCardstreamImport implements ShouldQueue
                             continue;
                         }
 
-                        $transactionId = $rowData[0] ?? null;
-                        $merchantId = $rowData[5] ?? null;
-                        $merchantName = $rowData[6] ?? null;
-                        $stateFromCsv = $rowData[41] ?? null;
-                        $responseCode = $rowData[42] ?? null;
-                        $responseMessage = $rowData[43] ?? null;
+                        // Skip header row
+                        if ($rowData[0] === 'merchantName' || $rowData[0] === 'transactionId') {
+                            continue;
+                        }
+
+                        // Detect format: new CSV format has state in column 3, old XLSX has it in column 41
+                        $isNewFormat = !empty($rowData[3]) && empty($rowData[6]);
+
+                        $merchantName = $isNewFormat ? ($rowData[0] ?? null) : ($rowData[6] ?? null);
+                        $merchantId = $isNewFormat ? null : ($rowData[5] ?? null);
+                        $stateFromCsv = $isNewFormat ? ($rowData[3] ?? null) : ($rowData[41] ?? null);
+                        $responseCode = $isNewFormat ? null : ($rowData[42] ?? null);
+                        $responseMessage = $isNewFormat ? null : ($rowData[43] ?? null);
+                        $transactionId = $isNewFormat ? ($rowData[0] . '_' . $rowData[1]) : ($rowData[0] ?? null);
 
                         if (!$transactionId || !$merchantName) {
                             continue;
