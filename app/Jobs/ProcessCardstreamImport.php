@@ -62,6 +62,10 @@ class ProcessCardstreamImport implements ShouldQueue
                 for ($row = $startRow; $row <= $endRow; $row++) {
                     try {
                         $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
+
+                        if ($row === 2) {
+                            \Log::info('First data row', ['data' => $rowData]);
+                        }
                         
                         if (empty(array_filter($rowData))) {
                             continue;
