@@ -46,6 +46,14 @@ class ProcessCardstreamImport implements ShouldQueue
             $highestRow = $worksheet->getHighestRow();
             $processedCount = 0;
             $chunkSize = 500; // Reduced from 1000 to 500 for better memory management
+
+            // Detect CSV format from header row
+            $header = $worksheet->rangeToArray("A1:AZ1", null, true, false)[0];
+            $headerMap = array_flip(array_map('trim', array_map(fn($v) => $v ?? '', $header)));
+
+            $isInvoiceCsv = isset($headerMap['merchantName'], $headerMap['customerName'], $headerMap['processorName'], $headerMap['state']);
+            $isNewCsv     = !$isInvoiceCsv && isset($headerMap['state']);
+            // Otherwise: old XLSX format
             
             // Track merchant stats in memory
             $merchantStats = [];
@@ -73,14 +81,29 @@ class ProcessCardstreamImport implements ShouldQueue
                         }
 
                         // Detect format: new CSV format has state in column 3, old XLSX has it in column 41
-                        $isNewFormat = !empty($rowData[3]) && empty($rowData[6]);
-
-                        $merchantName = $isNewFormat ? ($rowData[0] ?? null) : ($rowData[6] ?? null);
-                        $merchantId = $isNewFormat ? null : ($rowData[5] ?? null);
-                        $stateFromCsv = $isNewFormat ? ($rowData[3] ?? null) : ($rowData[41] ?? null);
-                        $responseCode = $isNewFormat ? null : ($rowData[42] ?? null);
-                        $responseMessage = $isNewFormat ? null : ($rowData[43] ?? null);
-                        $transactionId = $isNewFormat ? ($rowData[0] . '_' . $rowData[1]) : ($rowData[0] ?? null);
+                        // Map columns based on detected format
+                        if ($isInvoiceCsv) {
+                            $merchantName    = $rowData[$headerMap['merchantName']] ?? null;
+                            $merchantId      = null;
+                            $stateFromCsv    = $rowData[$headerMap['state']] ?? null;
+                            $responseCode    = null;
+                            $responseMessage = null;
+                            $transactionId   = ($rowData[$headerMap['merchantName']] ?? '') . '_' . ($rowData[$headerMap['customerName']] ?? '') . '_' . $row;
+                        } elseif ($isNewCsv) {
+                            $merchantName    = $rowData[0] ?? null;
+                            $merchantId      = null;
+                            $stateFromCsv    = $rowData[3] ?? null;
+                            $responseCode    = null;
+                            $responseMessage = null;
+                            $transactionId   = ($rowData[0] ?? '') . '_' . ($rowData[1] ?? '');
+                        } else {
+                            $merchantName    = $rowData[6] ?? null;
+                            $merchantId      = $rowData[5] ?? null;
+                            $stateFromCsv    = $rowData[41] ?? null;
+                            $responseCode    = $rowData[42] ?? null;
+                            $responseMessage = $rowData[43] ?? null;
+                            $transactionId   = $rowData[0] ?? null;
+                        }
 
                         if (!$transactionId || !$merchantName) {
                             continue;
