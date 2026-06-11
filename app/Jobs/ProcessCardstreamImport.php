@@ -47,12 +47,20 @@ class ProcessCardstreamImport implements ShouldQueue
             $processedCount = 0;
             $chunkSize = 500; // Reduced from 1000 to 500 for better memory management
 
-            // Detect CSV format from header row
+            // Detect CSV format from header row.
+            // BOM-safe: strip a leading UTF-8 BOM so the first header (e.g. "ContactName")
+            // still matches instead of becoming "\xEF\xBB\xBFContactName".
             $header = $worksheet->rangeToArray("A1:AZ1", null, true, false)[0];
-            $headerMap = array_flip(array_map('trim', array_map(fn($v) => $v ?? '', $header)));
+            $headerMap = array_flip(array_map(
+                fn($v) => trim(str_replace("\xEF\xBB\xBF", '', $v ?? '')),
+                $header
+            ));
 
             $isInvoiceCsv = isset($headerMap['merchantName'], $headerMap['customerName'], $headerMap['processorName'], $headerMap['state']);
             $isNewCsv     = !$isInvoiceCsv && isset($headerMap['state']);
+            // Xero invoice export (ContactName, EmailAddress, InvoiceNumber, line items, ...)
+            $isXeroInvoiceCsv = !$isInvoiceCsv && !$isNewCsv
+                && isset($headerMap['ContactName'], $headerMap['InvoiceNumber']);
             // Otherwise: old XLSX format
             
             // Track merchant stats in memory
@@ -96,6 +104,16 @@ class ProcessCardstreamImport implements ShouldQueue
                             $responseCode    = null;
                             $responseMessage = null;
                             $transactionId   = ($rowData[0] ?? '') . '_' . ($rowData[1] ?? '');
+                        } elseif ($isXeroInvoiceCsv) {
+                            // Invoice exports carry no transaction "state"; count each
+                            // invoice (contact row) as one accepted transaction. Line-item
+                            // rows have an empty ContactName and are skipped by the guard below.
+                            $merchantName    = $rowData[$headerMap['ContactName']] ?? null;
+                            $merchantId      = null;
+                            $stateFromCsv    = 'accepted';
+                            $responseCode    = null;
+                            $responseMessage = null;
+                            $transactionId   = $rowData[$headerMap['InvoiceNumber']] ?? null;
                         } else {
                             $merchantName    = $rowData[6] ?? null;
                             $merchantId      = $rowData[5] ?? null;
@@ -148,7 +166,9 @@ class ProcessCardstreamImport implements ShouldQueue
                         
                         $processedCount++;
                         
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
+                        // \Throwable (not \Exception) so a TypeError/Error on a single
+                        // misdetected row is logged and skipped instead of killing the job.
                         \Log::error('Error processing row', [
                             'row' => $row,
                             'error' => $e->getMessage(),
