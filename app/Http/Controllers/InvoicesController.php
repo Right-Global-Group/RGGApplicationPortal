@@ -199,12 +199,10 @@ class InvoicesController extends Controller
             $account = $bestMatch;
         }
         
-        if (!$account || $account->applications->isEmpty()) {
-            abort(404, 'No application found for this merchant');
-        }
-        
-        $application = $account->applications->first();
-        
+        $application = ($account && $account->applications->isNotEmpty())
+            ? $account->applications->first()
+            : null;
+
         return Inertia::render('Invoices/Show', [
             'merchantName' => $decodedMerchantName,
             'merchantStats' => [
@@ -215,12 +213,12 @@ class InvoicesController extends Controller
                 'total_transactions' => $merchantStat->total_transactions,
             ],
             'applicationData' => [
-                'scaling_fee' => $application->scaling_fee,
-                'transaction_percentage' => $application->transaction_percentage,
-                'transaction_fixed_fee' => $application->transaction_fixed_fee,
-                'monthly_fee' => $application->monthly_fee,
-                'monthly_minimum' => $application->monthly_minimum,
-                'setup_fee' => $application->setup_fee,
+                'scaling_fee' => $application?->scaling_fee,
+                'transaction_percentage' => $application?->transaction_percentage,
+                'transaction_fixed_fee' => $application?->transaction_fixed_fee,
+                'monthly_fee' => $application?->monthly_fee,
+                'monthly_minimum' => $application?->monthly_minimum,
+                'setup_fee' => $application?->setup_fee,
             ],
             'importFilename' => $import->filename,
             'importId' => $import->id,
