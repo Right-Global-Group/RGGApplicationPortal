@@ -201,16 +201,16 @@
                   :key="index"
                   :class="[
                     'border-b border-primary-800/20',
-                    stat.monthly_fee ? (selectMerchantsMode ? 'cursor-pointer transition-all duration-200' : 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150') : '',
+                    selectMerchantsMode ? 'cursor-pointer transition-all duration-200' : 'hover:bg-primary-900/30 cursor-pointer transition-colors duration-150',
                     selectMerchantsMode && isMerchantSelected(stat.merchant_name) ? 'bg-magenta-900/40 hover:bg-magenta-900/50 border-l-4 border-l-magenta-500' : '',
-                    selectMerchantsMode && !isMerchantSelected(stat.merchant_name) && stat.monthly_fee ? 'hover:bg-primary-900/20' : ''
+                    selectMerchantsMode && !isMerchantSelected(stat.merchant_name) ? 'hover:bg-primary-900/20' : ''
                   ]"
                   @click="handleRowClick(stat)"
                 >
                   <td class="px-3 py-2">
                     <div class="flex items-center gap-2">
                       <div 
-                        v-if="selectMerchantsMode && stat.monthly_fee"
+                        v-if="selectMerchantsMode"
                         class="flex-shrink-0"
                       >
                         <div 
@@ -232,8 +232,8 @@
                       </div>
                       <span 
                         :class="[
-                          stat.monthly_fee ? 'text-gray-200 transition-colors duration-150' : 'text-gray-200',
-                          !selectMerchantsMode && stat.monthly_fee ? 'hover:text-magenta-400' : '',
+                          'text-gray-200 transition-colors duration-150',
+                          !selectMerchantsMode ? 'hover:text-magenta-400' : '',
                           selectMerchantsMode && isMerchantSelected(stat.merchant_name) ? 'text-magenta-300 font-medium' : ''
                         ]"
                       >
@@ -541,10 +541,6 @@
       }
       
       const handleRowClick = (stat) => {
-        if (!stat.monthly_fee) {
-          return // Don't allow interaction with merchants that have no monthly fee
-        }
-        
         if (selectMerchantsMode.value) {
           toggleMerchantSelection(stat.merchant_name)
         } else {
