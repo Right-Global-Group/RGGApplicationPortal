@@ -55,9 +55,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         ->name('email-templates.update');
     Route::post('/email-templates/{template}/reset', [EmailTemplatesController::class, 'reset'])
         ->name('email-templates.reset');
-    Route::get('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
-        ->name('email-templates.preview');
-    Route::post('/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
+    Route::match(['get', 'post'], '/email-templates/{template}/preview', [EmailTemplatesController::class, 'previewAjax'])
         ->name('email-templates.preview');
 
     // Document Library Routes
