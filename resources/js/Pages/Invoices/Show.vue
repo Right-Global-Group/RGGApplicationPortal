@@ -1,26 +1,26 @@
  <template>
     <div>
       <Head :title="`Invoice - ${merchantName}`" />
-      
+
       <div class="mb-6">
-        <a 
-          :href="importId ? `/invoices?import_id=${importId}` : '/invoices'" 
+        <a
+          :href="importId ? `/invoices?import_id=${importId}` : '/invoices'"
           class="text-magenta-400 hover:text-magenta-300 transition-colors flex items-center gap-2 mb-4"
         >
           <span>←</span>
           <span>Back to Invoices</span>
         </a>
-        
+
         <div class="flex justify-between items-center">
           <div>
             <h1 class="text-3xl font-bold text-white">{{ merchantName }}</h1>
             <p class="text-sm text-gray-400 mt-1">Invoice for {{ importFilename }}</p>
           </div>
-          
+
           <div class="flex items-center gap-4">
             <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 v-model="isFirstMonth"
                 class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
               />
@@ -28,8 +28,8 @@
             </label>
 
             <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 v-model="removeDeclineFee"
                 class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
               />
@@ -37,46 +37,13 @@
             </label>
 
             <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 transition-colors cursor-pointer">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 v-model="addChargebackFee"
                 class="w-4 h-4 rounded border-primary-700 bg-dark-800 text-magenta-500 focus:ring-2 focus:ring-magenta-500 focus:ring-offset-0 cursor-pointer transition-colors"
               />
               <span class="text-sm text-gray-200 select-none">Add Chargeback Fee</span>
             </label>
-            
-            <div class="flex items-center gap-3 border-l border-primary-800/30 pl-4 ml-2">
-              <div class="flex items-center gap-2">
-                <label class="text-xs text-gray-400 whitespace-nowrap">Monthly Min</label>
-                <input
-                  type="number"
-                  v-model.number="overrideMonthlyMinimum"
-                  min="0"
-                  step="0.01"
-                  class="w-24 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-xs text-gray-400 whitespace-nowrap">Scaling Fee</label>
-                <input
-                  type="number"
-                  v-model.number="overrideScalingFee"
-                  min="0"
-                  step="0.01"
-                  class="w-24 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-xs text-gray-400 whitespace-nowrap">Monthly Fee</label>
-                <input
-                  type="number"
-                  v-model.number="overrideMonthlyFee"
-                  min="0"
-                  step="0.01"
-                  class="w-24 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
-                />
-              </div>
-            </div>
 
             <button
               @click="exportToXero"
@@ -186,6 +153,53 @@
           </table>
         </div>
       </div>
+
+      <!-- Fee Overrides -->
+      <div class="mt-4 bg-dark-800/50 backdrop-blur-sm rounded-xl border border-primary-800/30 px-6 py-4">
+        <h3 class="text-sm font-medium text-gray-400 mb-3">Fee Values</h3>
+        <div class="flex items-center gap-6 flex-wrap">
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400 whitespace-nowrap">Transaction Fee Price (£)</label>
+            <input
+              type="number"
+              v-model.number="overrideTransactionFeePrice"
+              min="0"
+              step="0.01"
+              class="w-28 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400 whitespace-nowrap">Monthly Min (£)</label>
+            <input
+              type="number"
+              v-model.number="overrideMonthlyMinimum"
+              min="0"
+              step="0.01"
+              class="w-28 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400 whitespace-nowrap">Scaling Fee (£)</label>
+            <input
+              type="number"
+              v-model.number="overrideScalingFee"
+              min="0"
+              step="0.01"
+              class="w-28 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-400 whitespace-nowrap">Monthly Fee (£)</label>
+            <input
+              type="number"
+              v-model.number="overrideMonthlyFee"
+              min="0"
+              step="0.01"
+              class="w-28 px-2 py-1.5 rounded-lg bg-dark-700/50 border border-primary-800/30 hover:border-primary-700/50 focus:border-magenta-500 focus:outline-none text-sm text-gray-200 text-right transition-colors"
+            />
+          </div>
+        </div>
+      </div>
     </div>
     </template>
 
@@ -212,13 +226,14 @@
       const addChargebackFee = ref(false)
       const TAX_RATE = 0.20 // 20% VAT
 
+      const overrideTransactionFeePrice = ref(parseFloat(props.applicationData?.transaction_fixed_fee || 0))
       const overrideMonthlyMinimum = ref(parseFloat(props.applicationData?.monthly_minimum || 0))
       const overrideScalingFee = ref(parseFloat(props.applicationData?.scaling_fee || 0))
       const overrideMonthlyFee = ref(parseFloat(props.applicationData?.monthly_fee || 0))
 
       // Transaction Fee Calculations
       const transactionFeeQty = computed(() => props.merchantStats.total_transactions)
-      const transactionFeePrice = computed(() => parseFloat(props.applicationData.transaction_fixed_fee || 0))
+      const transactionFeePrice = computed(() => overrideTransactionFeePrice.value)
       const transactionFeeSubtotal = computed(() => transactionFeeQty.value * transactionFeePrice.value)
       const transactionFeeTax = computed(() => transactionFeeSubtotal.value * TAX_RATE)
       const transactionFeeAmount = computed(() => transactionFeeSubtotal.value)
@@ -241,12 +256,12 @@
 
       const monthlyMiniTopUpPrice = computed(() => {
         const basePrice = monthlyMiniTopUpBasePrice.value
-        
+
         // Only return a top-up amount if transaction fees are below the minimum
         if (transactionFeeSubtotal.value < basePrice) {
           return Math.max(0, basePrice - transactionFeeSubtotal.value)
         }
-        
+
         // No top-up needed
         return 0
       })
@@ -278,42 +293,42 @@
 
       // Totals
       const subtotal = computed(() => {
-        let total = transactionFeeSubtotal.value + 
+        let total = transactionFeeSubtotal.value +
                     monthlyFeePrice.value
-        
+
         // Only add Monthly Mini Top Up if it should be shown
         if (shouldShowMonthlyMiniTopUp.value) {
           total += monthlyMiniTopUpPrice.value
         }
-        
+
         if (!removeDeclineFee.value) {
           total += declineFeePrice.value
         }
-        
+
         if (addChargebackFee.value) {
           total += chargebackFeePrice
         }
-        
+
         return total
       })
 
       const totalTax = computed(() => {
-        let total = transactionFeeTax.value + 
+        let total = transactionFeeTax.value +
                     monthlyFeeTax.value
-        
+
         // Only add Monthly Mini Top Up tax if it should be shown
         if (shouldShowMonthlyMiniTopUp.value) {
           total += monthlyMiniTopUpTax.value
         }
-        
+
         if (!removeDeclineFee.value) {
           total += declineFeeTax.value
         }
-        
+
         if (addChargebackFee.value) {
           total += chargebackFeeTax.value
         }
-        
+
         return total
       })
 
@@ -325,18 +340,19 @@
           maximumFractionDigits: 2,
         }).format(value)
       }
-      
+
       const exportToXero = () => {
         const params = new URLSearchParams({
           import_id: props.importId,
           is_first_month: isFirstMonth.value ? '1' : '0',
           remove_decline_fee: removeDeclineFee.value ? '1' : '0',
           add_chargeback_fee: addChargebackFee.value ? '1' : '0',
+          transaction_fixed_fee: overrideTransactionFeePrice.value,
           monthly_minimum: overrideMonthlyMinimum.value,
           scaling_fee: overrideScalingFee.value,
           monthly_fee: overrideMonthlyFee.value,
         })
-        
+
         window.location.href = `/invoices/${encodeURIComponent(props.merchantName)}/export-xero?${params.toString()}`
       }
 
@@ -344,6 +360,7 @@
         isFirstMonth,
         removeDeclineFee,
         addChargebackFee,
+        overrideTransactionFeePrice,
         overrideMonthlyMinimum,
         overrideScalingFee,
         overrideMonthlyFee,
