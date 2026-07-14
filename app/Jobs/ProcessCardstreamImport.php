@@ -211,187 +211,169 @@ class ProcessCardstreamImport implements ShouldQueue
                 fclose($handle);
 
             } else {
-                // XLSX path: PhpSpreadsheet required for binary formats.
-                // IOFactory::load() reads the whole workbook into memory in one call, which
-                // OOM-kills the worker on large files (38MB file -> ~3GB resident). Instead,
-                // read a header-only pass to get dimensions, then re-read the file per chunk
-                // with an IReadFilter so only one chunk's worth of cells is ever in memory.
-                $headerReader = IOFactory::createReaderForFile($this->filePath);
-                $headerReader->setReadDataOnly(true);
-                $headerReader->setReadFilter(new \App\Jobs\Support\CardstreamChunkReadFilter(1, 1));
-                $headerSpreadsheet = $headerReader->load($this->filePath);
-                $headerWorksheet = $headerSpreadsheet->getActiveSheet();
-
-                $highestRow = $headerWorksheet->getHighestRow();
-                $highestColumn = $headerWorksheet->getHighestColumn();
+                // XLSX path: streamed directly, bypassing PhpSpreadsheet entirely.
+                // PhpSpreadsheet's reader loads the whole shared-strings table into memory
+                // as objects on every load() call; on this file that table has 694k+ unique
+                // entries (29MB of XML) because transaction IDs/timestamps/messages don't
+                // repeat. Re-parsing that per chunk is what was OOM-killing the worker.
+                // XlsxStreamReader parses shared strings once as plain strings, then streams
+                // the sheet XML row-by-row, so peak memory stays flat regardless of file size.
+                $streamReader = new \App\Jobs\Support\XlsxStreamReader($this->filePath);
+                $highestRow = $streamReader->getHighestRow();
 
                 \Log::info('Spreadsheet dimensions read', [
                     'highest_row' => $highestRow,
-                    'highest_column' => $highestColumn,
                 ]);
 
-                $header = $headerWorksheet->rangeToArray("A1:AZ1", null, true, false)[0];
-                $headerMap = array_flip(array_map(
-                    fn($v) => trim(str_replace("\xEF\xBB\xBF", '', $v ?? '')),
-                    $header
-                ));
-
-                $headerSpreadsheet->disconnectWorksheets();
-                unset($headerSpreadsheet, $headerWorksheet, $headerReader);
-                gc_collect_cycles();
-
-                \Log::info('Parsed header keys', [
-                    'count' => count($headerMap),
-                    'keys' => array_values(array_filter(array_keys($headerMap), fn($k) => $k !== '')),
-                ]);
-
-                $isInvoiceCsv    = isset($headerMap['merchantName'], $headerMap['customerName'], $headerMap['processorName'], $headerMap['state']);
-                $isNewCsv        = !$isInvoiceCsv && isset($headerMap['state']);
-                $isXeroInvoiceCsv = !$isInvoiceCsv && !$isNewCsv
-                    && isset($headerMap['ContactName'], $headerMap['InvoiceNumber']);
-
-                $detectedFormat = $isInvoiceCsv ? 'invoiceCsv'
-                    : ($isNewCsv ? 'newCsv'
-                    : ($isXeroInvoiceCsv ? 'xeroInvoiceCsv'
-                    : 'legacyXlsx'));
-
-                \Log::info('Detected format', [
-                    'format' => $detectedFormat,
-                    'isInvoiceCsv' => $isInvoiceCsv,
-                    'isNewCsv' => $isNewCsv,
-                    'isXeroInvoiceCsv' => $isXeroInvoiceCsv,
-                ]);
-
+                $headerMap = [];
+                $isInvoiceCsv = $isNewCsv = $isXeroInvoiceCsv = false;
                 $loggedSamples = 0;
+                $rowsSinceSave = 0;
 
-                $import->estimated_total = $highestRow - 1;
-                $import->save();
+                foreach ($streamReader->rows() as $row => $rowData) {
+                    if ($row === 1) {
+                        $header = $rowData;
+                        $headerMap = array_flip(array_map(
+                            fn($v) => trim(str_replace("\xEF\xBB\xBF", '', $v ?? '')),
+                            $header
+                        ));
 
-                for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
-                    $endRow = min($startRow + $chunkSize - 1, $highestRow);
+                        \Log::info('Parsed header keys', [
+                            'count' => count($headerMap),
+                            'keys' => array_values(array_filter(array_keys($headerMap), fn($k) => $k !== '')),
+                        ]);
 
-                    $chunkReader = IOFactory::createReaderForFile($this->filePath);
-                    $chunkReader->setReadDataOnly(true);
-                    $chunkReader->setReadFilter(new \App\Jobs\Support\CardstreamChunkReadFilter($startRow, $endRow));
-                    $chunkSpreadsheet = $chunkReader->load($this->filePath);
-                    $chunkWorksheet = $chunkSpreadsheet->getActiveSheet();
+                        $isInvoiceCsv    = isset($headerMap['merchantName'], $headerMap['customerName'], $headerMap['processorName'], $headerMap['state']);
+                        $isNewCsv        = !$isInvoiceCsv && isset($headerMap['state']);
+                        $isXeroInvoiceCsv = !$isInvoiceCsv && !$isNewCsv
+                            && isset($headerMap['ContactName'], $headerMap['InvoiceNumber']);
 
-                    $chunkRows = $chunkWorksheet->rangeToArray("A{$startRow}:AZ{$endRow}", null, true, false);
+                        \Log::info('Detected format', [
+                            'format' => $isInvoiceCsv ? 'invoiceCsv' : ($isNewCsv ? 'newCsv' : ($isXeroInvoiceCsv ? 'xeroInvoiceCsv' : 'legacyXlsx')),
+                            'isInvoiceCsv' => $isInvoiceCsv,
+                            'isNewCsv' => $isNewCsv,
+                            'isXeroInvoiceCsv' => $isXeroInvoiceCsv,
+                        ]);
 
-                    for ($row = $startRow; $row <= $endRow; $row++) {
-                        try {
-                            $rowData = $chunkRows[$row - $startRow];
+                        $import->estimated_total = $highestRow - 1;
+                        $import->save();
 
-                            if (empty(array_filter($rowData))) {
-                                continue;
-                            }
-
-                            if ($rowData[0] === 'merchantName' || $rowData[0] === 'transactionId') {
-                                continue;
-                            }
-
-                            if ($isInvoiceCsv) {
-                                $merchantName    = $rowData[$headerMap['merchantName']] ?? null;
-                                $merchantId      = null;
-                                $stateFromCsv    = $rowData[$headerMap['state']] ?? null;
-                                $responseCode    = null;
-                                $responseMessage = null;
-                                $transactionId   = ($rowData[$headerMap['merchantName']] ?? '') . '_' . ($rowData[$headerMap['customerName']] ?? '') . '_' . $row;
-                            } elseif ($isNewCsv) {
-                                $merchantName    = $rowData[0] ?? null;
-                                $merchantId      = null;
-                                $stateFromCsv    = $rowData[3] ?? null;
-                                $responseCode    = null;
-                                $responseMessage = null;
-                                $transactionId   = ($rowData[0] ?? '') . '_' . ($rowData[1] ?? '');
-                            } elseif ($isXeroInvoiceCsv) {
-                                $merchantName    = $rowData[$headerMap['ContactName']] ?? null;
-                                $merchantId      = null;
-                                $stateFromCsv    = 'accepted';
-                                $responseCode    = null;
-                                $responseMessage = null;
-                                $transactionId   = $rowData[$headerMap['InvoiceNumber']] ?? null;
-                            } else {
-                                $merchantName    = $rowData[6] ?? null;
-                                $merchantId      = $rowData[5] ?? null;
-                                $stateFromCsv    = $rowData[41] ?? null;
-                                $responseCode    = $rowData[42] ?? null;
-                                $responseMessage = $rowData[43] ?? null;
-                                $transactionId   = $rowData[0] ?? null;
-                            }
-
-                            if ($loggedSamples < 5) {
-                                \Log::info('Row sample', [
-                                    'row' => $row,
-                                    'merchant_name' => $merchantName,
-                                    'transaction_id' => $transactionId,
-                                    'state_from_csv' => $stateFromCsv,
-                                ]);
-                                $loggedSamples++;
-                            }
-
-                            if (!$transactionId || !$merchantName) {
-                                $skippedRows++;
-                                continue;
-                            }
-
-                            if (!empty($stateFromCsv)) {
-                                $state = strtolower(trim($stateFromCsv));
-                            } else {
-                                $state = CardstreamTransactionSummary::determineState($responseMessage, $responseCode);
-                            }
-
-                            $validStates = ['accepted', 'received', 'declined', 'canceled'];
-                            if (!in_array($state, $validStates)) {
-                                \Log::warning('Invalid state, defaulting to received', [
-                                    'state' => $state,
-                                    'merchant' => $merchantName,
-                                    'transaction_id' => $transactionId,
-                                ]);
-                                $state = 'received';
-                            }
-
-                            $key = $merchantName;
-                            if (!isset($merchantStats[$key])) {
-                                $merchantStats[$key] = [
-                                    'merchant_id' => $merchantId,
-                                    'merchant_name' => $merchantName,
-                                    'total_transactions' => 0,
-                                    'accepted' => 0,
-                                    'received' => 0,
-                                    'declined' => 0,
-                                    'canceled' => 0,
-                                ];
-                            }
-
-                            $merchantStats[$key]['total_transactions']++;
-                            $merchantStats[$key][$state]++;
-                            $processedCount++;
-
-                        } catch (\Throwable $e) {
-                            \Log::error('Error processing row', [
-                                'row' => $row,
-                                'error' => $e->getMessage(),
-                            ]);
-                            continue;
-                        }
+                        continue;
                     }
 
-                    $import->processed_rows = $processedCount;
-                    $import->save();
+                    try {
+                        if (empty(array_filter($rowData))) {
+                            continue;
+                        }
 
-                    \Log::info('Chunk processed', [
-                        'rows' => "{$startRow}-{$endRow}",
-                        'processed_so_far' => $processedCount,
-                        'skipped_so_far' => $skippedRows,
-                        'merchants_so_far' => count($merchantStats),
-                        'memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
-                    ]);
+                        if ($rowData[0] === 'merchantName' || $rowData[0] === 'transactionId') {
+                            continue;
+                        }
 
-                    $chunkSpreadsheet->disconnectWorksheets();
-                    unset($rowData, $chunkRows, $chunkSpreadsheet, $chunkWorksheet, $chunkReader);
-                    gc_collect_cycles();
+                        if ($isInvoiceCsv) {
+                            $merchantName    = $rowData[$headerMap['merchantName']] ?? null;
+                            $merchantId      = null;
+                            $stateFromCsv    = $rowData[$headerMap['state']] ?? null;
+                            $responseCode    = null;
+                            $responseMessage = null;
+                            $transactionId   = ($rowData[$headerMap['merchantName']] ?? '') . '_' . ($rowData[$headerMap['customerName']] ?? '') . '_' . $row;
+                        } elseif ($isNewCsv) {
+                            $merchantName    = $rowData[0] ?? null;
+                            $merchantId      = null;
+                            $stateFromCsv    = $rowData[3] ?? null;
+                            $responseCode    = null;
+                            $responseMessage = null;
+                            $transactionId   = ($rowData[0] ?? '') . '_' . ($rowData[1] ?? '');
+                        } elseif ($isXeroInvoiceCsv) {
+                            $merchantName    = $rowData[$headerMap['ContactName']] ?? null;
+                            $merchantId      = null;
+                            $stateFromCsv    = 'accepted';
+                            $responseCode    = null;
+                            $responseMessage = null;
+                            $transactionId   = $rowData[$headerMap['InvoiceNumber']] ?? null;
+                        } else {
+                            $merchantName    = $rowData[6] ?? null;
+                            $merchantId      = $rowData[5] ?? null;
+                            $stateFromCsv    = $rowData[41] ?? null;
+                            $responseCode    = $rowData[42] ?? null;
+                            $responseMessage = $rowData[43] ?? null;
+                            $transactionId   = $rowData[0] ?? null;
+                        }
+
+                        if ($loggedSamples < 5) {
+                            \Log::info('Row sample', [
+                                'row' => $row,
+                                'merchant_name' => $merchantName,
+                                'transaction_id' => $transactionId,
+                                'state_from_csv' => $stateFromCsv,
+                            ]);
+                            $loggedSamples++;
+                        }
+
+                        if (!$transactionId || !$merchantName) {
+                            $skippedRows++;
+                            continue;
+                        }
+
+                        if (!empty($stateFromCsv)) {
+                            $state = strtolower(trim($stateFromCsv));
+                        } else {
+                            $state = CardstreamTransactionSummary::determineState($responseMessage, $responseCode);
+                        }
+
+                        $validStates = ['accepted', 'received', 'declined', 'canceled'];
+                        if (!in_array($state, $validStates)) {
+                            \Log::warning('Invalid state, defaulting to received', [
+                                'state' => $state,
+                                'merchant' => $merchantName,
+                                'transaction_id' => $transactionId,
+                            ]);
+                            $state = 'received';
+                        }
+
+                        $key = $merchantName;
+                        if (!isset($merchantStats[$key])) {
+                            $merchantStats[$key] = [
+                                'merchant_id' => $merchantId,
+                                'merchant_name' => $merchantName,
+                                'total_transactions' => 0,
+                                'accepted' => 0,
+                                'received' => 0,
+                                'declined' => 0,
+                                'canceled' => 0,
+                            ];
+                        }
+
+                        $merchantStats[$key]['total_transactions']++;
+                        $merchantStats[$key][$state]++;
+                        $processedCount++;
+
+                    } catch (\Throwable $e) {
+                        \Log::error('Error processing row', [
+                            'row' => $row,
+                            'error' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
+
+                    $rowsSinceSave++;
+                    if ($rowsSinceSave >= $chunkSize || $row === $highestRow) {
+                        $import->processed_rows = $processedCount;
+                        $import->save();
+
+                        \Log::info('Chunk processed', [
+                            'rows' => "up to {$row}",
+                            'processed_so_far' => $processedCount,
+                            'skipped_so_far' => $skippedRows,
+                            'merchants_so_far' => count($merchantStats),
+                            'memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
+                        ]);
+
+                        $rowsSinceSave = 0;
+                    }
                 }
+
+                $streamReader->cleanup();
             }
 
             \Log::info('Row loop complete', [
