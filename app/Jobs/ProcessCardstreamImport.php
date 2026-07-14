@@ -259,9 +259,11 @@ class ProcessCardstreamImport implements ShouldQueue
                 for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
                     $endRow = min($startRow + $chunkSize - 1, $highestRow);
 
+                    $chunkRows = $worksheet->rangeToArray("A{$startRow}:AZ{$endRow}", null, true, false);
+
                     for ($row = $startRow; $row <= $endRow; $row++) {
                         try {
-                            $rowData = $worksheet->rangeToArray("A{$row}:AZ{$row}", null, true, false)[0];
+                            $rowData = $chunkRows[$row - $startRow];
 
                             if (empty(array_filter($rowData))) {
                                 continue;
@@ -369,7 +371,7 @@ class ProcessCardstreamImport implements ShouldQueue
                         'memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
                     ]);
 
-                    unset($rowData);
+                    unset($rowData, $chunkRows);
                     gc_collect_cycles();
                 }
 
