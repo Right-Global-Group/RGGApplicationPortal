@@ -211,23 +211,34 @@ class ProcessCardstreamImport implements ShouldQueue
                 fclose($handle);
 
             } else {
-                // XLSX path: PhpSpreadsheet required for binary formats
-                $spreadsheet = IOFactory::load($this->filePath);
-                $worksheet = $spreadsheet->getActiveSheet();
+                // XLSX path: PhpSpreadsheet required for binary formats.
+                // IOFactory::load() reads the whole workbook into memory in one call, which
+                // OOM-kills the worker on large files (38MB file -> ~3GB resident). Instead,
+                // read a header-only pass to get dimensions, then re-read the file per chunk
+                // with an IReadFilter so only one chunk's worth of cells is ever in memory.
+                $headerReader = IOFactory::createReaderForFile($this->filePath);
+                $headerReader->setReadDataOnly(true);
+                $headerReader->setReadFilter(new \App\Jobs\Support\CardstreamChunkReadFilter(1, 1));
+                $headerSpreadsheet = $headerReader->load($this->filePath);
+                $headerWorksheet = $headerSpreadsheet->getActiveSheet();
 
-                $highestRow = $worksheet->getHighestRow();
-                $highestColumn = $worksheet->getHighestColumn();
+                $highestRow = $headerWorksheet->getHighestRow();
+                $highestColumn = $headerWorksheet->getHighestColumn();
 
-                \Log::info('Spreadsheet loaded', [
+                \Log::info('Spreadsheet dimensions read', [
                     'highest_row' => $highestRow,
                     'highest_column' => $highestColumn,
                 ]);
 
-                $header = $worksheet->rangeToArray("A1:AZ1", null, true, false)[0];
+                $header = $headerWorksheet->rangeToArray("A1:AZ1", null, true, false)[0];
                 $headerMap = array_flip(array_map(
                     fn($v) => trim(str_replace("\xEF\xBB\xBF", '', $v ?? '')),
                     $header
                 ));
+
+                $headerSpreadsheet->disconnectWorksheets();
+                unset($headerSpreadsheet, $headerWorksheet, $headerReader);
+                gc_collect_cycles();
 
                 \Log::info('Parsed header keys', [
                     'count' => count($headerMap),
@@ -259,7 +270,13 @@ class ProcessCardstreamImport implements ShouldQueue
                 for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
                     $endRow = min($startRow + $chunkSize - 1, $highestRow);
 
-                    $chunkRows = $worksheet->rangeToArray("A{$startRow}:AZ{$endRow}", null, true, false);
+                    $chunkReader = IOFactory::createReaderForFile($this->filePath);
+                    $chunkReader->setReadDataOnly(true);
+                    $chunkReader->setReadFilter(new \App\Jobs\Support\CardstreamChunkReadFilter($startRow, $endRow));
+                    $chunkSpreadsheet = $chunkReader->load($this->filePath);
+                    $chunkWorksheet = $chunkSpreadsheet->getActiveSheet();
+
+                    $chunkRows = $chunkWorksheet->rangeToArray("A{$startRow}:AZ{$endRow}", null, true, false);
 
                     for ($row = $startRow; $row <= $endRow; $row++) {
                         try {
@@ -371,13 +388,10 @@ class ProcessCardstreamImport implements ShouldQueue
                         'memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
                     ]);
 
-                    unset($rowData, $chunkRows);
+                    $chunkSpreadsheet->disconnectWorksheets();
+                    unset($rowData, $chunkRows, $chunkSpreadsheet, $chunkWorksheet, $chunkReader);
                     gc_collect_cycles();
                 }
-
-                $spreadsheet->disconnectWorksheets();
-                unset($spreadsheet, $worksheet);
-                gc_collect_cycles();
             }
 
             \Log::info('Row loop complete', [
