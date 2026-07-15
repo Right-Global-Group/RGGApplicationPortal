@@ -300,7 +300,7 @@ class DocuSignService
         
         try {
             $accessToken = $this->getAccessToken();
-            $templateId = '3e6ada78-333f-412e-830b-203f75fa9644';
+            $templateId = 'd00375a4-da8d-4985-8448-5f939f92f02f';
         
             // Define tabs that will be applied to ALL recipients
             // These are locked text fields that display pre-filled fee information
