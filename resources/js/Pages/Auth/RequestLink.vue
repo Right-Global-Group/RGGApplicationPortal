@@ -63,7 +63,7 @@ export default {
   },
   methods: {
     submit() {
-      this.form.post('/account/request-link')
+      this.form.post('/account/login')
     },
   },
 }

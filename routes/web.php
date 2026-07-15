@@ -25,19 +25,17 @@ Route::post('/clear-login-flag', function () {
     return response()->json(['success' => true]);
 })->middleware(['auth:web,account']);
 
-// Account Authentication Routes
-Route::get('/account/login', [AccountAuthController::class, 'showLoginForm'])->name('account.login');
-Route::post('/account/login', [AccountAuthController::class, 'login']);
+// Merchant Authentication Routes.
+//
+// Merchants have no password, so the login page is the "send me a link" box. The throttle
+// is not optional: this is a public form that puts mail in a merchant's inbox.
+Route::get('/account/login', [MagicLinkController::class, 'showRequestForm'])->name('account.login');
+Route::post('/account/login', [MagicLinkController::class, 'sendRequestedLink'])
+    ->middleware('throttle:5,60');
 Route::delete('/account/logout', [AccountAuthController::class, 'logout'])->name('account.logout');
 
-// Merchant magic link. Not behind the `signed` middleware on purpose - see MagicLinkController.
+// Not behind the `signed` middleware on purpose - see MagicLinkController.
 Route::get('/account/link/{account}', [MagicLinkController::class, 'login'])->name('account.magic-link');
-
-// "Send me a link" box. The throttle is not optional: this is a public form that puts
-// mail in a merchant's inbox.
-Route::get('/account/request-link', [MagicLinkController::class, 'showRequestForm'])->name('account.link-request');
-Route::post('/account/request-link', [MagicLinkController::class, 'sendRequestedLink'])
-    ->middleware('throttle:5,60');
 
 // User Authentication Routes
 Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');

@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 class Account extends Authenticatable
@@ -27,7 +25,6 @@ class Account extends Authenticatable
         'recipient_name',
         'email',
         'mobile',
-        'password',
         'user_id',
         'status',
         'credentials_sent_at',
@@ -36,7 +33,6 @@ class Account extends Authenticatable
     ];
 
     protected $hidden = [
-        'password',
         'remember_token',
     ];
 
@@ -104,16 +100,6 @@ class Account extends Authenticatable
                 'first_login_at' => now(),
             ]);
         }
-    }
-
-    public static function generatePassword(): string
-    {
-        return Str::random(12);
-    }
-
-    public function setPasswordAttribute($value)
-    {
-        $this->attributes['password'] = Hash::needsRehash($value) ? Hash::make($value) : $value;
     }
 
     public function setEmailAttribute($value)

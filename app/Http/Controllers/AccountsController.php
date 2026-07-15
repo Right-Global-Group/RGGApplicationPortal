@@ -119,9 +119,6 @@ class AccountsController extends Controller
             'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
 
-        // Generate random password
-        $plainPassword = Account::generatePassword();
-
         $photoPath = null;
         if (Request::file('photo')) {
             $file = Request::file('photo');
@@ -134,7 +131,6 @@ class AccountsController extends Controller
             'recipient_name' => $validated['recipient_name'] ?? null,
             'email' => $validated['email'],
             'mobile' => $validated['mobile'] ?? null,
-            'password' => $plainPassword,
             'user_id' => auth()->id(),
             'status' => Account::STATUS_PENDING,
             'photo_path' => $photoPath,

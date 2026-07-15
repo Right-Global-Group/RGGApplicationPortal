@@ -189,23 +189,10 @@ class ApplicationsController extends Controller
             ['user_id' => auth()->id()]
         ));
 
-        // Send credentials email if account hasn't logged in yet
-        $credentialsSent = false;
-        if (!$account->first_login_at) {
-            // Generate new password
-            $plainPassword = Account::generatePassword();
-            $account->update(['password' => $plainPassword]);
-
-            // Fire event to send credentials email
-            // event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
-            
-            $credentialsSent = true;
-        }
-
-        $successMessage = 'Application created successfully.';
-        if ($credentialsSent) {
-            $successMessage .= ' Credentials email sent to account holder.';
-        }
+        // Creating an application is not a credential-issuing act. This block used to
+        // silently mint a new password over the merchant's working one with the email
+        // that would have told them commented out, which is what locked them all out.
+        // The application-created email carries a link, so this is where they get in.
 
         // Fire event to send email notification to account
         event(new ApplicationCreatedEvent($application));

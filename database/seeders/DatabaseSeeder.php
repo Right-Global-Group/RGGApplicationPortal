@@ -29,11 +29,11 @@ class DatabaseSeeder extends Seeder
 
         User::factory(1)->create();
 
-        // Create account with a random user
+        // Create account with a random user. Merchants have no password: send one a
+        // login link from their account page to sign in as them.
         $account = Account::create([
             'name' => 'Test Merchant Account',
             'email' => 'test@merchant.com',
-            'password' => 'secret123',
             'user_id' => User::inRandomOrder()->first()->id,
             'status' => Account::STATUS_PENDING,
         ]);
@@ -42,6 +42,6 @@ class DatabaseSeeder extends Seeder
 
         $this->command->info('Database seeding completed!');
         $this->command->info('Admin user: max.behrens@rightglobalgroup.com / secret');
-        $this->command->info('Test account: test@merchant.com / secret123');
+        $this->command->info('Test account: test@merchant.com (logs in via emailed link)');
     }
 }

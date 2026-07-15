@@ -32,7 +32,7 @@ class LastGuard
     public static function loginRouteFor(Request $request): string
     {
         return $request->cookie(self::COOKIE) === 'account'
-            ? route('account.link-request')
+            ? route('account.login')
             : route('login');
     }
 }
