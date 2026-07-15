@@ -47,6 +47,11 @@ class MagicLinkController extends Controller
             ]);
         }
 
+        // One browser, one identity: controllers scope on `account` before `web`, while
+        // `role:admin` reads `web`, so two live guards is merchant data on some pages and
+        // staff pages on others. Only reached once the signature is good.
+        Auth::guard('web')->logout();
+
         Auth::guard('account')->login($account, remember: true);
 
         $request->session()->regenerate();
@@ -59,7 +64,7 @@ class MagicLinkController extends Controller
 
         Log::info('Magic link login', ['account_id' => $account->id]);
 
-        return redirect()->intended($this->landingUrl($request, $account));
+        return redirect()->intended($this->landingUrl($request));
     }
 
     /**
@@ -126,7 +131,7 @@ class MagicLinkController extends Controller
      * they cannot be pointed somewhere else by editing the URL; the relative-path
      * check keeps a signing mistake from becoming an open redirect.
      */
-    private function landingUrl(Request $request, Account $account): string
+    private function landingUrl(Request $request): string
     {
         $redirect = $request->query('redirect');
 
@@ -138,6 +143,8 @@ class MagicLinkController extends Controller
             return route('applications.status', $applicationId);
         }
 
-        return route('accounts.edit', $account);
+        // The "send me a link" box carries no task, so this fallback is reachable by
+        // design. Not accounts.edit: that is the staff CRM screen, scoped but not for them.
+        return route('applications');
     }
 }
