@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Mail\DynamicEmail;
 use App\Models\EmailLog;
+use App\Services\MagicLinkService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -27,7 +28,12 @@ class SendAdditionalInfoRequestEmail
                 'account_name' => $account->name,
                 'application_name' => $application->name,
                 'requested_info' => $event->notes,
-                'application_url' => url("/applications/{$application->id}/edit"),
+                // We are asking them to do something, so the link has to get them there.
+                'application_url' => MagicLinkService::for(
+                    $account,
+                    $application,
+                    route('applications.edit', $application, absolute: false),
+                ),
                 'user_name' => $application->user 
                     ? ($application->user->first_name . ' ' . $application->user->last_name)
                     : 'Administrator',

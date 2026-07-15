@@ -98,10 +98,6 @@
     <div class="content">        
         <p>Hello {{ $account_name }},</p>
         
-        <div class="login-warning">
-            ⚠️ <strong>IMPORTANT:</strong> You must <a href="{{ $login_url }}" style="color: #667eea; font-weight: bold;">log in to your account</a> first before uploading documents. If you're not logged in, you'll get an access denied error.
-        </div>
-                
         <div class="info-box">
             <h3 style="margin-top: 0; color: #667eea;">An application step is awaiting your completion:</h3>
             <p>To continue processing your application, please upload the required documents. This is a crucial step in completing your merchant account setup.</p>
@@ -120,18 +116,12 @@
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-            <p style="font-size: 16px; font-weight: bold; color: #667eea; margin-bottom: 15px;">Step 1: Log In First</p>
-            <a href="{{ $login_url }}" class="button">Login to Your Account</a>
-            <p style="color: #666; font-size: 12px; margin-top: 10px;">
-                Login URL: <a href="{{ $login_url }}">{{ $login_url }}</a>
-            </p>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-            <p style="font-size: 16px; font-weight: bold; color: #667eea; margin-bottom: 15px;">Step 2: Upload Documents</p>
             <a href="{{ $upload_url }}" class="button">Upload Documents Now</a>
             <p style="color: #666; font-size: 12px; margin-top: 10px;">
-                Upload URL: <a href="{{ $upload_url }}">{{ $upload_url }}</a>
+                This link signs you in and takes you straight to the upload page - there's no password to enter.
+            </p>
+            <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                Or copy this link: <a href="{{ $upload_url }}">{{ $upload_url }}</a>
             </p>
         </div>
         

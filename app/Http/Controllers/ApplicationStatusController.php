@@ -581,19 +581,14 @@ class ApplicationStatusController extends Controller
                 'docusign_status' => 'sent',
             ]);
 
-            // Send document upload ready email if documents haven't been uploaded yet
-            if (!$application->status->documents_uploaded_at && $application->account->first_login_at) {
+            // Send document upload ready email if documents haven't been uploaded yet.
+            // This used to be gated on the merchant having logged in, which withheld the
+            // one email carrying a way in from exactly the merchants who had no way in.
+            if (!$application->status->documents_uploaded_at) {
                 event(new \App\Events\DocumentUploadReadyEvent($application));
                 \Log::info('Sent document upload ready email to merchant', [
                     'application_id' => $application->id,
                     'merchant_email' => $application->account->email,
-                    'account_has_logged_in' => true,
-                ]);
-            } elseif (!$application->account->first_login_at) {
-                \Log::info('Skipped document upload ready email - account has not logged in yet', [
-                    'application_id' => $application->id,
-                    'merchant_email' => $application->account->email,
-                    'account_has_logged_in' => false,
                 ]);
             }
     
