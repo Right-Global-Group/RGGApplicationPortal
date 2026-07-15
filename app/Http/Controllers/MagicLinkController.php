@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Events\AccountCredentialsEvent;
 use App\Models\Account;
 use App\Models\Application;
+use App\Support\LastGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,6 +51,7 @@ class MagicLinkController extends Controller
 
         $request->session()->regenerate();
         $request->session()->put('just_logged_in', true);
+        LastGuard::remember('account');
 
         if (! $account->first_login_at) {
             $account->update(['first_login_at' => now()]);
@@ -60,10 +63,49 @@ class MagicLinkController extends Controller
     }
 
     /**
+     * The "send me a link" box, for a merchant who no longer has the email.
+     */
+    public function showRequestForm(): Response
+    {
+        return Inertia::render('Auth/RequestLink');
+    }
+
+    /**
+     * The reply is the same whether or not the address is one of ours: this box is
+     * public, so a difference between the two would publish G2Pay's merchant list.
+     */
+    public function sendRequestedLink(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $account = Account::where('email', strtolower($validated['email']))->first();
+
+        if ($account) {
+            event(new AccountCredentialsEvent($account, $account->applications()->latest()->first()));
+        }
+
+        return back()->with('success', "If that address is registered, we've sent it a login link.");
+    }
+
+    /**
      * Re-issue the link the merchant just tried to use, aimed at the same place it was.
      */
     private function sendFreshLink(Request $request, Account $account): void
     {
+        // A link is a bearer token that may be sitting in more than one inbox; without a
+        // ceiling, repeated clicks on a stale one are a mail bomb aimed at the merchant.
+        $key = 'magic-link-reissue:'.$account->id;
+
+        if (RateLimiter::tooManyAttempts($key, maxAttempts: 5)) {
+            Log::warning('Magic link re-issue rate limited', ['account_id' => $account->id]);
+
+            return;
+        }
+
+        RateLimiter::hit($key, decaySeconds: 3600);
+
         $application = ($id = $request->query('application'))
             ? Application::find($id)
             : null;

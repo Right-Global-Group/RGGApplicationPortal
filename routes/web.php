@@ -33,6 +33,12 @@ Route::delete('/account/logout', [AccountAuthController::class, 'logout'])->name
 // Merchant magic link. Not behind the `signed` middleware on purpose - see MagicLinkController.
 Route::get('/account/link/{account}', [MagicLinkController::class, 'login'])->name('account.magic-link');
 
+// "Send me a link" box. The throttle is not optional: this is a public form that puts
+// mail in a merchant's inbox.
+Route::get('/account/request-link', [MagicLinkController::class, 'showRequestForm'])->name('account.link-request');
+Route::post('/account/request-link', [MagicLinkController::class, 'sendRequestedLink'])
+    ->middleware('throttle:5,60');
+
 // User Authentication Routes
 Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
