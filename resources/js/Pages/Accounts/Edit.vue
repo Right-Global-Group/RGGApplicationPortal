@@ -12,11 +12,11 @@
             {{ account.name.charAt(0).toUpperCase() }}
           </div>
         </h1>
-        <span 
+        <span
           class="px-4 py-2 rounded-full text-sm font-semibold"
-          :class="account.is_confirmed ? 'bg-green-900/50 text-green-300' : 'bg-yellow-900/50 text-yellow-300'"
+          :class="account.first_login_at ? 'bg-green-900/50 text-green-300' : 'bg-yellow-900/50 text-yellow-300'"
         >
-          {{ account.is_confirmed ? 'Confirmed Login' : 'Pending Login' }}
+          {{ account.first_login_at ? 'Has Logged In' : 'Never Logged In' }}
         </span>
       </div>
 
@@ -91,9 +91,9 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-gray-300 font-medium mb-2">Credentials Sent</label>
+                <label class="block text-gray-300 font-medium mb-2">Login Link Sent</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                  {{ account.credentials_sent_at || 'Not sent' }}
+                  {{ account.link_sent_at || 'Not sent' }}
                 </div>
               </div>
               <div>

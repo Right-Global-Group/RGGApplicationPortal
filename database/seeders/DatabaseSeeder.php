@@ -35,7 +35,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test Merchant Account',
             'email' => 'test@merchant.com',
             'user_id' => User::inRandomOrder()->first()->id,
-            'status' => Account::STATUS_PENDING,
         ]);
         $account->assignRole('account');
 

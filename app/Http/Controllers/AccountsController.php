@@ -79,8 +79,6 @@ class AccountsController extends Controller
                 'email' => $account->email,
                 'mobile' => $account->mobile,
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
-                'status' => $account->status,
-                'is_confirmed' => $account->isConfirmed(),
                 'user_name' => $account->user
                     ? ($account->user->first_name.' '.$account->user->last_name)
                     : null,
@@ -89,7 +87,7 @@ class AccountsController extends Controller
                     'id' => $app->id,
                     'name' => $app->name,
                 ]),
-                'credentials_sent_at' => $account->credentials_sent_at?->format('Y-m-d H:i'),
+                'link_sent_at' => $account->link_sent_at?->format('Y-m-d H:i'),
                 'first_login_at' => $account->first_login_at?->format('Y-m-d H:i'),
                 'deleted_at' => $account->deleted_at,
                 'created_at' => $account->created_at?->format('Y-m-d H:i'),
@@ -132,7 +130,6 @@ class AccountsController extends Controller
             'email' => $validated['email'],
             'mobile' => $validated['mobile'] ?? null,
             'user_id' => auth()->id(),
-            'status' => Account::STATUS_PENDING,
             'photo_path' => $photoPath,
         ]);
 
@@ -172,11 +169,9 @@ class AccountsController extends Controller
                 'email' => $account->email,
                 'mobile' => $account->mobile,
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
-                'status' => $account->status,
-                'is_confirmed' => $account->isConfirmed(),
                 'user_id' => $account->user_id,
                 'user_name' => $account->user?->first_name.' '.$account->user?->last_name,
-                'credentials_sent_at' => $account->credentials_sent_at?->format('Y-m-d H:i'),
+                'link_sent_at' => $account->link_sent_at?->format('Y-m-d H:i'),
                 'first_login_at' => $account->first_login_at?->format('Y-m-d H:i'),
                 'created_at' => $account->created_at?->toDateTimeString(),
                 'updated_at' => $account->updated_at?->toDateTimeString(),

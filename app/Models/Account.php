@@ -14,9 +14,6 @@ class Account extends Authenticatable
 {
     use SoftDeletes, Notifiable, HasRoles;
 
-    const STATUS_PENDING = 0;
-    const STATUS_CONFIRMED = 1;
-
     protected $guard = 'account';
     protected $guard_name = 'account';
 
@@ -26,8 +23,7 @@ class Account extends Authenticatable
         'email',
         'mobile',
         'user_id',
-        'status',
-        'credentials_sent_at',
+        'link_sent_at',
         'first_login_at',
         'photo_path',
     ];
@@ -36,9 +32,14 @@ class Account extends Authenticatable
         'remember_token',
     ];
 
+    /**
+     * `link_sent_at` is when we last mailed this merchant a login link; `first_login_at`
+     * is when they last clicked one for the first time. Nothing else on the delivery path
+     * is observable, so together they are the only way to tell mailed-but-never-reached
+     * from reached-but-idle.
+     */
     protected $casts = [
-        'status' => 'integer',
-        'credentials_sent_at' => 'datetime',
+        'link_sent_at' => 'datetime',
         'first_login_at' => 'datetime',
     ];
 
@@ -85,21 +86,6 @@ class Account extends Authenticatable
                 $query->onlyTrashed();
             }
         });
-    }
-
-    public function isConfirmed(): bool
-    {
-        return $this->first_login_at !== null;
-    }
-
-    public function markAsConfirmed(): void
-    {
-        if (!$this->first_login_at) {
-            $this->update([
-                'status' => self::STATUS_CONFIRMED,
-                'first_login_at' => now(),
-            ]);
-        }
     }
 
     public function setEmailAttribute($value)

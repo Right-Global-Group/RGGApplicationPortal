@@ -62,7 +62,7 @@ class SendAccountCredentialsEmail
 
         // Update credentials sent timestamp
         $account->update([
-            'credentials_sent_at' => now(),
+            'link_sent_at' => now(),
         ]);
     }
 }
