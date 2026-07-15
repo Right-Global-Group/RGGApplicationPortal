@@ -6,7 +6,9 @@ use App\Events\AccountCredentialsEvent;
 use App\Models\Account;
 use App\Models\Application;
 use App\Models\EmailReminder;
+use App\Services\DocuSignService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
@@ -26,7 +28,7 @@ class AccountsController extends Controller
             $query->where('id', auth()->guard('account')->id());
         } elseif (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
-            
+
             if ($user->isAdmin()) {
                 // Admins see all accounts
                 // No filtering needed
@@ -48,7 +50,7 @@ class AccountsController extends Controller
         if ($creatorSearch = Request::input('creator_search')) {
             $query->whereHas('user', function ($q) use ($creatorSearch) {
                 $q->where('first_name', 'like', "%{$creatorSearch}%")
-                  ->orWhere('last_name', 'like', "%{$creatorSearch}%");
+                    ->orWhere('last_name', 'like', "%{$creatorSearch}%");
             });
         }
 
@@ -79,8 +81,8 @@ class AccountsController extends Controller
                 'photo' => $account->photo_path ? URL::route('accounts.photo', ['account' => $account->id]) : null,
                 'status' => $account->status,
                 'is_confirmed' => $account->isConfirmed(),
-                'user_name' => $account->user 
-                    ? ($account->user->first_name . ' ' . $account->user->last_name)
+                'user_name' => $account->user
+                    ? ($account->user->first_name.' '.$account->user->last_name)
                     : null,
                 'applications_count' => $account->applications->count(),
                 'applications' => $account->applications->map(fn ($app) => [
@@ -123,7 +125,7 @@ class AccountsController extends Controller
         $photoPath = null;
         if (Request::file('photo')) {
             $file = Request::file('photo');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $filename = time().'_'.$file->getClientOriginalName();
             $photoPath = $file->storeAs('accounts', $filename, 'public');
         }
 
@@ -151,21 +153,21 @@ class AccountsController extends Controller
             }
         } elseif (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
-            
-            if (!$user->isAdmin() && $account->user_id !== $user->id) {
+
+            if (! $user->isAdmin() && $account->user_id !== $user->id) {
                 abort(403, 'You can only view accounts you created.');
             }
         } else {
             abort(403, 'Unauthorized access.');
         }
-    
+
         $account->load(['user', 'emailReminders', 'emailLogs']);
-    
+
         $applications = $account->applications()
             ->with('status')  // ADD THIS LINE
             ->orderBy('name')
             ->get(['id', 'name', 'created_at']);
-    
+
         return Inertia::render('Accounts/Edit', [
             'account' => [
                 'id' => $account->id,
@@ -177,7 +179,7 @@ class AccountsController extends Controller
                 'status' => $account->status,
                 'is_confirmed' => $account->isConfirmed(),
                 'user_id' => $account->user_id,
-                'user_name' => $account->user?->first_name . ' ' . $account->user?->last_name,
+                'user_name' => $account->user?->first_name.' '.$account->user?->last_name,
                 'credentials_sent_at' => $account->credentials_sent_at?->format('Y-m-d H:i'),
                 'first_login_at' => $account->first_login_at?->format('Y-m-d H:i'),
                 'created_at' => $account->created_at?->toDateTimeString(),
@@ -187,8 +189,8 @@ class AccountsController extends Controller
                 'id' => $app->id,
                 'name' => $app->name,
                 'created_at' => $app->created_at,
-                'can_merchant_sign' => auth()->guard('account')->check() 
-                ? $this->canMerchantSignContract($app) 
+                'can_merchant_sign' => auth()->guard('account')->check()
+                ? $this->canMerchantSignContract($app)
                 : false,  // Don't check if not authenticated
                 'status' => $app->status ? [
                     'current_step' => $app->status->current_step,
@@ -230,7 +232,7 @@ class AccountsController extends Controller
         $validated = Request::validate([
             'name' => ['required', 'max:50'],
             'recipient_name' => ['nullable', 'max:100'],
-            'email' => ['required', 'email', 'unique:accounts,email,' . $account->id],
+            'email' => ['required', 'email', 'unique:accounts,email,'.$account->id],
             'mobile' => ['nullable', 'string', 'max:20'],
             'photo' => ['nullable', 'image', 'max:5120'], // 5MB max
         ]);
@@ -247,12 +249,12 @@ class AccountsController extends Controller
             if ($account->photo_path) {
                 Storage::disk('public')->delete($account->photo_path);
             }
-            
+
             // Store new photo
             $file = Request::file('photo');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $filename = time().'_'.$file->getClientOriginalName();
             $photoPath = $file->storeAs('accounts', $filename, 'public');
-            
+
             $account->update(['photo_path' => $photoPath]);
         }
 
@@ -260,18 +262,16 @@ class AccountsController extends Controller
     }
 
     /**
-     * Send credentials email NOW (immediate, not scheduled)
+     * Send a login link NOW (immediate, not scheduled).
+     *
+     * Mints nothing: the link is built at send time, so pressing this cannot change what
+     * the merchant already has in their inbox.
      */
     public function sendCredentialsEmail(Account $account): RedirectResponse
     {
-        // Generate new password
-        $plainPassword = Account::generatePassword();
-        $account->update(['password' => $plainPassword]);
+        event(new AccountCredentialsEvent($account, $account->applications()->latest()->first()));
 
-        // Fire event to send email immediately
-        event(new AccountCredentialsEvent($account, $plainPassword));
-
-        return Redirect::back()->with('success', 'Credentials email sent immediately to account.');
+        return Redirect::back()->with('success', 'Login link sent to account.');
     }
 
     /**
@@ -306,7 +306,7 @@ class AccountsController extends Controller
             'is_active' => true,
         ]);
 
-        return Redirect::back()->with('success', 'Reminder scheduled to send credentials ' . str_replace('_', ' ', $validated['interval']) . '.');
+        return Redirect::back()->with('success', 'Reminder scheduled to send credentials '.str_replace('_', ' ', $validated['interval']).'.');
     }
 
     /**
@@ -362,9 +362,9 @@ class AccountsController extends Controller
             }
         } elseif (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
-            
+
             // Allow if admin or user created this account
-            if (!$user->isAdmin() && $account->user_id !== $user->id) {
+            if (! $user->isAdmin() && $account->user_id !== $user->id) {
                 abort(403);
             }
         } else {
@@ -372,12 +372,12 @@ class AccountsController extends Controller
         }
 
         // Check if account has a photo
-        if (!$account->photo_path) {
+        if (! $account->photo_path) {
             abort(404);
         }
 
         // Check if file exists
-        if (!Storage::disk('public')->exists($account->photo_path)) {
+        if (! Storage::disk('public')->exists($account->photo_path)) {
             abort(404);
         }
 
@@ -393,74 +393,76 @@ class AccountsController extends Controller
     private function canMerchantSignContract(Application $application): bool
     {
         $status = $application->status;
-        
+
         // First check: contract must be sent but not signed
-        if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
+        if (! $status || ! $status->contract_sent_at || $status->contract_signed_at) {
             return false;
         }
-        
+
         // Second check: verify routing order using DocuSign
         $envelopeId = $status->docusign_envelope_id;
-        if (!$envelopeId) {
+        if (! $envelopeId) {
             return false;
         }
-        
+
         try {
             $accessToken = $this->getDocuSignAccessToken();
-            
-            $envelopeResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)
-                ->get(config('services.docusign.base_url') . "/v2.1/accounts/" . config('services.docusign.account_id') . "/envelopes/{$envelopeId}/recipients");
-            
+
+            $envelopeResponse = Http::withToken($accessToken)
+                ->get(config('services.docusign.base_url').'/v2.1/accounts/'.config('services.docusign.account_id')."/envelopes/{$envelopeId}/recipients");
+
             if ($envelopeResponse->failed()) {
                 return false;
             }
-            
+
             $envelopeData = $envelopeResponse->json();
             $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
-            
+
             // Find merchant's routing order
             $merchantEmail = strtolower($application->account->email);
             $merchantRoutingOrder = null;
-            
+
             foreach ($envelopeData['signers'] ?? [] as $signer) {
                 if (strtolower($signer['email']) === $merchantEmail) {
-                    $merchantRoutingOrder = (int)$signer['routingOrder'];
+                    $merchantRoutingOrder = (int) $signer['routingOrder'];
                     break;
                 }
             }
-            
+
             // If merchant not found by exact email (imported envelope), try elimination
             if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
                 foreach ($envelopeData['signers'] ?? [] as $signer) {
                     $signerEmail = strtolower($signer['email']);
-                    
+
                     // Skip G2Pay/internal signers
-                    if (stripos($signerEmail, 'g2pay.co.uk') === false && 
+                    if (stripos($signerEmail, 'g2pay.co.uk') === false &&
                         stripos($signerEmail, 'management@') === false &&
                         stripos($signer['roleName'] ?? '', 'Director') === false &&
                         stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
-                        
-                        $merchantRoutingOrder = (int)$signer['routingOrder'];
+
+                        $merchantRoutingOrder = (int) $signer['routingOrder'];
                         break;
                     }
                 }
             }
-            
+
             // Merchant can only sign if it's their turn
             return $merchantRoutingOrder !== null && $merchantRoutingOrder <= $currentRoutingOrder;
-            
+
         } catch (\Exception $e) {
             \Log::error('Failed to check merchant signing eligibility', [
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
 
     private function getDocuSignAccessToken(): string
     {
-        $docuSignService = app(\App\Services\DocuSignService::class);
+        $docuSignService = app(DocuSignService::class);
+
         return $docuSignService->getAccessToken();
     }
 }

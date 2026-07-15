@@ -52,6 +52,7 @@ class SendCredentialsToAllAccounts extends Command
 
         if ($accounts->isEmpty()) {
             $this->warn('❌ No accounts found matching the filter.');
+
             return Command::SUCCESS;
         }
 
@@ -61,7 +62,7 @@ class SendCredentialsToAllAccounts extends Command
             $this->warn('🏃 DRY RUN MODE - No emails will be sent');
             $this->table(
                 ['ID', 'Name', 'Email', 'Credentials Sent', 'First Login'],
-                $accounts->map(fn($account) => [
+                $accounts->map(fn ($account) => [
                     $account->id,
                     $account->name,
                     $account->email,
@@ -69,12 +70,14 @@ class SendCredentialsToAllAccounts extends Command
                     $account->first_login_at?->format('Y-m-d H:i') ?? 'Not logged in',
                 ])
             );
+
             return Command::SUCCESS;
         }
 
         // Confirm before sending
-        if (!$this->confirm("Send credentials to {$accounts->count()} account(s)?", false)) {
+        if (! $this->confirm("Send credentials to {$accounts->count()} account(s)?", false)) {
             $this->info('❌ Cancelled.');
+
             return Command::SUCCESS;
         }
 
@@ -86,12 +89,8 @@ class SendCredentialsToAllAccounts extends Command
 
         foreach ($accounts as $account) {
             try {
-                // Generate new password
-                $plainPassword = Account::generatePassword();
-                $account->update(['password' => $plainPassword]);
-
                 // Fire event to send email
-                event(new AccountCredentialsEvent($account, $plainPassword));
+                event(new AccountCredentialsEvent($account, $account->applications()->latest()->first()));
 
                 $sent++;
                 $this->newLine();
@@ -109,7 +108,7 @@ class SendCredentialsToAllAccounts extends Command
         $this->newLine(2);
 
         // Summary
-        $this->info("📊 Summary:");
+        $this->info('📊 Summary:');
         $this->info("  ✅ Successfully sent: {$sent}");
         if ($failed > 0) {
             $this->error("  ❌ Failed: {$failed}");

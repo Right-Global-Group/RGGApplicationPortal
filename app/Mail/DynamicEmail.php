@@ -11,7 +11,7 @@ class DynamicEmail extends Mailable
     use Queueable, SerializesModels;
 
     protected array $subjects = [
-        'account_credentials' => 'Your Account Login Credentials',
+        'account_credentials' => 'Your G2Pay Login Link',
         'application_created' => 'New Application Created',
         'fees_changed' => 'Application Fees Updated',
         'fees_confirmation_reminder' => 'Action Required: Confirm Your Application Fees',
@@ -78,13 +78,13 @@ class DynamicEmail extends Mailable
         $view = $this->views[$this->emailType] ?? null;
 
         // Check if view exists
-        if (!$view || !view()->exists($view)) {
-            \Log::error("Email view not found", [
+        if (! $view || ! view()->exists($view)) {
+            \Log::error('Email view not found', [
                 'email_type' => $this->emailType,
                 'view' => $view,
                 'available_views' => array_keys($this->views),
             ]);
-            
+
             throw new \Exception("Email template not found for type: {$this->emailType}");
         }
 

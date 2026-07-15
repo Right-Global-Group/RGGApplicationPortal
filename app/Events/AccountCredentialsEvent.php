@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Account;
+use App\Models\Application;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -10,17 +11,12 @@ class AccountCredentialsEvent
 {
     use Dispatchable, SerializesModels;
 
-    public Account $account;
-    public string $plainPassword;
-
-    public function __construct(Account $account, string $plainPassword)
-    {
-        $this->account = $account;
-        $this->plainPassword = $plainPassword;
-
-        \Log::info('AccountCredentialsEvent instantiated', [
-            'account_id' => $account->id,
-            'account_email' => $account->email,
-        ]);
-    }
+    /**
+     * Carries no credential. The link is minted by the listener at send time, so there is
+     * never a secret on the row for an unrelated action to invalidate.
+     */
+    public function __construct(
+        public Account $account,
+        public ?Application $application = null,
+    ) {}
 }
