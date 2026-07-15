@@ -2,13 +2,30 @@
 
 namespace App\Mail;
 
+use App\Models\EmailLog;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
-class DynamicEmail extends Mailable
+/**
+ * Every send goes to the queue.
+ *
+ * This class had the Queueable trait but not the interface, so every send was inline: a
+ * provider blip threw a 500 into a staff member's face mid-workflow, with no retry and a
+ * merchant left with no mail and no second path. It also made the feature's central
+ * promise false - minting and sending are only the same act if the send cannot fail while
+ * the surrounding work commits.
+ */
+class DynamicEmail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
+
+    public $tries = 3;
+
+    /** Seconds between attempts: a provider blip is usually over within minutes. */
+    public $backoff = [60, 300];
 
     protected array $subjects = [
         'account_credentials' => 'Your G2Pay Login Link',
@@ -108,5 +125,28 @@ class DynamicEmail extends Mailable
         }
 
         return $email;
+    }
+
+    /**
+     * Called once the retries are exhausted. "We sent it" should be something a staff
+     * member can check rather than assume, so the failure lands next to the sends.
+     */
+    public function failed(\Throwable $e): void
+    {
+        $recipient = $this->to[0]['address'] ?? null;
+
+        Log::error('Email failed after all retries', [
+            'email_type' => $this->emailType,
+            'recipient' => $recipient,
+            'error' => $e->getMessage(),
+        ]);
+
+        EmailLog::create([
+            'email_type' => $this->emailType,
+            'recipient_email' => $recipient ?? 'unknown',
+            'subject' => $this->subjects[$this->emailType] ?? 'Notification',
+            'failed_at' => now(),
+            'error' => $e->getMessage(),
+        ]);
     }
 }

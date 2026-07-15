@@ -15,12 +15,15 @@ class EmailLog extends Model
         'subject',
         'body',
         'sent_at',
+        'failed_at',
+        'error',
         'opened',
         'opened_at',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
+        'failed_at' => 'datetime',
         'opened' => 'boolean',
         'opened_at' => 'datetime',
     ];
