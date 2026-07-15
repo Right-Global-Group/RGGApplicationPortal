@@ -29,7 +29,7 @@ class SendAccountCredentialsEmail
             return;
         }
 
-        $loginUrl = MagicLinkService::for($account, $event->application);
+        $loginUrl = MagicLinkService::for($account, $event->application, $event->redirectTo);
 
         // Send login link email
         Mail::to($account->email)->send(new DynamicEmail('account_credentials', [

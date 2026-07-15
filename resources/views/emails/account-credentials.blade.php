@@ -89,7 +89,7 @@
         </div>
 
         <div class="note">
-            <strong>⚠️ Important:</strong> This link signs you in, so please don't forward it to anyone outside your business.
+            <strong>⚠️ Important:</strong> This link signs you in, so please don't forward it to anyone outside your business. If it ever stops working, click it anyway and we'll email you a fresh one.
         </div>
 
         <!-- Button using table for Gmail compatibility -->

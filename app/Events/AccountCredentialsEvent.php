@@ -18,5 +18,6 @@ class AccountCredentialsEvent
     public function __construct(
         public Account $account,
         public ?Application $application = null,
+        public ?string $redirectTo = null,
     ) {}
 }
