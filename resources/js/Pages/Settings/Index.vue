@@ -98,7 +98,7 @@
                   <li>Can view and manage all applications</li>
                   <li>Can view and manage all users</li>
                   <li>Can access settings and permissions</li>
-                  <li>Can send account credentials emails</li>
+                  <li>Can send account login links</li>
                   <li>Full system access</li>
                 </ul>
               </div>
@@ -133,8 +133,8 @@
                 <ul class="text-gray-300 text-sm space-y-1 list-disc list-inside">
                   <li>Accounts (merchants) login at <code class="bg-dark-900 px-2 py-1 rounded">/account/login</code></li>
                   <li>Users (admin/staff) login at <code class="bg-dark-900 px-2 py-1 rounded">/login</code></li>
-                  <li>Accounts cannot create applications until their status is "Confirmed"</li>
-                  <li>Only admins can send account credentials and manage email reminders</li>
+                  <li>Accounts have no password: they sign in by clicking an emailed link</li>
+                  <li>Only admins can send login links and manage email reminders</li>
                 </ul>
               </div>
             </div>

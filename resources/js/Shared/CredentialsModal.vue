@@ -1,23 +1,24 @@
 <template>
     <modal @close="$emit('close')" max-width="2xl">
       <div class="p-6">
-        <h2 class="text-2xl font-bold text-white mb-6">Send Account Credentials</h2>
-  
+        <h2 class="text-2xl font-bold text-white mb-6">Send Login Link</h2>
+
         <!-- Send Now Section -->
         <div class="mb-6 p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg">
           <div class="flex items-start justify-between mb-3">
             <div class="flex-1">
-              <h3 class="font-semibold text-white mb-1">Send Credentials Now</h3>
+              <h3 class="font-semibold text-white mb-1">Send Login Link Now</h3>
               <p class="text-sm text-gray-400">
-                Generates a new password and emails login credentials immediately to the account holder.
+                Emails the account holder a link that signs them straight in, valid for 7 days.
+                Nothing is rotated and any link they already have keeps working.
               </p>
             </div>
           </div>
           <button
             @click="sendNow"
-            class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+            class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
           >
-            Send Credentials Now
+            Send Login Link Now
           </button>
         </div>
   
@@ -27,7 +28,7 @@
         <!-- Schedule Reminders Section -->
         <div class="p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg">
           <div class="mb-3">
-            <h3 class="font-semibold text-white mb-1">Schedule Credential Reminder Emails</h3>
+            <h3 class="font-semibold text-white mb-1">Schedule Login Link Reminders</h3>
             <p class="text-sm text-gray-400">
               Automatically send reminder emails at the selected interval. <strong>Does not send immediately.</strong>
             </p>
@@ -99,7 +100,7 @@
     },
     methods: {
       sendNow() {
-        if (confirm('Send login credentials to this account now?')) {
+        if (confirm('Email this account a login link now?')) {
           this.$inertia.post(`/accounts/${this.accountId}/send-credentials`, {}, {
             onSuccess: () => {
               this.$emit('close')
@@ -114,7 +115,7 @@
         }
   
         const intervalText = this.formatInterval(this.interval)
-        if (confirm(`Schedule credentials to be sent ${intervalText.toLowerCase()}? No email will be sent immediately.`)) {
+        if (confirm(`Schedule a login link to be sent ${intervalText.toLowerCase()}? No email will be sent immediately.`)) {
           this.$inertia.post(`/accounts/${this.accountId}/set-credentials-reminder`, {
             interval: this.interval
           }, {
