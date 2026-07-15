@@ -65,7 +65,7 @@ class SendScheduledEmails implements ShouldQueue
         switch ($reminder->email_type) {
             case 'account_credentials':
                 if ($remindable instanceof Account) {
-                    event(new AccountCredentialsEvent($remindable, $remindable->applications()->latest()->first()));
+                    event(AccountCredentialsEvent::for($remindable));
                 }
                 break;
 

@@ -83,7 +83,7 @@ class MagicLinkController extends Controller
         $account = Account::where('email', strtolower($validated['email']))->first();
 
         if ($account) {
-            event(new AccountCredentialsEvent($account, $account->applications()->latest()->first()));
+            event(AccountCredentialsEvent::for($account));
         }
 
         return back()->with('success', "If that address is registered, we've sent it a login link.");

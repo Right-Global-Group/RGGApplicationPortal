@@ -20,4 +20,13 @@ class AccountCredentialsEvent
         public ?Application $application = null,
         public ?string $redirectTo = null,
     ) {}
+
+    /**
+     * Send an account a link aimed at whichever application they are most likely to be
+     * here for. One place decides that, so changing the choice is one edit.
+     */
+    public static function for(Account $account): self
+    {
+        return new self($account, $account->applications()->latest()->first());
+    }
 }

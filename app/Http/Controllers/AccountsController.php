@@ -260,7 +260,7 @@ class AccountsController extends Controller
      */
     public function sendCredentialsEmail(Account $account): RedirectResponse
     {
-        event(new AccountCredentialsEvent($account, $account->applications()->latest()->first()));
+        event(AccountCredentialsEvent::for($account));
 
         return Redirect::back()->with('success', 'Login link sent to account.');
     }
