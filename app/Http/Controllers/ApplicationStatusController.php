@@ -237,12 +237,15 @@ class ApplicationStatusController extends Controller
                 ->with(['user', 'account'])
                 ->oldest()
                 ->get()
+                // Reuse the already-loaded application so the step_context
+                // accessor doesn't lazy-load it once per message.
+                ->each(fn ($message) => $message->setRelation('application', $application))
                 ->map(fn ($message) => [
                     'id' => $message->id,
                     'body' => $message->body,
                     'author' => $message->author,
                     'is_internal' => $message->is_internal,
-                    'current_step' => $message->current_step,
+                    'step_context' => $message->step_context,
                     'created_at' => $message->created_at?->format('Y-m-d H:i'),
                 ]),
             'justLoggedIn' => session('just_logged_in', false),

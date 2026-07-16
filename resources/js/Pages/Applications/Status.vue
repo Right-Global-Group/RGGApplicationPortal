@@ -1023,6 +1023,13 @@
             <span class="text-sm text-gray-500 ml-auto">{{ message.created_at }}</span>
           </div>
           <div class="text-gray-300 whitespace-pre-wrap">{{ message.body }}</div>
+          <!-- Step-context hint: the step the application was at when this was
+               written, plus the next required step (absent once all complete). -->
+          <div v-if="message.step_context" class="mt-2 text-xs text-gray-500">
+            Sent while at <span class="text-gray-400 font-medium">{{ message.step_context.step_label }}</span
+            ><template v-if="message.step_context.next_step_label">
+              — next required step: <span class="text-gray-400 font-medium">{{ message.step_context.next_step_label }}</span></template>
+          </div>
         </div>
       </div>
 
