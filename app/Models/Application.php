@@ -18,7 +18,7 @@ class Application extends Model
         'account_id',
         'user_id',
         'parent_application_id',
-	    'scaling_fee',
+        'scaling_fee',
         'transaction_percentage',
         'transaction_fixed_fee',
         'monthly_fee',
@@ -72,7 +72,7 @@ class Application extends Model
     {
         return $this->belongsTo(User::class);
     }
-    
+
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
@@ -118,6 +118,11 @@ class Application extends Model
         return $this->hasMany(ActivityLog::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(ApplicationMessage::class)->orderBy('created_at');
+    }
+
     public function emailReminders()
     {
         return $this->morphMany(EmailReminder::class, 'remindable');
@@ -159,7 +164,7 @@ class Application extends Model
     // Gateway Partner Helper Methods
     public function getGatewayPartnerNameAttribute(): ?string
     {
-        if (!$this->gateway_partner) {
+        if (! $this->gateway_partner) {
             return null;
         }
 
@@ -168,7 +173,7 @@ class Application extends Model
 
     public function getGatewayPartnerEmailAttribute(): ?string
     {
-        if (!$this->gateway_partner) {
+        if (! $this->gateway_partner) {
             return null;
         }
 
@@ -177,16 +182,16 @@ class Application extends Model
 
     public function hasGatewayDetails(): bool
     {
-        return !empty($this->gateway_mid) 
-            && !empty($this->gateway_integration_details);
+        return ! empty($this->gateway_mid)
+            && ! empty($this->gateway_integration_details);
     }
 
     // WordPress Helper Methods
     public function hasWordPressCredentials(): bool
     {
-        return !empty($this->wordpress_url) 
-            && !empty($this->wordpress_admin_email) 
-            && !empty($this->wordpress_admin_username);
+        return ! empty($this->wordpress_url)
+            && ! empty($this->wordpress_admin_email)
+            && ! empty($this->wordpress_admin_username);
     }
 
     public function additionalDocuments(): HasMany
