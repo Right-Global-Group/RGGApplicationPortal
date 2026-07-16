@@ -11,26 +11,35 @@ use Illuminate\Support\Facades\Request;
 class ApplicationMessageController extends Controller
 {
     /**
-     * Post a message to the application's thread (staff only for now —
-     * merchant replies land in a later slice).
+     * Post a message to the application's thread — staff or the merchant
+     * who owns the application.
      */
     public function store(Application $application): RedirectResponse
     {
         if (auth()->guard('account')->check()) {
-            abort(403, 'Accounts cannot post messages yet.');
+            // Merchants can only post on their own applications
+            if ($application->account_id !== auth()->guard('account')->id()) {
+                abort(403, 'You can only message on your own applications.');
+            }
+
+            $author = ['account_id' => auth()->guard('account')->id()];
+        } else {
+            $user = auth()->guard('web')->user();
+            if (! $user->isAdmin() && $application->account->user_id !== $user->id) {
+                abort(403, 'You can only message on applications you manage.');
+            }
+
+            $author = ['user_id' => $user->id];
         }
 
-        $user = auth()->guard('web')->user();
-        if (! $user->isAdmin() && $application->account->user_id !== $user->id) {
-            abort(403, 'You can only message on applications you manage.');
-        }
-
+        // Only `body` is accepted from input — merchants can never set
+        // is_internal (it defaults to false on the model).
         $validated = Request::validate([
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
         $message = $application->messages()->create([
-            'user_id' => $user->id,
+            ...$author,
             'body' => $validated['body'],
             // Snapshot where the application was when this was said
             'current_step' => $application->status?->current_step,

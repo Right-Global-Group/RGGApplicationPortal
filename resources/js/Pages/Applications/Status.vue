@@ -1003,7 +1003,6 @@
 
     <!-- Messages Section -->
     <div
-      v-if="!is_account"
       id="section-messages"
       class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6"
     >
@@ -1033,7 +1032,9 @@
       <!-- Empty state -->
       <div v-else class="text-center py-8 mb-6 border border-dashed border-primary-800/30 rounded-lg">
         <div class="text-gray-400">No messages yet</div>
-        <div class="text-sm text-gray-500 mt-1">Start the conversation with the merchant below.</div>
+        <div class="text-sm text-gray-500 mt-1">
+          {{ is_account ? 'Have a question about your application? Start the conversation below.' : 'Start the conversation with the merchant below.' }}
+        </div>
       </div>
 
       <!-- Composer -->
@@ -1375,9 +1376,7 @@ export default {
         baseSections.push({ id: 'section-gateway', label: 'Gateway' })
       }
 
-      if (!this.is_account) {
-        baseSections.push({ id: 'section-messages', label: 'Messages' })
-      }
+      baseSections.push({ id: 'section-messages', label: 'Messages' })
 
       baseSections.push({ id: 'section-email-history', label: 'Emails' })
       baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
