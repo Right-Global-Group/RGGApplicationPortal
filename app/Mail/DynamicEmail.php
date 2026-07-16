@@ -35,6 +35,8 @@ class DynamicEmail extends Mailable
         'document_upload_ready' => 'Please Upload Your Documents',
         'account_live' => 'Congratulations! Your Account is Live',
         'account_message_to_user' => 'Message from Your Merchant Account',
+        'application_message_posted' => 'New Application Message',
+        'application_internal_note_posted' => 'Internal Note Added to Application',
         'documents_dumped' => 'Application Documents Removed',
     ];
 
@@ -63,6 +65,8 @@ class DynamicEmail extends Mailable
         'document_upload_ready' => 'emails.document-upload-ready',
         'account_live' => 'emails.account-live',
         'account_message_to_user' => 'emails.account-message-to-user',
+        'application_message_posted' => 'emails.application-message-posted',
+        'application_internal_note_posted' => 'emails.application-internal-note-posted',
         'documents_dumped' => 'emails.documents-dumped',
     ];
 
@@ -78,13 +82,13 @@ class DynamicEmail extends Mailable
         $view = $this->views[$this->emailType] ?? null;
 
         // Check if view exists
-        if (!$view || !view()->exists($view)) {
-            \Log::error("Email view not found", [
+        if (! $view || ! view()->exists($view)) {
+            \Log::error('Email view not found', [
                 'email_type' => $this->emailType,
                 'view' => $view,
                 'available_views' => array_keys($this->views),
             ]);
-            
+
             throw new \Exception("Email template not found for type: {$this->emailType}");
         }
 
