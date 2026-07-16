@@ -1003,32 +1003,36 @@
         <div
           v-for="message in messages"
           :key="message.id"
-          class="p-4 rounded-lg border"
-          :class="message.is_internal ? 'bg-amber-900/20 border-amber-600/40' : 'bg-dark-900/50 border-primary-800/30'"
+          class="p-4 border"
+          :class="message.is_internal
+            ? 'bg-yellow-200 border-yellow-300 rounded-sm shadow-lg shadow-black/40'
+            : 'bg-dark-900/50 border-primary-800/30 rounded-lg'"
         >
           <div class="flex items-center gap-2 mb-2">
-            <span class="font-semibold text-white">{{ message.author.name }}</span>
+            <span class="font-semibold" :class="message.is_internal ? 'text-yellow-900' : 'text-white'">{{ message.author.name }}</span>
             <span
               class="px-2 py-0.5 rounded text-xs font-semibold"
-              :class="message.author.is_staff ? 'bg-magenta-900/50 text-magenta-300' : 'bg-blue-900/50 text-blue-300'"
+              :class="message.is_internal
+                ? 'bg-yellow-300 text-yellow-900 border border-yellow-400'
+                : (message.author.is_staff ? 'bg-magenta-900/50 text-magenta-300' : 'bg-blue-900/50 text-blue-300')"
             >
               {{ message.author.is_staff ? 'Staff' : 'Merchant' }}
             </span>
             <span
               v-if="message.is_internal"
-              class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-900/50 text-amber-300 border border-amber-600/40"
+              class="px-2 py-0.5 rounded text-xs font-semibold bg-yellow-300 text-yellow-900 border border-yellow-400"
             >
               Internal note
             </span>
-            <span class="text-sm text-gray-500 ml-auto">{{ message.created_at }}</span>
+            <span class="text-sm ml-auto" :class="message.is_internal ? 'text-yellow-800/70' : 'text-gray-500'">{{ message.created_at }}</span>
           </div>
-          <div class="text-gray-300 whitespace-pre-wrap">{{ message.body }}</div>
+          <div class="whitespace-pre-wrap" :class="message.is_internal ? 'text-yellow-950' : 'text-gray-300'">{{ message.body }}</div>
           <!-- Step-context hint: the step the application was at when this was
                written, plus the next required step (absent once all complete). -->
-          <div v-if="message.step_context" class="mt-2 text-xs text-gray-500">
-            Sent while at <span class="text-gray-400 font-medium">{{ message.step_context.step_label }}</span
+          <div v-if="message.step_context" class="mt-2 text-xs" :class="message.is_internal ? 'text-yellow-800/70' : 'text-gray-500'">
+            Sent while at <span class="font-medium" :class="message.is_internal ? 'text-yellow-900' : 'text-gray-400'">{{ message.step_context.step_label }}</span
             ><template v-if="message.step_context.next_step_label">
-              — next required step: <span class="text-gray-400 font-medium">{{ message.step_context.next_step_label }}</span></template>
+              — next required step: <span class="font-medium" :class="message.is_internal ? 'text-yellow-900' : 'text-gray-400'">{{ message.step_context.next_step_label }}</span></template>
           </div>
         </div>
       </div>
