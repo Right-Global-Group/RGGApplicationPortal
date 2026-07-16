@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Request;
-use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,7 +23,7 @@ class EmailTemplatesController extends Controller
     public function index(): Response
     {
         // Only admins can access email templates
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -42,13 +40,13 @@ class EmailTemplatesController extends Controller
     public function edit(string $template): Response
     {
         // Only admins can access email templates
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             abort(403, 'Unauthorized access.');
         }
 
-        $filePath = $this->templatesPath . '/' . $template . '.blade.php';
+        $filePath = $this->templatesPath.'/'.$template.'.blade.php';
 
-        if (!File::exists($filePath)) {
+        if (! File::exists($filePath)) {
             abort(404, 'Template not found.');
         }
 
@@ -71,7 +69,7 @@ class EmailTemplatesController extends Controller
     public function update(string $template)
     {
         // Only admins can update email templates
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -79,19 +77,19 @@ class EmailTemplatesController extends Controller
             'content' => ['required', 'string'],
         ]);
 
-        $filePath = $this->templatesPath . '/' . $template . '.blade.php';
+        $filePath = $this->templatesPath.'/'.$template.'.blade.php';
 
-        if (!File::exists($filePath)) {
+        if (! File::exists($filePath)) {
             return response()->json(['error' => 'Template not found'], 404);
         }
 
         // Create backup before updating
-        $backupPath = $this->templatesPath . '/backups';
-        if (!File::exists($backupPath)) {
+        $backupPath = $this->templatesPath.'/backups';
+        if (! File::exists($backupPath)) {
             File::makeDirectory($backupPath, 0755, true);
         }
 
-        $backupFile = $backupPath . '/' . $template . '_' . date('Y-m-d_H-i-s') . '.blade.php';
+        $backupFile = $backupPath.'/'.$template.'_'.date('Y-m-d_H-i-s').'.blade.php';
         File::copy($filePath, $backupFile);
 
         // Update the template file
@@ -120,27 +118,27 @@ class EmailTemplatesController extends Controller
     public function reset(string $template)
     {
         // Only admins can reset email templates
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $filePath = $this->templatesPath . '/' . $template . '.blade.php';
+        $filePath = $this->templatesPath.'/'.$template.'.blade.php';
 
-        if (!File::exists($filePath)) {
+        if (! File::exists($filePath)) {
             return response()->json(['error' => 'Template not found'], 404);
         }
 
         // Check if there are backups to restore from
-        $backupPath = $this->templatesPath . '/backups';
-        
-        if (!File::exists($backupPath)) {
+        $backupPath = $this->templatesPath.'/backups';
+
+        if (! File::exists($backupPath)) {
             return response()->json(['error' => 'No backups available for this template.'], 400);
         }
 
         // Get all backups for this template, sorted by date (newest first)
         $backups = collect(File::files($backupPath))
-            ->filter(fn($file) => str_starts_with($file->getFilename(), $template . '_'))
-            ->sortByDesc(fn($file) => $file->getMTime())
+            ->filter(fn ($file) => str_starts_with($file->getFilename(), $template.'_'))
+            ->sortByDesc(fn ($file) => $file->getMTime())
             ->values();
 
         if ($backups->isEmpty()) {
@@ -149,9 +147,9 @@ class EmailTemplatesController extends Controller
 
         // Use the most recent backup
         $latestBackup = $backups->first();
-        
+
         // Create a backup of current version before resetting
-        $currentBackupFile = $backupPath . '/' . $template . '_before-reset_' . date('Y-m-d_H-i-s') . '.blade.php';
+        $currentBackupFile = $backupPath.'/'.$template.'_before-reset_'.date('Y-m-d_H-i-s').'.blade.php';
         File::copy($filePath, $currentBackupFile);
 
         // Restore from backup
@@ -165,7 +163,7 @@ class EmailTemplatesController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Template reset to previous backup from ' . date('Y-m-d H:i', $latestBackup->getMTime()),
+            'message' => 'Template reset to previous backup from '.date('Y-m-d H:i', $latestBackup->getMTime()),
             'content' => File::get($filePath),
         ]);
     }
@@ -175,44 +173,44 @@ class EmailTemplatesController extends Controller
      */
     public function previewAjax(string $template)
     {
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
-    
-        $filePath = $this->templatesPath . '/' . $template . '.blade.php';
-    
-        if (!File::exists($filePath)) {
+
+        $filePath = $this->templatesPath.'/'.$template.'.blade.php';
+
+        if (! File::exists($filePath)) {
             return response()->json(['error' => 'Template not found'], 404);
         }
-    
+
         // Clear view cache
         $this->clearViewCache();
-    
+
         $sampleData = $this->getSampleData($template);
-    
+
         try {
             // Check for unsaved content (from textarea)
             $rawContent = Request::input('content');
-            $isPreviewingUnsaved = !empty($rawContent);
-    
+            $isPreviewingUnsaved = ! empty($rawContent);
+
             if ($isPreviewingUnsaved) {
                 // Create a temporary file to safely render the unsaved content
                 $tempPath = storage_path("framework/views/_preview_{$template}.blade.php");
                 File::put($tempPath, $rawContent);
-    
+
                 $view = view()->file($tempPath, $sampleData);
             } else {
                 // Fallback: render from saved file
-                $view = view('emails.' . $template, $sampleData);
+                $view = view('emails.'.$template, $sampleData);
             }
-    
+
             $html = $view->render();
-    
+
             // Clean up temp file (optional)
             if ($isPreviewingUnsaved && File::exists($tempPath)) {
                 @unlink($tempPath);
             }
-    
+
             return response()->json([
                 'html' => $html,
                 'timestamp' => now()->timestamp,
@@ -221,14 +219,14 @@ class EmailTemplatesController extends Controller
             return response()->json([
                 'html' => '<div style="color: red; padding: 20px; font-family: sans-serif;">
                     <h3>Error Rendering Template</h3>
-                    <p><strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>
-                    <p><strong>File:</strong> ' . htmlspecialchars($e->getFile()) . '</p>
-                    <p><strong>Line:</strong> ' . $e->getLine() . '</p>
+                    <p><strong>Error:</strong> '.htmlspecialchars($e->getMessage()).'</p>
+                    <p><strong>File:</strong> '.htmlspecialchars($e->getFile()).'</p>
+                    <p><strong>Line:</strong> '.$e->getLine().'</p>
                 </div>',
                 'error' => $e->getMessage(),
             ], 500);
         }
-    }    
+    }
 
     /**
      * Clear all view caches
@@ -277,7 +275,7 @@ class EmailTemplatesController extends Controller
         }
 
         // Sort by name
-        usort($templates, fn($a, $b) => strcmp($a['display_name'], $b['display_name']));
+        usort($templates, fn ($a, $b) => strcmp($a['display_name'], $b['display_name']));
 
         return $templates;
     }
@@ -298,29 +296,29 @@ class EmailTemplatesController extends Controller
             'name' => 'John Doe',  // Used by account-credentials
             'account_name' => 'John Doe',
             'email' => 'john.doe@example.com',
-            
+
             // Application info
             'application_name' => 'Sample Application Ltd',
             'trading_name' => 'Sample Trading Ltd',
-            
+
             // User info
             'user_name' => 'Admin User',
             'created_by' => 'Admin User',
-            
+
             // URLs
             'application_url' => URL::to('/applications/1/status'),
             'status_url' => URL::to('/applications/1/status'),
             'login_url' => URL::to('/account/login'),
             'tracking_url' => URL::to('/email/track/1'),
-            
+
             // Dates
             'created_at' => now()->format('Y-m-d H:i'),
             'confirmed_at' => now()->format('Y-m-d H:i'),
             'due_date' => now()->addDays(30)->format('Y-m-d'),
         ];
-    
+
         // Template-specific sample data
-        $specificData = match($template) {
+        $specificData = match ($template) {
             'account-credentials' => [
                 'password' => 'SamplePassword123!',
             ],
@@ -429,12 +427,9 @@ class EmailTemplatesController extends Controller
                 'status_message' => 'All parties have successfully signed the contract.',
                 'timestamp' => now()->format('F j, Y \a\t g:i A'),
             ],
-            'account-message-to-user' => [
-                'account_message' => 'Hello, I wanted to follow up regarding the documents you requested. I have uploaded all the required files to the application portal. Please let me know if you need any additional information or clarification on any of the documents provided. Thank you for your assistance with this application.',
-            ],
             default => [],
         };
-    
+
         return array_merge($commonData, $specificData);
     }
 }

@@ -662,24 +662,14 @@
           <span v-else>Sign Contract</span>
         </button>
 
-        <!-- Send Message to Administrator Button -->
-        <button
-          @click="sendMessageToUser"
+        <!-- Message thread link (replaces the legacy one-shot message modal) -->
+        <a
+          href="#section-messages"
           class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
-          Send Message to Administrator
-        </button>
-
-        <!-- Cancel Message Reminder (if active) -->
-        <button
-          v-if="accountMessageReminder"
-          @click="cancelAccountMessageReminder"
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="x" class="w-4 h-4 fill-current" />
-          Cancel Message Reminder
-        </button>
+          Message Us
+        </a>
       </div>
     </div>
 
@@ -1241,13 +1231,6 @@
       :is-request-mode="false"
       @close="showWordPressEnterModal = false"
     />
-
-    <account-message-modal
-      v-if="showAccountMessageModal"
-      :application-id="application.id"
-      :has-active-reminder="!!accountMessageReminder"
-      @close="showAccountMessageModal = false"
-    />
   </div>
 
   <!-- Scroll to Top Button -->
@@ -1286,7 +1269,6 @@ import ContractReminderModal from '@/Shared/ContractReminderModal.vue'
 import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
 import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
 import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
-import AccountMessageModal from '@/Shared/AccountMessageModal.vue'
 import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
 
 
@@ -1303,7 +1285,6 @@ export default {
     SubmitToCardStreamModal,
     CardStreamCredentialsModal,
     WordPressCredentialsModal,
-    AccountMessageModal,
     DocumentUploadModal,
     Icon,
   },
@@ -1356,7 +1337,6 @@ export default {
       showWordPressRequestModal: false,
       showWordPressEnterModal: false,
       showCredentialsModal: false,
-      showAccountMessageModal: false,
       showDocumentUploadModal: false,
       preselectedCategory: null,
       hasRefreshed: typeof window !== 'undefined' && sessionStorage.getItem('statusPageRefreshed') === 'true',  // CHANGED THIS LINE
@@ -1475,12 +1455,6 @@ export default {
       // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
       return !this.is_account && !timestamps?.contract_signed
-    },
-
-    accountMessageReminder() {
-      return this.application.scheduled_emails?.find(
-        email => email.email_type === 'account_message_to_user' && email.is_active
-      )
     },
 
     hasExtraDocuments() {
@@ -2034,16 +2008,6 @@ export default {
       }
     },
 
-    sendMessageToUser() {
-      this.showAccountMessageModal = true
-    },
-    
-    cancelAccountMessageReminder() {
-      if (confirm('Cancel scheduled message reminders?')) {
-        this.$inertia.post(`/applications/${this.application.id}/cancel-account-message-reminder`)
-      }
-    },
-    
     isStepCompleted(stepId) {
       const timestamps = this.application.status?.timestamps
       

@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Events\AccountCredentialsEvent;
 use App\Events\AccountLiveEvent;
-use App\Events\AccountMessageToUserEvent;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\AllDocumentsUploadedEvent;
 use App\Events\ApplicationApprovedEvent;
@@ -26,7 +25,6 @@ use App\Events\WordPressCredentialsReminderEvent;
 use App\Events\WordPressCredentialsRequestEvent;
 use App\Listeners\SendAccountCredentialsEmail;
 use App\Listeners\SendAccountLiveEmail;
-use App\Listeners\SendAccountMessageToUserEmail;
 use App\Listeners\SendAdditionalInfoRequestEmail;
 use App\Listeners\SendAllDocumentsUploadedEmailListener;
 use App\Listeners\SendApplicationApprovedEmail;
@@ -110,9 +108,6 @@ class EventServiceProvider extends ServiceProvider
         ],
         AccountLiveEvent::class => [
             SendAccountLiveEmail::class,
-        ],
-        AccountMessageToUserEvent::class => [
-            SendAccountMessageToUserEmail::class,
         ],
         DocumentsDumpedEvent::class => [
             SendDocumentsDumpedEmail::class,
