@@ -1013,7 +1013,8 @@
         <div
           v-for="message in application.messages"
           :key="message.id"
-          class="p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg"
+          class="p-4 rounded-lg border"
+          :class="message.is_internal ? 'bg-amber-900/20 border-amber-600/40' : 'bg-dark-900/50 border-primary-800/30'"
         >
           <div class="flex items-center gap-2 mb-2">
             <span class="font-semibold text-white">{{ message.author.name }}</span>
@@ -1022,6 +1023,12 @@
               :class="message.author.is_staff ? 'bg-magenta-900/50 text-magenta-300' : 'bg-blue-900/50 text-blue-300'"
             >
               {{ message.author.is_staff ? 'Staff' : 'Merchant' }}
+            </span>
+            <span
+              v-if="message.is_internal"
+              class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-900/50 text-amber-300 border border-amber-600/40"
+            >
+              Internal note
             </span>
             <span class="text-sm text-gray-500 ml-auto">{{ message.created_at }}</span>
           </div>
@@ -1045,7 +1052,16 @@
           placeholder="Write a message..."
           class="w-full bg-dark-900/50 border border-primary-800/30 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:border-magenta-500/50 resize-y"
         ></textarea>
-        <div class="flex justify-end mt-2">
+        <div class="flex items-center justify-end gap-4 mt-2">
+          <!-- Internal note toggle — staff only; merchants never see or send this -->
+          <label v-if="!is_account" class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+            <input
+              v-model="messageIsInternal"
+              type="checkbox"
+              class="rounded bg-dark-900/50 border-primary-800/30 text-amber-500 focus:ring-amber-500/50"
+            >
+            Internal note (hidden from merchant)
+          </label>
           <button
             type="submit"
             :disabled="isPostingMessage || !messageBody.trim()"
@@ -1345,6 +1361,7 @@ export default {
       preselectedCategory: null,
       hasRefreshed: typeof window !== 'undefined' && sessionStorage.getItem('statusPageRefreshed') === 'true',  // CHANGED THIS LINE
       messageBody: '',
+      messageIsInternal: false,
       isPostingMessage: false,
       isManualTransitioning: false,
     }
@@ -1658,10 +1675,12 @@ export default {
       this.isPostingMessage = true
       this.$inertia.post(`/applications/${this.application.id}/messages`, {
         body: this.messageBody,
+        is_internal: this.messageIsInternal,
       }, {
         preserveScroll: true,
         onSuccess: () => {
           this.messageBody = ''
+          this.messageIsInternal = false
         },
         onFinish: () => {
           this.isPostingMessage = false

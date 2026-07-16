@@ -16,7 +16,9 @@ class ApplicationMessageController extends Controller
      */
     public function store(Application $application): RedirectResponse
     {
-        if (auth()->guard('account')->check()) {
+        $isStaff = ! auth()->guard('account')->check();
+
+        if (! $isStaff) {
             // Merchants can only post on their own applications
             if ($application->account_id !== auth()->guard('account')->id()) {
                 abort(403, 'You can only message on your own applications.');
@@ -32,15 +34,18 @@ class ApplicationMessageController extends Controller
             $author = ['user_id' => $user->id];
         }
 
-        // Only `body` is accepted from input — merchants can never set
-        // is_internal (it defaults to false on the model).
+        // Merchants can never set is_internal — the rule only exists on the
+        // staff path, so a merchant-supplied value is discarded and the model
+        // default (false) applies.
         $validated = Request::validate([
             'body' => ['required', 'string', 'max:5000'],
+            ...($isStaff ? ['is_internal' => ['sometimes', 'boolean']] : []),
         ]);
 
         $message = $application->messages()->create([
             ...$author,
             'body' => $validated['body'],
+            'is_internal' => $isStaff && ($validated['is_internal'] ?? false),
             // Snapshot where the application was when this was said
             'current_step' => $application->status?->current_step,
         ]);
