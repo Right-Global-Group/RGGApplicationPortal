@@ -1001,6 +1001,61 @@
       </div>
     </div>
 
+    <!-- Messages Section -->
+    <div
+      v-if="!is_account"
+      id="section-messages"
+      class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6"
+    >
+      <h2 class="text-xl font-bold text-white mb-4">Messages</h2>
+
+      <!-- Thread -->
+      <div v-if="application.messages?.length > 0" class="space-y-3 mb-6">
+        <div
+          v-for="message in application.messages"
+          :key="message.id"
+          class="p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg"
+        >
+          <div class="flex items-center gap-2 mb-2">
+            <span class="font-semibold text-white">{{ message.author.name }}</span>
+            <span
+              class="px-2 py-0.5 rounded text-xs font-semibold"
+              :class="message.author.is_staff ? 'bg-magenta-900/50 text-magenta-300' : 'bg-blue-900/50 text-blue-300'"
+            >
+              {{ message.author.is_staff ? 'Staff' : 'Merchant' }}
+            </span>
+            <span class="text-sm text-gray-500 ml-auto">{{ message.created_at }}</span>
+          </div>
+          <div class="text-gray-300 whitespace-pre-wrap">{{ message.body }}</div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else class="text-center py-8 mb-6 border border-dashed border-primary-800/30 rounded-lg">
+        <div class="text-gray-400">No messages yet</div>
+        <div class="text-sm text-gray-500 mt-1">Start the conversation with the merchant below.</div>
+      </div>
+
+      <!-- Composer -->
+      <form @submit.prevent="postMessage">
+        <textarea
+          v-model="messageBody"
+          rows="3"
+          placeholder="Write a message..."
+          class="w-full bg-dark-900/50 border border-primary-800/30 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:border-magenta-500/50 resize-y"
+        ></textarea>
+        <div class="flex justify-end mt-2">
+          <button
+            type="submit"
+            :disabled="isPostingMessage || !messageBody.trim()"
+            class="px-4 py-2 bg-magenta-600 hover:bg-magenta-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+          >
+            {{ isPostingMessage ? 'Posting...' : 'Post Message' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Email History Section -->
     <div 
       id="section-email-history" v-if="application.email_logs?.length > 0" 
@@ -1288,6 +1343,8 @@ export default {
       showDocumentUploadModal: false,
       preselectedCategory: null,
       hasRefreshed: typeof window !== 'undefined' && sessionStorage.getItem('statusPageRefreshed') === 'true',  // CHANGED THIS LINE
+      messageBody: '',
+      isPostingMessage: false,
       isManualTransitioning: false,
     }
   },
@@ -1316,6 +1373,10 @@ export default {
 
       if (this.application.gateway) {
         baseSections.push({ id: 'section-gateway', label: 'Gateway' })
+      }
+
+      if (!this.is_account) {
+        baseSections.push({ id: 'section-messages', label: 'Messages' })
       }
 
       baseSections.push({ id: 'section-email-history', label: 'Emails' })
@@ -1592,6 +1653,22 @@ export default {
     },
   },
   methods: {
+    postMessage() {
+      if (!this.messageBody.trim() || this.isPostingMessage) return
+
+      this.isPostingMessage = true
+      this.$inertia.post(`/applications/${this.application.id}/messages`, {
+        body: this.messageBody,
+      }, {
+        preserveScroll: true,
+        onSuccess: () => {
+          this.messageBody = ''
+        },
+        onFinish: () => {
+          this.isPostingMessage = false
+        },
+      })
+    },
     scrollToSection(sectionId) {
       const element = document.getElementById(sectionId)
       if (element) {
