@@ -999,9 +999,9 @@
       <h2 class="text-xl font-bold text-white mb-4">Messages</h2>
 
       <!-- Thread -->
-      <div v-if="application.messages?.length > 0" class="space-y-3 mb-6">
+      <div v-if="messages?.length > 0" class="space-y-3 mb-6">
         <div
-          v-for="message in application.messages"
+          v-for="message in messages"
           :key="message.id"
           class="p-4 rounded-lg border"
           :class="message.is_internal ? 'bg-amber-900/20 border-amber-600/40' : 'bg-dark-900/50 border-primary-800/30'"
@@ -1256,7 +1256,8 @@
 </template>
 
 <script>
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, usePoll } from '@inertiajs/vue3'
+import { onMounted, onUnmounted } from 'vue'
 import Layout from '@/Shared/Layout.vue'
 import TimelineStep from '@/Shared/TimelineStep.vue'
 import InvoiceModal from '@/Shared/InvoiceModal.vue'
@@ -1289,8 +1290,32 @@ export default {
     Icon,
   },
   layout: Layout,
+  // Composition API alongside the Options API below — usePoll ties polling to
+  // this component's lifecycle (it stops automatically on unmount/navigation).
+  setup() {
+    // Live-ish thread: partial-reload just the `messages` prop every 15s. The
+    // poll only replaces that one prop, so local component state (a half-written
+    // draft in the composer) is never touched.
+    const { start, stop } = usePoll(15000, { only: ['messages'] })
+
+    // Inertia's default background behaviour merely *throttles* hidden-tab polls
+    // (1 in 10 ticks still fires). We want zero traffic while hidden, so stop the
+    // poll outright and resume when the tab becomes visible again.
+    const onVisibilityChange = () => {
+      document.hidden ? stop() : start()
+    }
+
+    onMounted(() => {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      // Covers a page loaded in an already-hidden tab (background-opened),
+      // where usePoll autostarts before any visibilitychange event fires.
+      if (document.hidden) stop()
+    })
+    onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
+  },
   props: {
     application: Object,
+    messages: Array,
     is_account: Boolean,
     justLoggedIn: Boolean, 
     additionalInfoReminder: Object,

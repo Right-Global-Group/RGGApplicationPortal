@@ -215,21 +215,6 @@ class ApplicationStatusController extends Controller
                     'status' => $application->gatewayIntegration->status,
                     'merchant_id' => $application->gatewayIntegration->merchant_id,
                 ] : null,
-                // Message thread — internal notes are stripped server-side so the
-                // account guard never receives them
-                'messages' => $application->messages()
-                    ->when($isAccount, fn ($query) => $query->visibleToAccount())
-                    ->with(['user', 'account'])
-                    ->oldest()
-                    ->get()
-                    ->map(fn ($message) => [
-                        'id' => $message->id,
-                        'body' => $message->body,
-                        'author' => $message->author,
-                        'is_internal' => $message->is_internal,
-                        'current_step' => $message->current_step,
-                        'created_at' => $message->created_at?->format('Y-m-d H:i'),
-                    ]),
                 'activity_logs' => $application->activityLogs()
                     ->with('user')
                     ->latest()
@@ -242,6 +227,24 @@ class ApplicationStatusController extends Controller
                         'created_at' => $log->created_at->format('Y-m-d H:i'),
                     ]),
             ],
+            // Message thread — top-level closure prop so the poll's partial reload
+            // (`only: ['messages']`) serializes only this prop in the response.
+            // (The other, eagerly-built props are still computed server-side on a
+            // poll tick — only closures are skipped.) Internal notes are stripped
+            // server-side so the account guard never receives them.
+            'messages' => fn () => $application->messages()
+                ->when($isAccount, fn ($query) => $query->visibleToAccount())
+                ->with(['user', 'account'])
+                ->oldest()
+                ->get()
+                ->map(fn ($message) => [
+                    'id' => $message->id,
+                    'body' => $message->body,
+                    'author' => $message->author,
+                    'is_internal' => $message->is_internal,
+                    'current_step' => $message->current_step,
+                    'created_at' => $message->created_at?->format('Y-m-d H:i'),
+                ]),
             'justLoggedIn' => session('just_logged_in', false),
             'docusignRecipientStatus' => $liveRecipientStatus,
             'is_account' => $isAccount,
