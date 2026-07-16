@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -12,7 +13,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class Account extends Authenticatable
 {
-    use SoftDeletes, Notifiable, HasRoles;
+    use HasFactory, SoftDeletes, Notifiable, HasRoles;
 
     protected $guard = 'account';
     protected $guard_name = 'account';
