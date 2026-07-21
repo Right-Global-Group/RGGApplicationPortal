@@ -2,16 +2,15 @@
 
 namespace App\Events;
 
-use App\Models\Application;
+use App\Models\ApplicationMessage;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class AccountMessageToUserEvent
+class ApplicationMessagePosted
 {
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        public Application $application,
-        public string $message
+        public ApplicationMessage $message
     ) {}
 }

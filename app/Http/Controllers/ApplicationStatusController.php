@@ -3,14 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Events\AdditionalInfoRequestedEvent;
+use App\Events\ApplicationApprovedEvent;
 use App\Events\CardStreamSubmissionEvent;
+use App\Events\DocumentUploadReadyEvent;
+use App\Mail\DynamicEmail;
+use App\Mail\WordPressCredentialsReminder;
+use App\Mail\WordPressCredentialsRequest;
 use App\Models\Application;
 use App\Models\ApplicationAdditionalDocument;
 use App\Models\ApplicationDocument;
+use App\Models\EmailLog;
 use App\Models\EmailReminder;
+use App\Models\MerchantImport;
 use App\Services\DocuSignService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
@@ -29,7 +37,7 @@ class ApplicationStatusController extends Controller
         $isAccount = auth()->guard('account')->check();
         $isAdmin = false;
         $canViewStatus = false;
-    
+
         if ($isAccount && $application->account_id === auth()->guard('account')->id()) {
             $canViewStatus = true;
         } elseif (auth()->guard('web')->check()) {
@@ -39,20 +47,20 @@ class ApplicationStatusController extends Controller
                 $canViewStatus = true;
             }
         }
-    
-        if (!$canViewStatus) {
+
+        if (! $canViewStatus) {
             abort(403, 'Unauthorized access.');
         }
-    
+
         // Check if documents can still be uploaded
-        $canUploadDocs = !$application->status?->documents_approved_at;
+        $canUploadDocs = ! $application->status?->documents_approved_at;
 
         // Get uploadable categories (required + additional requested)
         $uploadableCategories = ApplicationDocument::getUploadableCategories($application);
 
         // Get extra categories (from library uploads)
         $extraCategories = ApplicationDocument::getExtraCategories($application);
-        
+
         // Get all unique categories that have been uploaded
         $uploadedCategories = $application->documents()
             ->select('document_category')
@@ -63,21 +71,21 @@ class ApplicationStatusController extends Controller
                 return [$category => ucwords(str_replace('_', ' ', $category))];
             })
             ->toArray();
-    
+
         $liveRecipientStatus = [];
         if ($application->status->docusign_envelope_id) {
             try {
                 $liveRecipientStatus = $this->docuSignService->getEnvelopeRecipients(
                     $application->status->docusign_envelope_id
                 );
-                
+
                 // Optionally update the stored status
-                if (!empty($liveRecipientStatus)) {
+                if (! empty($liveRecipientStatus)) {
                     $application->status->update([
-                        'docusign_recipient_status' => $liveRecipientStatus
+                        'docusign_recipient_status' => $liveRecipientStatus,
                     ]);
                 }
-                
+
                 \Log::info('Fetched live DocuSign recipient status', [
                     'application_id' => $application->id,
                     'recipient_count' => count($liveRecipientStatus),
@@ -91,12 +99,12 @@ class ApplicationStatusController extends Controller
                 $liveRecipientStatus = $application->status->docusign_recipient_status ?? [];
             }
         }
-    
+
         // Check if this is an imported application
-        $merchantImport = \App\Models\MerchantImport::where('account_id', $application->account_id)
+        $merchantImport = MerchantImport::where('account_id', $application->account_id)
             ->where('application_id', $application->id)
             ->first();
-    
+
         return Inertia::render('Applications/Status', [
             'application' => [
                 'id' => $application->id,
@@ -126,7 +134,7 @@ class ApplicationStatusController extends Controller
                 'has_wordpress_credentials' => $application->hasWordPressCredentials(),
                 'can_merchant_sign' => $this->canMerchantSignContract($application),
                 'is_imported' => $merchantImport !== null,
-                
+
                 'extra_document_categories' => $extraCategories,
                 'docusign_envelope_url' => $merchantImport && $application->status->docusign_envelope_id
                 ? "https://app.docusign.com/documents/details/{$application->status->docusign_envelope_id}"
@@ -142,7 +150,7 @@ class ApplicationStatusController extends Controller
                         'documents_uploaded' => $application->status->documents_uploaded_at?->format('Y-m-d H:i'),
                         'documents_approved' => $application->status->documents_approved_at?->format('Y-m-d H:i'),
                         'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
-                        'contract_signed' => $application->status->contract_signed_at?->format('Y-m-d H:i'), 
+                        'contract_signed' => $application->status->contract_signed_at?->format('Y-m-d H:i'),
                         'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
                         'contract_submitted' => $application->status->contract_submitted_at?->format('Y-m-d H:i'),
                         'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
@@ -162,7 +170,7 @@ class ApplicationStatusController extends Controller
                     'status' => $doc->status,
                     'uploaded_at' => $doc->created_at?->format('Y-m-d H:i'),
                     'dumped_at' => $doc->dumped_at?->format('Y-m-d H:i'),
-                    'dumped_reason' => $doc->dumped_reason,   
+                    'dumped_reason' => $doc->dumped_reason,
                 ]),
                 'contractReminder' => $application->emailReminders()
                     ->where('email_type', 'contract_reminder')
@@ -181,7 +189,7 @@ class ApplicationStatusController extends Controller
                         'requested_at' => $doc->requested_at->format('Y-m-d H:i'),
                         'uploaded_at' => $doc->uploaded_at?->format('Y-m-d H:i'),
                     ]),
-                'email_logs' => $application->morphMany(\App\Models\EmailLog::class, 'emailable')
+                'email_logs' => $application->morphMany(EmailLog::class, 'emailable')
                     ->get()
                     ->map(fn ($log) => [
                         'id' => $log->id,
@@ -192,7 +200,7 @@ class ApplicationStatusController extends Controller
                         'opened' => $log->opened,
                         'opened_at' => $log->opened_at?->format('Y-m-d H:i'),
                     ]),
-                'scheduled_emails' => $application->morphMany(\App\Models\EmailReminder::class, 'remindable')
+                'scheduled_emails' => $application->morphMany(EmailReminder::class, 'remindable')
                     ->where('is_active', true)
                     ->get()
                     ->map(fn ($reminder) => [
@@ -219,6 +227,27 @@ class ApplicationStatusController extends Controller
                         'created_at' => $log->created_at->format('Y-m-d H:i'),
                     ]),
             ],
+            // Message thread — top-level closure prop so the poll's partial reload
+            // (`only: ['messages']`) serializes only this prop in the response.
+            // (The other, eagerly-built props are still computed server-side on a
+            // poll tick — only closures are skipped.) Internal notes are stripped
+            // server-side so the account guard never receives them.
+            'messages' => fn () => $application->messages()
+                ->when($isAccount, fn ($query) => $query->visibleToAccount())
+                ->with(['user', 'account'])
+                ->oldest()
+                ->get()
+                // Reuse the already-loaded application so the step_context
+                // accessor doesn't lazy-load it once per message.
+                ->each(fn ($message) => $message->setRelation('application', $application))
+                ->map(fn ($message) => [
+                    'id' => $message->id,
+                    'body' => $message->body,
+                    'author' => $message->author,
+                    'is_internal' => $message->is_internal,
+                    'step_context' => $message->step_context,
+                    'created_at' => $message->created_at?->format('Y-m-d H:i'),
+                ]),
             'justLoggedIn' => session('just_logged_in', false),
             'docusignRecipientStatus' => $liveRecipientStatus,
             'is_account' => $isAccount,
@@ -228,7 +257,7 @@ class ApplicationStatusController extends Controller
             'extraDocumentCategories' => $extraCategories,
             'categoryDescriptions' => collect($uploadableCategories)
                 ->mapWithKeys(fn ($label, $key) => [
-                    $key => ApplicationDocument::getCategoryDescriptionForApplication($key, $application)
+                    $key => ApplicationDocument::getCategoryDescriptionForApplication($key, $application),
                 ])
                 ->toArray(),
             // Get active additional info reminder
@@ -270,14 +299,14 @@ class ApplicationStatusController extends Controller
         if (auth()->guard('account')->check()) {
             abort(403, 'Accounts cannot request additional information.');
         }
-    
+
         $validated = Request::validate([
             'notes' => ['required', 'string', 'max:1000'],
             'request_additional_document' => ['boolean'],
             'additional_document_name' => ['required_if:request_additional_document,true', 'nullable', 'string', 'max:255'],
             'additional_document_instructions' => ['nullable', 'string', 'max:1000'],
         ]);
-    
+
         // ALWAYS create an additional document record (even if no document requested)
         // This way we track ALL additional info requests
         ApplicationAdditionalDocument::create([
@@ -285,12 +314,12 @@ class ApplicationStatusController extends Controller
             'document_name' => $validated['additional_document_name'] ?? 'General Additional Information',
             'instructions' => $validated['additional_document_instructions'] ?? null,
             'notes' => $validated['notes'], // Store the general notes here
-            'is_uploaded' => !($validated['request_additional_document'] ?? false), // Mark as uploaded if no document required
+            'is_uploaded' => ! ($validated['request_additional_document'] ?? false), // Mark as uploaded if no document required
             'requested_by' => auth()->id(),
             'requested_at' => now(),
-            'uploaded_at' => !($validated['request_additional_document'] ?? false) ? now() : null,
+            'uploaded_at' => ! ($validated['request_additional_document'] ?? false) ? now() : null,
         ]);
-    
+
         // Fire event to send email
         event(new AdditionalInfoRequestedEvent(
             $application,
@@ -299,16 +328,16 @@ class ApplicationStatusController extends Controller
             $validated['additional_document_name'] ?? null,
             $validated['additional_document_instructions'] ?? null
         ));
-    
+
         return Redirect::back()->with('success', 'Additional information request sent to account.');
     }
-    
+
     public function setAdditionalInfoReminder(Application $application): RedirectResponse
     {
         if (auth()->guard('account')->check()) {
             abort(403, 'Accounts cannot set email reminders.');
         }
-    
+
         $validated = Request::validate([
             'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
             'notes' => ['required', 'string', 'max:1000'],
@@ -316,24 +345,24 @@ class ApplicationStatusController extends Controller
             'additional_document_name' => ['required_if:request_additional_document,true', 'nullable', 'string', 'max:255'],
             'additional_document_instructions' => ['nullable', 'string', 'max:1000'],
         ]);
-    
+
         // ALWAYS create an additional document record
         ApplicationAdditionalDocument::create([
             'application_id' => $application->id,
             'document_name' => $validated['additional_document_name'] ?? 'General Additional Information',
             'instructions' => $validated['additional_document_instructions'] ?? null,
             'notes' => $validated['notes'],
-            'is_uploaded' => !($validated['request_additional_document'] ?? false),
+            'is_uploaded' => ! ($validated['request_additional_document'] ?? false),
             'requested_by' => auth()->id(),
             'requested_at' => now(),
-            'uploaded_at' => !($validated['request_additional_document'] ?? false) ? now() : null,
+            'uploaded_at' => ! ($validated['request_additional_document'] ?? false) ? now() : null,
         ]);
-    
+
         // Deactivate existing additional info reminders
         $application->emailReminders()
             ->where('email_type', 'additional_info_requested')
             ->update(['is_active' => false]);
-    
+
         // Create new reminder
         $intervals = [
             '1_day' => now()->addDay(),
@@ -342,7 +371,7 @@ class ApplicationStatusController extends Controller
             '2_weeks' => now()->addWeeks(2),
             '1_month' => now()->addMonth(),
         ];
-    
+
         EmailReminder::create([
             'remindable_type' => Application::class,
             'remindable_id' => $application->id,
@@ -351,8 +380,8 @@ class ApplicationStatusController extends Controller
             'next_send_at' => $intervals[$validated['interval']],
             'is_active' => true,
         ]);
-    
-        return Redirect::back()->with('success', 'Reminder scheduled to send ' . str_replace('_', ' ', $validated['interval']) . '.');
+
+        return Redirect::back()->with('success', 'Reminder scheduled to send '.str_replace('_', ' ', $validated['interval']).'.');
     }
 
     /**
@@ -373,7 +402,7 @@ class ApplicationStatusController extends Controller
     public function sendGatewayContract(Application $application): JsonResponse
     {
         try {
-            if (!$application->gateway_partner) {
+            if (! $application->gateway_partner) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Please select a gateway partner first.',
@@ -381,7 +410,7 @@ class ApplicationStatusController extends Controller
             }
 
             $result = $this->docuSignService->sendGatewayPartnerContract($application);
-            
+
             $application->status->update([
                 'gateway_docusign_envelope_id' => $result['envelope_id'],
             ]);
@@ -397,7 +426,7 @@ class ApplicationStatusController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send gateway contract: ' . $e->getMessage(),
+                'message' => 'Failed to send gateway contract: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -431,7 +460,7 @@ class ApplicationStatusController extends Controller
         $application->status->transitionTo('gateway_details_received', 'Gateway details received and stored');
 
         // Automatically request WordPress credentials
-        Mail::to($application->account->email)->send(new \App\Mail\WordPressCredentialsRequest($application));
+        Mail::to($application->account->email)->send(new WordPressCredentialsRequest($application));
 
         return Redirect::back()->with('success', 'Gateway details saved successfully. WordPress credentials request sent to merchant.');
     }
@@ -459,21 +488,21 @@ class ApplicationStatusController extends Controller
      */
     public function sendWordPressCredentialsReminder(Application $application): RedirectResponse
     {
-        Mail::to($application->account->email)->send(new \App\Mail\WordPressCredentialsReminder($application));
+        Mail::to($application->account->email)->send(new WordPressCredentialsReminder($application));
 
         return Redirect::back()->with('success', 'WordPress credentials reminder sent.');
     }
 
     public function markAsApproved(Application $application): RedirectResponse
-    {    
+    {
         $application->update(['status' => 'application_approved', 'approved_at' => now()]);
 
         // Change Status:
         $application->status->transitionTo('application_approved', 'User marked application as approved');
-    
+
         // Send approval email to account
-        event(new \App\Events\ApplicationApprovedEvent($application->account, $application));
-    
+        event(new ApplicationApprovedEvent($application->account, $application));
+
         return Redirect::back()->with('success', 'Application approved and email sent.');
     }
 
@@ -485,11 +514,11 @@ class ApplicationStatusController extends Controller
         }
 
         $user = auth()->guard('web')->user();
-        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+        if (! $user->isAdmin() && $application->account->user_id !== $user->id) {
             abort(403, 'You can only approve documents for applications you manage.');
         }
 
-        $application->status->transitionTo('documents_approved', 'Documents approved by ' . $user->name);
+        $application->status->transitionTo('documents_approved', 'Documents approved by '.$user->name);
 
         return Redirect::back()->with('success', 'Documents marked as approved.');
     }
@@ -500,7 +529,7 @@ class ApplicationStatusController extends Controller
     public function docusignCallback(Application $application): Response
     {
         $event = Request::query('event');
-        
+
         if ($event === 'signing_complete') {
             // Find the most recent sent DocuSign document
             $document = $application->documents()
@@ -509,22 +538,22 @@ class ApplicationStatusController extends Controller
                 ->where('status', 'sent')
                 ->latest()
                 ->first();
-                
+
             if ($document) {
                 // Update document status
                 $document->update([
                     'status' => 'completed',
                     'completed_at' => now(),
-                ]); 
+                ]);
             }
-            
+
             // Return a view that closes the window and notifies the opener
             return Inertia::render('DocuSign/Callback', [
                 'success' => true,
                 'message' => 'Contract signed successfully!',
             ]);
         }
-        
+
         return Inertia::render('DocuSign/Callback', [
             'success' => false,
             'message' => 'Contract signing session ended.',
@@ -537,7 +566,7 @@ class ApplicationStatusController extends Controller
     public function gatewayDocusignCallback(Application $application): Response
     {
         $event = Request::query('event');
-        
+
         if ($event === 'signing_complete') {
             // Find the most recent gateway contract
             $document = $application->documents()
@@ -546,7 +575,7 @@ class ApplicationStatusController extends Controller
                 ->where('status', 'sent')
                 ->latest()
                 ->first();
-                
+
             if ($document) {
                 // Update document status
                 $document->update([
@@ -554,13 +583,13 @@ class ApplicationStatusController extends Controller
                     'completed_at' => now(),
                 ]);
             }
-            
+
             return Inertia::render('DocuSign/Callback', [
                 'success' => true,
                 'message' => 'Gateway contract signed successfully!',
             ]);
         }
-        
+
         return Inertia::render('DocuSign/Callback', [
             'success' => false,
             'message' => 'Gateway contract signing session ended.',
@@ -575,7 +604,7 @@ class ApplicationStatusController extends Controller
         try {
             // Send contract via DocuSign
             $result = $this->docuSignService->sendDocuSignContract($application);
-            
+
             $application->status->update([
                 'docusign_envelope_id' => $result['envelope_id'],
                 'docusign_status' => 'sent',
@@ -589,9 +618,16 @@ class ApplicationStatusController extends Controller
                 \Log::info('Sent document upload ready email to merchant', [
                     'application_id' => $application->id,
                     'merchant_email' => $application->account->email,
+                    'account_has_logged_in' => true,
+                ]);
+            } elseif (! $application->account->first_login_at) {
+                \Log::info('Skipped document upload ready email - account has not logged in yet', [
+                    'application_id' => $application->id,
+                    'merchant_email' => $application->account->email,
+                    'account_has_logged_in' => false,
                 ]);
             }
-    
+
             return response()->json([
                 'success' => true,
                 'message' => 'Contract sent successfully',
@@ -604,10 +640,10 @@ class ApplicationStatusController extends Controller
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send contract: ' . $e->getMessage(),
+                'message' => 'Failed to send contract: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -618,15 +654,15 @@ class ApplicationStatusController extends Controller
         if (auth()->guard('account')->check()) {
             abort(403, 'Accounts cannot send contract reminders.');
         }
-    
+
         $user = auth()->guard('web')->user();
-        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+        if (! $user->isAdmin() && $application->account->user_id !== $user->id) {
             abort(403);
         }
-    
+
         // Get the signing URL from DocuSign status
         $signingUrl = $application->status->docusign_signing_url ?? url("/applications/{$application->id}/status");
-    
+
         try {
             $emailData = [
                 'account_name' => $application->account->name,
@@ -634,13 +670,13 @@ class ApplicationStatusController extends Controller
                 'signing_url' => $signingUrl,
                 'application_url' => url("/applications/{$application->id}/status"),
             ];
-    
+
             Mail::to($application->account->email)->send(
-                new \App\Mail\DynamicEmail('contract_reminder', $emailData)
+                new DynamicEmail('contract_reminder', $emailData)
             );
-    
+
             // Log the email
-            \App\Models\EmailLog::create([
+            EmailLog::create([
                 'emailable_type' => get_class($application),
                 'emailable_id' => $application->id,
                 'email_type' => 'contract_reminder',
@@ -648,18 +684,17 @@ class ApplicationStatusController extends Controller
                 'subject' => 'Reminder: Contract Awaiting Signature',
                 'sent_at' => now(),
             ]);
-    
+
             return Redirect::back()->with('success', 'Contract reminder sent successfully.');
         } catch (\Exception $e) {
             \Log::error('Failed to send contract reminder', [
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
             ]);
-            
+
             return Redirect::back()->with('error', 'Failed to send contract reminder.');
         }
     }
-
 
     /**
      * Send invoice reminder email
@@ -672,7 +707,7 @@ class ApplicationStatusController extends Controller
         }
 
         $user = auth()->guard('web')->user();
-        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+        if (! $user->isAdmin() && $application->account->user_id !== $user->id) {
             abort(403);
         }
 
@@ -684,19 +719,19 @@ class ApplicationStatusController extends Controller
             ];
 
             Mail::to($application->account->email)->send(
-                new \App\Mail\DynamicEmail('invoice_reminder', $emailData)
+                new DynamicEmail('invoice_reminder', $emailData)
             );
 
             // Transition to invoice_sent if not already there
-            if (!$application->status->invoice_sent_at) {
+            if (! $application->status->invoice_sent_at) {
                 $application->status->transitionTo(
                     'invoice_sent',
-                    'Invoice reminder sent by ' . $user->name
+                    'Invoice reminder sent by '.$user->name
                 );
             }
 
             // Log the email
-            \App\Models\EmailLog::create([
+            EmailLog::create([
                 'emailable_type' => get_class($application),
                 'emailable_id' => $application->id,
                 'email_type' => 'invoice_reminder',
@@ -711,7 +746,7 @@ class ApplicationStatusController extends Controller
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
             ]);
-            
+
             return Redirect::back()->with('error', 'Failed to send invoice reminder.');
         }
     }
@@ -727,17 +762,16 @@ class ApplicationStatusController extends Controller
 
         // Update status
         $application->status->update([
-            'invoice_paid_at' => now()
+            'invoice_paid_at' => now(),
         ]);
 
         $application->status->transitionTo(
             'invoice_paid',
-            'Invoice marked as paid by ' . auth()->user()->name
+            'Invoice marked as paid by '.auth()->user()->name
         );
 
         return Redirect::back()->with('success', 'Invoice marked as paid.');
     }
-
 
     /**
      * Set recurring contract reminder
@@ -750,7 +784,7 @@ class ApplicationStatusController extends Controller
         }
 
         $user = auth()->guard('web')->user();
-        if (!$user->isAdmin() && $application->account->user_id !== $user->id) {
+        if (! $user->isAdmin() && $application->account->user_id !== $user->id) {
             abort(403);
         }
 
@@ -809,33 +843,33 @@ class ApplicationStatusController extends Controller
         if (auth()->guard('account')->check()) {
             abort(403, 'Accounts cannot submit applications to CardStream.');
         }
-    
+
         // Validate payout option
         $validated = Request::validate([
             'payout_option' => ['required', 'in:daily,every_3_days'],
         ]);
-    
+
         // Update application with payout option
         $application->update([
             'payout_option' => $validated['payout_option'],
         ]);
-    
+
         // Collect all uploaded documents with their files
         $documents = [];
-        
+
         // Get the most recent (non-superseded) contract and application_form
         $contractDoc = ApplicationDocument::where('application_id', $application->id)
             ->where('document_category', 'contract')
             ->where('is_superseded', false) // Get latest version only
             ->latest('created_at')
             ->first();
-        
+
         $applicationFormDoc = ApplicationDocument::where('application_id', $application->id)
             ->where('document_category', 'application_form')
             ->where('is_superseded', false) // Get latest version only
             ->latest('created_at')
             ->first();
-    
+
         \Log::info('CardStream submission - checking for latest document versions', [
             'application_id' => $application->id,
             'contract_found' => $contractDoc ? true : false,
@@ -846,17 +880,17 @@ class ApplicationStatusController extends Controller
             'application_form_id' => $applicationFormDoc?->id,
             'application_form_is_edited' => $applicationFormDoc?->parent_document_id ? true : false,
         ]);
-    
+
         // Add contract (edited version if exists)
         if ($contractDoc && \Storage::disk('public')->exists($contractDoc->file_path)) {
             $documents[] = [
-                'category' => 'Signed Contract' . ($contractDoc->parent_document_id ? ' (Edited)' : ''),
+                'category' => 'Signed Contract'.($contractDoc->parent_document_id ? ' (Edited)' : ''),
                 'filename' => $contractDoc->original_filename,
-                'path' => storage_path('app/public/' . $contractDoc->file_path),
+                'path' => storage_path('app/public/'.$contractDoc->file_path),
                 'mime' => 'application/pdf',
                 'is_temp' => false,
             ];
-    
+
             \Log::info('Added contract to CardStream submission', [
                 'document_id' => $contractDoc->id,
                 'is_edited_version' => $contractDoc->parent_document_id ? true : false,
@@ -866,29 +900,29 @@ class ApplicationStatusController extends Controller
                 'application_id' => $application->id,
             ]);
         }
-    
+
         // Add application form (edited version if exists)
         if ($applicationFormDoc && \Storage::disk('public')->exists($applicationFormDoc->file_path)) {
             $documents[] = [
-                'category' => 'Application Form' . ($applicationFormDoc->parent_document_id ? ' (Edited)' : ''),
+                'category' => 'Application Form'.($applicationFormDoc->parent_document_id ? ' (Edited)' : ''),
                 'filename' => $applicationFormDoc->original_filename,
-                'path' => storage_path('app/public/' . $applicationFormDoc->file_path),
+                'path' => storage_path('app/public/'.$applicationFormDoc->file_path),
                 'mime' => 'application/pdf',
                 'is_temp' => false,
             ];
-    
+
             \Log::info('Added application form to CardStream submission', [
                 'document_id' => $applicationFormDoc->id,
                 'is_edited_version' => $applicationFormDoc->parent_document_id ? true : false,
             ]);
         }
-        
+
         // Get other standard documents (excluding superseded ones)
         $otherDocs = $application->documents()
             ->whereNotIn('document_category', ['contract', 'application_form'])
             ->where('is_superseded', false)
             ->get();
-    
+
         foreach ($otherDocs as $doc) {
             try {
                 if (empty($doc->file_path)) {
@@ -896,14 +930,15 @@ class ApplicationStatusController extends Controller
                         'document_id' => $doc->id,
                         'document_category' => $doc->document_category,
                     ]);
+
                     continue;
                 }
-                
+
                 if (\Storage::disk('public')->exists($doc->file_path)) {
                     $documents[] = [
                         'category' => $this->formatDocumentCategory($doc->document_category),
                         'filename' => $doc->original_filename,
-                        'path' => storage_path('app/public/' . $doc->file_path),
+                        'path' => storage_path('app/public/'.$doc->file_path),
                         'mime' => \Storage::disk('public')->mimeType($doc->file_path),
                         'is_temp' => false,
                     ];
@@ -915,13 +950,13 @@ class ApplicationStatusController extends Controller
                 ]);
             }
         }
-    
+
         // Get DocuSign URL for reference
         $envelopeId = $application->status->docusign_envelope_id;
-        $documentUrl = $envelopeId 
+        $documentUrl = $envelopeId
             ? "https://app.docusign.com/documents/details/{$envelopeId}"
             : null;
-    
+
         \Log::info('CardStream submission prepared', [
             'application_id' => $application->id,
             'total_documents' => count($documents),
@@ -929,218 +964,117 @@ class ApplicationStatusController extends Controller
             'has_application_form' => $applicationFormDoc ? true : false,
             'payout_option' => $validated['payout_option'],
         ]);
-    
+
         // Update application status
         $application->status->transitionTo(
             'contract_submitted',
-            'Application submitted to CardStream with ' . str_replace('_', ' ', $validated['payout_option']) . ' payout by ' . auth()->user()->name
+            'Application submitted to CardStream with '.str_replace('_', ' ', $validated['payout_option']).' payout by '.auth()->user()->name
         );
-    
+
         // Fire event to send email with documents
         event(new CardStreamSubmissionEvent(
-            $application, 
-            $documentUrl, 
-            $documents, 
+            $application,
+            $documentUrl,
+            $documents,
             $validated['payout_option']
         ));
-    
-        return Redirect::back()->with('success', 'Application submitted to CardStream successfully with ' . str_replace('_', ' ', $validated['payout_option']) . ' payout option.');
+
+        return Redirect::back()->with('success', 'Application submitted to CardStream successfully with '.str_replace('_', ' ', $validated['payout_option']).' payout option.');
     }
-    
+
     private function formatDocumentCategory(string $category): string
     {
         if (str_starts_with($category, 'additional_requested_')) {
             return 'Additional Document';
         }
-        
+
         return ucwords(str_replace('_', ' ', $category));
     }
 
-    /**
-     * Send message from account to user (immediate)
-     */
-    public function sendAccountMessage(Application $application): RedirectResponse
-    {
-        // Ensure only accounts can send
-        if (!auth()->guard('account')->check()) {
-            abort(403, 'Only accounts can send messages.');
-        }
-
-        // Ensure account owns this application
-        if ($application->account_id !== auth()->guard('account')->id()) {
-            abort(403, 'You can only send messages for your own applications.');
-        }
-
-        $validated = Request::validate([
-            'message' => ['required', 'string', 'max:2000'],
-        ]);
-
-        // Store in application_statuses
-        $application->status->update([
-            'account_message_notes' => $validated['message']
-        ]);
-
-        // Fire event to send email immediately
-        event(new \App\Events\AccountMessageToUserEvent(
-            $application,
-            $validated['message']
-        ));
-
-        return Redirect::back()->with('success', 'Message sent to administrator.');
-    }
-
-    /**
-     * Set account message reminder (schedules future emails)
-     */
-    public function setAccountMessageReminder(Application $application): RedirectResponse
-    {
-        // Ensure only accounts can set reminders
-        if (!auth()->guard('account')->check()) {
-            abort(403, 'Only accounts can set message reminders.');
-        }
-
-        // Ensure account owns this application
-        if ($application->account_id !== auth()->guard('account')->id()) {
-            abort(403, 'You can only set reminders for your own applications.');
-        }
-
-        $validated = Request::validate([
-            'message' => ['required', 'string', 'max:2000'],
-            'interval' => ['required', 'in:1_day,3_days,1_week,2_weeks,1_month'],
-        ]);
-
-        // Store in application_statuses
-        $application->status->update([
-            'account_message_notes' => $validated['message']
-        ]);
-
-        // Deactivate existing account message reminders
-        $application->emailReminders()
-            ->where('email_type', 'account_message_to_user')
-            ->update(['is_active' => false]);
-
-        // Create new reminder
-        $intervals = [
-            '1_day' => now()->addDay(),
-            '3_days' => now()->addDays(3),
-            '1_week' => now()->addWeek(),
-            '2_weeks' => now()->addWeeks(2),
-            '1_month' => now()->addMonth(),
-        ];
-
-        EmailReminder::create([
-            'remindable_type' => Application::class,
-            'remindable_id' => $application->id,
-            'email_type' => 'account_message_to_user',
-            'interval' => $validated['interval'],
-            'next_send_at' => $intervals[$validated['interval']],
-            'is_active' => true,
-        ]);
-
-        return Redirect::back()->with('success', 'Message reminder scheduled to send ' . str_replace('_', ' ', $validated['interval']) . '.');
-    }
-
-    /**
-     * Cancel account message reminder
-     */
-    public function cancelAccountMessageReminder(Application $application): RedirectResponse
-    {
-        // Ensure only accounts can cancel
-        if (!auth()->guard('account')->check()) {
-            abort(403, 'Only accounts can cancel message reminders.');
-        }
-
-        // Ensure account owns this application
-        if ($application->account_id !== auth()->guard('account')->id()) {
-            abort(403, 'You can only cancel reminders for your own applications.');
-        }
-
-        $application->emailReminders()
-            ->where('email_type', 'account_message_to_user')
-            ->update(['is_active' => false]);
-
-        return Redirect::back()->with('success', 'Message reminder cancelled.');
-    }
-
-    private function canMerchantSignContract(\App\Models\Application $application): bool
+    private function canMerchantSignContract(Application $application): bool
     {
         $status = $application->status;
-        
+
         // First check: contract must be sent but not signed
-        if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
+        if (! $status || ! $status->contract_sent_at || $status->contract_signed_at) {
             \Log::info('Merchant cannot sign yet');
+
             return false;
         }
-                
+
         // Second check: verify routing order using DocuSign
         $envelopeId = $status->docusign_envelope_id;
-        
-        if (!$envelopeId) {
+
+        if (! $envelopeId) {
             \Log::info('No envelope ID found');
+
             return false;
         }
-                
+
         try {
             $accessToken = $this->docuSignService->getAccessToken();
-            
-            $envelopeResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)
-                ->get(config('services.docusign.base_url') . "/v2.1/accounts/" . config('services.docusign.account_id') . "/envelopes/{$envelopeId}/recipients");
-            
+
+            $envelopeResponse = Http::withToken($accessToken)
+                ->get(config('services.docusign.base_url').'/v2.1/accounts/'.config('services.docusign.account_id')."/envelopes/{$envelopeId}/recipients");
+
             if ($envelopeResponse->failed()) {
                 \Log::error('DocuSign API call failed', [
                     'status' => $envelopeResponse->status(),
                 ]);
+
                 return false;
             }
-            
+
             $envelopeData = $envelopeResponse->json();
             $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
-            
+
             // Find merchant's routing order
             $merchantEmail = strtolower($application->account->email);
             $merchantRoutingOrder = null;
-                        
+
             foreach ($envelopeData['signers'] ?? [] as $signer) {
                 if (strtolower($signer['email']) === $merchantEmail) {
-                    $merchantRoutingOrder = (int)$signer['routingOrder'];
+                    $merchantRoutingOrder = (int) $signer['routingOrder'];
 
                     break;
                 }
             }
-            
+
             // If merchant not found by exact email (imported envelope), try elimination
             if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
-                
+
                 foreach ($envelopeData['signers'] ?? [] as $signer) {
                     $signerEmail = strtolower($signer['email']);
-                    
+
                     // Skip G2Pay/internal signers
-                    if (stripos($signerEmail, 'g2pay.co.uk') === false && 
+                    if (stripos($signerEmail, 'g2pay.co.uk') === false &&
                         stripos($signerEmail, 'management@') === false &&
                         stripos($signer['roleName'] ?? '', 'Director') === false &&
                         stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
-                        
-                        $merchantRoutingOrder = (int)$signer['routingOrder'];
+
+                        $merchantRoutingOrder = (int) $signer['routingOrder'];
 
                         break;
                     }
                 }
             }
-            
+
             if ($merchantRoutingOrder === null) {
                 \Log::error('❌ Merchant not found in envelope');
+
                 return false;
             }
-            
+
             $canSign = $merchantRoutingOrder <= $currentRoutingOrder;
-            
+
             return $canSign;
-            
+
         } catch (\Exception $e) {
             \Log::error('💥 Exception in canMerchantSignContract', [
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -1151,62 +1085,63 @@ class ApplicationStatusController extends Controller
         if (auth()->guard('account')->check()) {
             abort(403, 'Manual transitions are only available to administrators.');
         }
-    
+
         $validated = Request::validate([
             'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
             'current_order' => ['nullable', 'array'], // Step IDs in actual display order from frontend
         ]);
-    
+
         $targetStep = $validated['target_step'];
-        
+
         // Use the order from frontend (which reflects actual timeline display)
         $currentOrder = $validated['current_order'] ?? null;
-        
+
         if ($currentOrder) {
             $targetIndex = array_search($targetStep, $currentOrder);
             $currentIndex = array_search($application->status->current_step, $currentOrder);
-    
+
             // If going backwards, just transition to that step (with order)
             if ($targetIndex < $currentIndex) {
                 $application->status->manualTransitionTo(
-                    $targetStep, 
-                    'Manually transitioned backwards by ' . auth()->user()->name,
+                    $targetStep,
+                    'Manually transitioned backwards by '.auth()->user()->name,
                     true,
                     $currentOrder // Pass the dynamic order
                 );
-                return Redirect::back()->with('success', "Manually transitioned to: " . str_replace('_', ' ', ucwords($targetStep)));
+
+                return Redirect::back()->with('success', 'Manually transitioned to: '.str_replace('_', ' ', ucwords($targetStep)));
             }
-    
+
             // If going forwards, complete all intermediate steps
             $completedCount = $targetIndex - $currentIndex;
             $stepsToComplete = array_slice($currentOrder, $currentIndex + 1, $completedCount);
-            
+
             foreach ($stepsToComplete as $step) {
                 $application->status->manualTransitionTo(
-                    $step, 
-                    'Auto-completed via manual transition by ' . auth()->user()->name, 
+                    $step,
+                    'Auto-completed via manual transition by '.auth()->user()->name,
                     false,
                     $currentOrder // Pass the dynamic order
                 );
             }
-    
+
             // Final transition to target step
             $application->status->manualTransitionTo(
-                $targetStep, 
-                'Manually transitioned by ' . auth()->user()->name,
+                $targetStep,
+                'Manually transitioned by '.auth()->user()->name,
                 true,
                 $currentOrder // Pass the dynamic order
             );
-    
-            return Redirect::back()->with('success', "Manually transitioned through {$completedCount} step(s) to: " . str_replace('_', ' ', ucwords($targetStep)));
+
+            return Redirect::back()->with('success', "Manually transitioned through {$completedCount} step(s) to: ".str_replace('_', ' ', ucwords($targetStep)));
         }
-    
+
         // Fallback if no order provided (shouldn't happen with proper frontend)
         $application->status->manualTransitionTo(
-            $targetStep, 
-            'Manually transitioned by ' . auth()->user()->name
+            $targetStep,
+            'Manually transitioned by '.auth()->user()->name
         );
-    
-        return Redirect::back()->with('success', "Manually transitioned to: " . str_replace('_', ' ', ucwords($targetStep)));
+
+        return Redirect::back()->with('success', 'Manually transitioned to: '.str_replace('_', ' ', ucwords($targetStep)));
     }
 }

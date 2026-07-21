@@ -661,24 +661,14 @@
           <span v-else>Sign Contract</span>
         </button>
 
-        <!-- Send Message to Administrator Button -->
-        <button
-          @click="sendMessageToUser"
+        <!-- Message thread link (replaces the legacy one-shot message modal) -->
+        <a
+          href="#section-messages"
           class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
-          Send Message to Administrator
-        </button>
-
-        <!-- Cancel Message Reminder (if active) -->
-        <button
-          v-if="accountMessageReminder"
-          @click="cancelAccountMessageReminder"
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          <icon name="x" class="w-4 h-4 fill-current" />
-          Cancel Message Reminder
-        </button>
+          Message Us
+        </a>
       </div>
     </div>
 
@@ -1000,6 +990,89 @@
       </div>
     </div>
 
+    <!-- Messages Section -->
+    <div
+      id="section-messages"
+      class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6"
+    >
+      <h2 class="text-xl font-bold text-white mb-4">Messages</h2>
+
+      <!-- Thread -->
+      <div v-if="messages?.length > 0" class="space-y-3 mb-6">
+        <div
+          v-for="message in messages"
+          :key="message.id"
+          class="p-4 border"
+          :class="message.is_internal
+            ? 'bg-yellow-200 border-yellow-300 rounded-sm shadow-lg shadow-black/40'
+            : 'bg-dark-900/50 border-primary-800/30 rounded-lg'"
+        >
+          <div class="flex items-center gap-2 mb-2">
+            <span class="font-semibold" :class="message.is_internal ? 'text-yellow-900' : 'text-white'">{{ message.author.name }}</span>
+            <span
+              class="px-2 py-0.5 rounded text-xs font-semibold"
+              :class="message.is_internal
+                ? 'bg-yellow-300 text-yellow-900 border border-yellow-400'
+                : (message.author.is_staff ? 'bg-magenta-900/50 text-magenta-300' : 'bg-blue-900/50 text-blue-300')"
+            >
+              {{ message.author.is_staff ? 'Staff' : 'Merchant' }}
+            </span>
+            <span
+              v-if="message.is_internal"
+              class="px-2 py-0.5 rounded text-xs font-semibold bg-yellow-300 text-yellow-900 border border-yellow-400"
+            >
+              Internal note
+            </span>
+            <span class="text-sm ml-auto" :class="message.is_internal ? 'text-yellow-800/70' : 'text-gray-500'">{{ message.created_at }}</span>
+          </div>
+          <div class="whitespace-pre-wrap" :class="message.is_internal ? 'text-yellow-950' : 'text-gray-300'">{{ message.body }}</div>
+          <!-- Step-context hint: the step the application was at when this was
+               written, plus the next required step (absent once all complete). -->
+          <div v-if="message.step_context" class="mt-2 text-xs" :class="message.is_internal ? 'text-yellow-800/70' : 'text-gray-500'">
+            Sent while at <span class="font-medium" :class="message.is_internal ? 'text-yellow-900' : 'text-gray-400'">{{ message.step_context.step_label }}</span
+            ><template v-if="message.step_context.next_step_label">
+              — next required step: <span class="font-medium" :class="message.is_internal ? 'text-yellow-900' : 'text-gray-400'">{{ message.step_context.next_step_label }}</span></template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else class="text-center py-8 mb-6 border border-dashed border-primary-800/30 rounded-lg">
+        <div class="text-gray-400">No messages yet</div>
+        <div class="text-sm text-gray-500 mt-1">
+          {{ is_account ? 'Have a question about your application? Start the conversation below.' : 'Start the conversation with the merchant below.' }}
+        </div>
+      </div>
+
+      <!-- Composer -->
+      <form @submit.prevent="postMessage">
+        <textarea
+          v-model="messageBody"
+          rows="3"
+          placeholder="Write a message..."
+          class="w-full bg-dark-900/50 border border-primary-800/30 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:border-magenta-500/50 resize-y"
+        ></textarea>
+        <div class="flex items-center justify-end gap-4 mt-2">
+          <!-- Internal note toggle — staff only; merchants never see or send this -->
+          <label v-if="!is_account" class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+            <input
+              v-model="messageIsInternal"
+              type="checkbox"
+              class="rounded bg-dark-900/50 border-primary-800/30 text-amber-500 focus:ring-amber-500/50"
+            >
+            Internal note (hidden from merchant)
+          </label>
+          <button
+            type="submit"
+            :disabled="isPostingMessage || !messageBody.trim()"
+            class="px-4 py-2 bg-magenta-600 hover:bg-magenta-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+          >
+            {{ isPostingMessage ? 'Posting...' : 'Post Message' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Email History Section -->
     <div 
       id="section-email-history" v-if="application.email_logs?.length > 0" 
@@ -1168,13 +1241,6 @@
       :is-request-mode="false"
       @close="showWordPressEnterModal = false"
     />
-
-    <account-message-modal
-      v-if="showAccountMessageModal"
-      :application-id="application.id"
-      :has-active-reminder="!!accountMessageReminder"
-      @close="showAccountMessageModal = false"
-    />
   </div>
 
   <!-- Scroll to Top Button -->
@@ -1200,7 +1266,8 @@
 </template>
 
 <script>
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, usePoll } from '@inertiajs/vue3'
+import { onMounted, onUnmounted } from 'vue'
 import Layout from '@/Shared/Layout.vue'
 import TimelineStep from '@/Shared/TimelineStep.vue'
 import InvoiceModal from '@/Shared/InvoiceModal.vue'
@@ -1213,7 +1280,6 @@ import ContractReminderModal from '@/Shared/ContractReminderModal.vue'
 import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
 import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
 import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
-import AccountMessageModal from '@/Shared/AccountMessageModal.vue'
 import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
 
 
@@ -1230,13 +1296,36 @@ export default {
     SubmitToCardStreamModal,
     CardStreamCredentialsModal,
     WordPressCredentialsModal,
-    AccountMessageModal,
     DocumentUploadModal,
     Icon,
   },
   layout: Layout,
+  // Composition API alongside the Options API below — usePoll ties polling to
+  // this component's lifecycle (it stops automatically on unmount/navigation).
+  setup() {
+    // Live-ish thread: partial-reload just the `messages` prop every 15s. The
+    // poll only replaces that one prop, so local component state (a half-written
+    // draft in the composer) is never touched.
+    const { start, stop } = usePoll(15000, { only: ['messages'] })
+
+    // Inertia's default background behaviour merely *throttles* hidden-tab polls
+    // (1 in 10 ticks still fires). We want zero traffic while hidden, so stop the
+    // poll outright and resume when the tab becomes visible again.
+    const onVisibilityChange = () => {
+      document.hidden ? stop() : start()
+    }
+
+    onMounted(() => {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      // Covers a page loaded in an already-hidden tab (background-opened),
+      // where usePoll autostarts before any visibilitychange event fires.
+      if (document.hidden) stop()
+    })
+    onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
+  },
   props: {
     application: Object,
+    messages: Array,
     is_account: Boolean,
     justLoggedIn: Boolean, 
     additionalInfoReminder: Object,
@@ -1283,10 +1372,12 @@ export default {
       showWordPressRequestModal: false,
       showWordPressEnterModal: false,
       showCredentialsModal: false,
-      showAccountMessageModal: false,
       showDocumentUploadModal: false,
       preselectedCategory: null,
       hasRefreshed: typeof window !== 'undefined' && sessionStorage.getItem('statusPageRefreshed') === 'true',  // CHANGED THIS LINE
+      messageBody: '',
+      messageIsInternal: false,
+      isPostingMessage: false,
       isManualTransitioning: false,
     }
   },
@@ -1316,6 +1407,8 @@ export default {
       if (this.application.gateway) {
         baseSections.push({ id: 'section-gateway', label: 'Gateway' })
       }
+
+      baseSections.push({ id: 'section-messages', label: 'Messages' })
 
       baseSections.push({ id: 'section-email-history', label: 'Emails' })
       baseSections.push({ id: 'section-activity-log', label: 'Activity Log' })
@@ -1397,12 +1490,6 @@ export default {
       // Can only send contract if it hasn't been sent yet
       const timestamps = this.application.status?.timestamps;
       return !this.is_account && !timestamps?.contract_signed
-    },
-
-    accountMessageReminder() {
-      return this.application.scheduled_emails?.find(
-        email => email.email_type === 'account_message_to_user' && email.is_active
-      )
     },
 
     hasExtraDocuments() {
@@ -1591,6 +1678,24 @@ export default {
     },
   },
   methods: {
+    postMessage() {
+      if (!this.messageBody.trim() || this.isPostingMessage) return
+
+      this.isPostingMessage = true
+      this.$inertia.post(`/applications/${this.application.id}/messages`, {
+        body: this.messageBody,
+        is_internal: this.messageIsInternal,
+      }, {
+        preserveScroll: true,
+        onSuccess: () => {
+          this.messageBody = ''
+          this.messageIsInternal = false
+        },
+        onFinish: () => {
+          this.isPostingMessage = false
+        },
+      })
+    },
     scrollToSection(sectionId) {
       const element = document.getElementById(sectionId)
       if (element) {
@@ -1938,16 +2043,6 @@ export default {
       }
     },
 
-    sendMessageToUser() {
-      this.showAccountMessageModal = true
-    },
-    
-    cancelAccountMessageReminder() {
-      if (confirm('Cancel scheduled message reminders?')) {
-        this.$inertia.post(`/applications/${this.application.id}/cancel-account-message-reminder`)
-      }
-    },
-    
     isStepCompleted(stepId) {
       const timestamps = this.application.status?.timestamps
       

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountAuthController;
 use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\ApplicationDocumentsController;
+use App\Http\Controllers\ApplicationMessageController;
 use App\Http\Controllers\ApplicationsController;
 use App\Http\Controllers\ApplicationStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -108,12 +109,16 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::delete('/{application}', [ApplicationsController::class, 'destroy']);
         Route::put('/{application}/restore', [ApplicationsController::class, 'restore']);
 
+
         // Application Status & Actions
         Route::get('/{application}/status', [ApplicationStatusController::class, 'show'])->name('applications.status');
         Route::post('/{application}/confirm-fees', [ApplicationStatusController::class, 'confirmFees'])->name('applications.confirm-fees');
         Route::post('/{application}/change-fees', [ApplicationsController::class, 'changeFees'])->name('applications.change-fees');
         Route::put('/{application}/update-fees', [ApplicationsController::class, 'updateFees'])->name('applications.update-fees');
         Route::post('/{application}/update-step', [ApplicationStatusController::class, 'updateStep']);
+
+        // Application message thread
+        Route::post('/{application}/messages', [ApplicationMessageController::class, 'store'])->name('applications.messages.store');
 
         // Merchant Contract (DocuSign)
         Route::post('/{application}/send-contract', [ApplicationStatusController::class, 'sendContractLink']);
@@ -197,14 +202,6 @@ Route::middleware(['auth:web,account'])->group(function () {
         // Make account live
         Route::post('/{application}/make-account-live', [ApplicationsController::class, 'makeAccountLive'])
             ->name('applications.make-account-live');
-
-        // Account message routes (only for accounts)
-        Route::post('/{application}/send-account-message', [ApplicationStatusController::class, 'sendAccountMessage'])
-            ->name('applications.send-account-message');
-        Route::post('/{application}/set-account-message-reminder', [ApplicationStatusController::class, 'setAccountMessageReminder'])
-            ->name('applications.set-account-message-reminder');
-        Route::post('/{application}/cancel-account-message-reminder', [ApplicationStatusController::class, 'cancelAccountMessageReminder'])
-            ->name('applications.cancel-account-message-reminder');
 
         // Manual transition
         Route::post('/{application}/manual-transition', [ApplicationStatusController::class, 'manualTransition'])
