@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Providers\AppServiceProvider;
+use App\Support\LastGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,8 @@ class AuthenticatedSessionController extends Controller
                 'email' => __('auth.failed'),
             ]);
         }
+
+        LastGuard::remember('web');
 
         // Redirect to intended URL or default home
         return redirect()->intended(AppServiceProvider::HOME);

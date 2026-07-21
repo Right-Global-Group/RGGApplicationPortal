@@ -2,22 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 class Account extends Authenticatable
 {
-    use SoftDeletes, Notifiable, HasRoles;
-
-    const STATUS_PENDING = 0;
-    const STATUS_CONFIRMED = 1;
+    use HasFactory, SoftDeletes, Notifiable, HasRoles;
 
     protected $guard = 'account';
     protected $guard_name = 'account';
@@ -27,22 +23,24 @@ class Account extends Authenticatable
         'recipient_name',
         'email',
         'mobile',
-        'password',
         'user_id',
-        'status',
-        'credentials_sent_at',
+        'link_sent_at',
         'first_login_at',
         'photo_path',
     ];
 
     protected $hidden = [
-        'password',
         'remember_token',
     ];
 
+    /**
+     * `link_sent_at` is when we last mailed this merchant a login link; `first_login_at`
+     * is when they last clicked one for the first time. Nothing else on the delivery path
+     * is observable, so together they are the only way to tell mailed-but-never-reached
+     * from reached-but-idle.
+     */
     protected $casts = [
-        'status' => 'integer',
-        'credentials_sent_at' => 'datetime',
+        'link_sent_at' => 'datetime',
         'first_login_at' => 'datetime',
     ];
 
@@ -89,31 +87,6 @@ class Account extends Authenticatable
                 $query->onlyTrashed();
             }
         });
-    }
-
-    public function isConfirmed(): bool
-    {
-        return $this->first_login_at !== null;
-    }
-
-    public function markAsConfirmed(): void
-    {
-        if (!$this->first_login_at) {
-            $this->update([
-                'status' => self::STATUS_CONFIRMED,
-                'first_login_at' => now(),
-            ]);
-        }
-    }
-
-    public static function generatePassword(): string
-    {
-        return Str::random(12);
-    }
-
-    public function setPasswordAttribute($value)
-    {
-        $this->attributes['password'] = Hash::needsRehash($value) ? Hash::make($value) : $value;
     }
 
     public function setEmailAttribute($value)

@@ -12,6 +12,7 @@ use App\Http\Controllers\DocumentLibraryController;
 use App\Http\Controllers\DocuSignWebhookController;
 use App\Http\Controllers\EmailTemplatesController;
 use App\Http\Controllers\InvoicesController;
+use App\Http\Controllers\MagicLinkController;
 use App\Http\Controllers\MerchantImportController;
 use App\Http\Controllers\ProgressTrackerController;
 use App\Http\Controllers\SettingsController;
@@ -25,10 +26,17 @@ Route::post('/clear-login-flag', function () {
     return response()->json(['success' => true]);
 })->middleware(['auth:web,account']);
 
-// Account Authentication Routes
-Route::get('/account/login', [AccountAuthController::class, 'showLoginForm'])->name('account.login');
-Route::post('/account/login', [AccountAuthController::class, 'login']);
+// Merchant Authentication Routes.
+//
+// Merchants have no password, so the login page is the "send me a link" box. The throttle
+// is not optional: this is a public form that puts mail in a merchant's inbox.
+Route::get('/account/login', [MagicLinkController::class, 'showRequestForm'])->name('account.login');
+Route::post('/account/login', [MagicLinkController::class, 'sendRequestedLink'])
+    ->middleware('throttle:5,60');
 Route::delete('/account/logout', [AccountAuthController::class, 'logout'])->name('account.logout');
+
+// Not behind the `signed` middleware on purpose - see MagicLinkController.
+Route::get('/account/link/{account}', [MagicLinkController::class, 'login'])->name('account.magic-link');
 
 // User Authentication Routes
 Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -100,6 +108,7 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::put('/{application}', [ApplicationsController::class, 'update']);
         Route::delete('/{application}', [ApplicationsController::class, 'destroy']);
         Route::put('/{application}/restore', [ApplicationsController::class, 'restore']);
+
 
         // Application Status & Actions
         Route::get('/{application}/status', [ApplicationStatusController::class, 'show'])->name('applications.status');

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Account Credentials</title>
+    <title>Your G2Pay Login Link</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -79,23 +79,19 @@
     <div class="content">
         <p>Hello {{ $name }},</p>
         
-        <p>Your account has been created successfully. Below are your login credentials:</p>
-        
+        <p>Your account is ready. There is no password to remember &mdash; just use the button below and you'll be signed straight in.</p>
+
         <div class="credentials-box">
             <div class="credential-item">
                 <span class="credential-label">Email:</span><br>
                 {{ $email }}
             </div>
-            <div class="credential-item">
-                <span class="credential-label">Password:</span><br>
-                {{ $password }}
-            </div>
         </div>
-        
+
         <div class="note">
-            <strong>⚠️ Important:</strong> Please keep these credentials secure and change your password after your first login.
+            <strong>⚠️ Important:</strong> This link signs you in, so please don't forward it to anyone outside your business. If it ever stops working, click it anyway and we'll email you a fresh one.
         </div>
-        
+
         <!-- Button using table for Gmail compatibility -->
         <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
             <tr>
@@ -104,7 +100,7 @@
                 </td>
             </tr>
         </table>
-        
+
         <p style="text-align: center; color: #666; font-size: 14px; margin-top: 10px;">
             Or copy this link: <a href="{{ $login_url }}" style="color: #667eea; word-break: break-all;">{{ $login_url }}</a>
         </p>

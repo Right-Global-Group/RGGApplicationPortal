@@ -642,18 +642,16 @@ class MerchantImportController extends Controller
             $account = Account::where('email', $merchantInfo['email'])->first();
             
             if (!$account) {
-                $plainPassword = Account::generatePassword();
                 $account = Account::create([
                     'name' => $merchantInfo['company_name'],
                     'recipient_name' => $merchantInfo['signer_name'] ?? $merchantInfo['company_name'],
                     'email' => $merchantInfo['email'],
-                    'password' => $plainPassword,
                     'user_id' => auth()->id(),
                 ]);
             }
 
-            // Fire event to send credentials email to newly created account
-            // event(new \App\Events\AccountCredentialsEvent($account, $plainPassword));
+            // Imported merchants signed outside the portal, so nothing is waiting for
+            // them. No task, no link: importing mails nothing and mints nothing.
 
             // Create application with extracted fees
             $application = Application::create([

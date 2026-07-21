@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Events\AccountCredentialsEvent;
+use App\Events\AccountMessageToUserEvent;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\ApplicationCreatedEvent;
 use App\Events\CardStreamCredentialsReminderEvent;
@@ -64,9 +65,7 @@ class SendScheduledEmails implements ShouldQueue
         switch ($reminder->email_type) {
             case 'account_credentials':
                 if ($remindable instanceof Account) {
-                    $plainPassword = Account::generatePassword();
-                    $remindable->update(['password' => $plainPassword]);
-                    event(new AccountCredentialsEvent($remindable, $plainPassword));
+                    event(AccountCredentialsEvent::for($remindable));
                 }
                 break;
 
@@ -92,6 +91,13 @@ class SendScheduledEmails implements ShouldQueue
             case 'cardstream_credentials':
                 if ($remindable instanceof Application) {
                     event(new CardStreamCredentialsReminderEvent($remindable));
+                }
+                break;
+
+            case 'account_message_to_user':
+                if ($remindable instanceof Application) {
+                    $message = $remindable->status?->account_message_notes ?? 'Follow-up message from account.';
+                    event(new AccountMessageToUserEvent($remindable, $message));
                 }
                 break;
 

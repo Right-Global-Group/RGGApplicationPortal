@@ -342,13 +342,12 @@
           Approve Application
         </button>
 
-                <!-- Send Credentials Button (only if account hasn't logged in yet) -->
-                <button
+        <button
           @click="showCredentialsModal = true"
           class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
         >
           <icon name="mail" class="w-4 h-4 fill-current" />
-          Send G2Pay Credentials
+          Send Login Link
         </button>
 
 
@@ -1825,7 +1824,7 @@ export default {
     
     formatEmailType(type) {
       const types = {
-        'account_credentials': 'Account Credentials',
+        'account_credentials': 'Login Link',
         'application_created': 'Application Created',
         'fees_changed': 'Fees Changed',
         'document_uploaded': 'Document Uploaded',

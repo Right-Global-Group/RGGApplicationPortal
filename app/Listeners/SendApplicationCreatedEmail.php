@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\ApplicationCreatedEvent;
 use App\Mail\DynamicEmail;
 use App\Models\EmailLog;
+use App\Services\MagicLinkService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -27,9 +28,7 @@ class SendApplicationCreatedEmail
             return;
         }
 
-        // $statusUrl = route('applications.status', $application);
-        // $editUrl = route('applications.edit', $application) . '#documents';
-        $loginUrl = route('account.login');
+        $loginUrl = MagicLinkService::for($account, $application);
 
         // Send application created notification
         Mail::to($account->email)->send(new DynamicEmail('application_created', [
