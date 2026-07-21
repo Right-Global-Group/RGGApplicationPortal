@@ -3,25 +3,35 @@
 # ---------------------------------------------------
 /vendor
 /node_modules
-/public/storage           # Ignore symlinked storage folder
-/storage/*.key            # Ignore encryption keys
-/storage/framework/*      # Cache, sessions, views
-/storage/logs/*           # Log files
-/storage/app/public/*     # Uploaded public files
-/storage/app/private/*    # Uploaded private files (optional)
-/storage/app/docusign/*.key  # DocuSign RSA keys (IMPORTANT!)
+# Symlinked storage folder
+/public/storage
+# Encryption keys
+/storage/*.key
+# Cache, sessions, views
+/storage/framework/*
+# Log files
+/storage/logs/*
+# Uploaded public files
+/storage/app/public/*
+# Uploaded private files (optional)
+/storage/app/private/*
+# DocuSign RSA keys (IMPORTANT!)
+/storage/app/docusign/*.key
 !/storage/framework/.gitignore
 !/storage/logs/.gitignore
 !/storage/app/public/.gitignore
 !/storage/app/private/.gitignore
-/bootstrap/cache/*.php    # Compiled bootstrap files
+# Compiled bootstrap files
+/bootstrap/cache/*.php
 
 # ---------------------------------------------------
 # Environment & Config
 # ---------------------------------------------------
 .env
-.env.*                   # Ignore any other env files
-!.env.example            # Except example file
+# Any other env files
+.env.*
+# Except the example
+!.env.example
 
 # ---------------------------------------------------
 # IDEs & Editors
@@ -47,3 +57,4 @@
 # Composer lock file
 # ---------------------------------------------------
 composer.lock
+.phpunit.result.cache

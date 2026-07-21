@@ -1,8 +1,10 @@
 <?php
 
+use App\Support\LastGuard;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webhooks/docusign/*',
         ]);
+
+        // Stock Laravel sends every guest to the staff form. A merchant has no password
+        // to type into it, so for them that is a dead end reached by going idle.
+        $middleware->redirectGuestsTo(fn (Request $request) => LastGuard::loginRouteFor($request));
         
         // Register route middleware aliases
         $middleware->alias([

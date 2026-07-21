@@ -12,24 +12,37 @@
             {{ account.name.charAt(0).toUpperCase() }}
           </div>
         </h1>
-        <span 
+        <span
           class="px-4 py-2 rounded-full text-sm font-semibold"
-          :class="account.is_confirmed ? 'bg-green-900/50 text-green-300' : 'bg-yellow-900/50 text-yellow-300'"
+          :class="account.first_login_at ? 'bg-green-900/50 text-green-300' : 'bg-yellow-900/50 text-yellow-300'"
         >
-          {{ account.is_confirmed ? 'Confirmed Login' : 'Pending Login' }}
+          {{ account.first_login_at ? 'Has Logged In' : 'Never Logged In' }}
         </span>
       </div>
 
-      <!-- Create Application Button (Admin Only) -->
-      <div v-if="$page.props.auth.user.isAdmin" class="mb-8">
-        <Link 
-          :href="`/applications/create?account_id=${account.id}`" 
+      <!-- Create Application / Send Login Link Buttons (Admin Only) -->
+      <div v-if="$page.props.auth.user.isAdmin" class="mb-8 flex items-center gap-3">
+        <Link
+          :href="`/applications/create?account_id=${account.id}`"
           class="btn-primary inline-flex items-center gap-2"
         >
           <span>Create Application for Account</span>
         </Link>
+        <button
+          @click="showCredentialsModal = true"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <icon name="mail" class="w-4 h-4 fill-current" />
+          Send Login Link
+        </button>
       </div>
     </div>
+
+    <credentials-modal
+      v-if="showCredentialsModal"
+      :account-id="account.id"
+      @close="showCredentialsModal = false"
+    />
 
     <div class="flex flex-col sm:flex sm:flex-row gap-6">
       <div class="sm:w-1/2 w-full">
@@ -91,9 +104,9 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-gray-300 font-medium mb-2">Credentials Sent</label>
+                <label class="block text-gray-300 font-medium mb-2">Login Link Sent</label>
                 <div class="px-4 py-2 bg-dark-900/50 border border-primary-800/30 rounded-lg text-gray-300">
-                  {{ account.credentials_sent_at || 'Not sent' }}
+                  {{ account.link_sent_at || 'Not sent' }}
                 </div>
               </div>
               <div>
@@ -239,9 +252,10 @@
   import FileInput from '@/Shared/FileInput.vue'
   import LoadingButton from '@/Shared/LoadingButton.vue'
   import Icon from '@/Shared/Icon.vue'
-  
+  import CredentialsModal from '@/Shared/CredentialsModal.vue'
+
   export default {
-    components: { Head, Link, LoadingButton, TextInput, FileInput, Icon },
+    components: { Head, Link, LoadingButton, TextInput, FileInput, Icon, CredentialsModal },
     layout: Layout,
     remember: 'form',
     props: {
@@ -258,6 +272,7 @@
           mobile: this.account.mobile,
           photo: null,
         }),
+        showCredentialsModal: false,
       }
     },
     computed: {

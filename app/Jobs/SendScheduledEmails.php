@@ -3,11 +3,13 @@
 namespace App\Jobs;
 
 use App\Events\AccountCredentialsEvent;
+use App\Events\AccountMessageToUserEvent;
 use App\Events\AdditionalInfoRequestedEvent;
 use App\Events\ApplicationCreatedEvent;
-use App\Events\FeesConfirmationReminderEvent;
-use App\Events\WordPressCredentialsReminderEvent;
 use App\Events\CardStreamCredentialsReminderEvent;
+use App\Events\WordPressCredentialsReminderEvent;
+use App\Models\Account;
+use App\Models\Application;
 use App\Models\EmailReminder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,7 +36,7 @@ class SendScheduledEmails implements ShouldQueue
             try {
                 $this->sendReminderEmail($reminder);
                 $reminder->updateNextSendDate();
-                
+
                 Log::info('Reminder processed successfully', [
                     'reminder_id' => $reminder->id,
                     'email_type' => $reminder->email_type,
@@ -54,49 +56,48 @@ class SendScheduledEmails implements ShouldQueue
     {
         $remindable = $reminder->remindable;
 
-        if (!$remindable) {
+        if (! $remindable) {
             Log::warning('Remindable entity not found', ['reminder_id' => $reminder->id]);
+
             return;
         }
 
         switch ($reminder->email_type) {
             case 'account_credentials':
-                if ($remindable instanceof \App\Models\Account) {
-                    $plainPassword = \App\Models\Account::generatePassword();
-                    $remindable->update(['password' => $plainPassword]);
-                    event(new AccountCredentialsEvent($remindable, $plainPassword));
+                if ($remindable instanceof Account) {
+                    event(AccountCredentialsEvent::for($remindable));
                 }
                 break;
 
             case 'application_created':
-                if ($remindable instanceof \App\Models\Application) {
+                if ($remindable instanceof Application) {
                     event(new ApplicationCreatedEvent($remindable));
                 }
                 break;
 
             case 'additional_info_requested':
-                if ($remindable instanceof \App\Models\Application) {
+                if ($remindable instanceof Application) {
                     $notes = $remindable->status?->additional_info_notes ?? 'Additional information is required.';
                     event(new AdditionalInfoRequestedEvent($remindable, $notes));
                 }
                 break;
 
             case 'wordpress_credentials_request':
-                if ($remindable instanceof \App\Models\Application) {
+                if ($remindable instanceof Application) {
                     event(new WordPressCredentialsReminderEvent($remindable));
                 }
                 break;
 
             case 'cardstream_credentials':
-                if ($remindable instanceof \App\Models\Application) {
+                if ($remindable instanceof Application) {
                     event(new CardStreamCredentialsReminderEvent($remindable));
                 }
                 break;
 
             case 'account_message_to_user':
-                if ($remindable instanceof \App\Models\Application) {
+                if ($remindable instanceof Application) {
                     $message = $remindable->status?->account_message_notes ?? 'Follow-up message from account.';
-                    event(new \App\Events\AccountMessageToUserEvent($remindable, $message));
+                    event(new AccountMessageToUserEvent($remindable, $message));
                 }
                 break;
 
