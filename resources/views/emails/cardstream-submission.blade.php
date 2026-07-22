@@ -207,7 +207,13 @@
             </ul>
         </div>
         @endif
-        
+
+        @if(!empty($additional_info))
+        <p style="margin-top: 30px;">
+            {{ $additional_info }}
+        </p>
+        @endif
+
         <p style="margin-top: 30px;">
             Please review the application at your earliest convenience. All required documentation has been completed and verified. Payouts are configured for <strong>{{ $payout_timing }}</strong> settlement.
         </p>

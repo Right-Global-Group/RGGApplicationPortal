@@ -15,7 +15,9 @@ use App\Models\ApplicationDocument;
 use App\Models\EmailLog;
 use App\Models\EmailReminder;
 use App\Models\MerchantImport;
+use App\Services\CashflowsSwitchNoticeService;
 use App\Services\DocuSignService;
+use App\Services\MagicLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Http;
@@ -28,7 +30,8 @@ use Inertia\Response;
 class ApplicationStatusController extends Controller
 {
     public function __construct(
-        private DocuSignService $docuSignService
+        private DocuSignService $docuSignService,
+        private CashflowsSwitchNoticeService $cashflowsSwitchNoticeService
     ) {}
 
     public function show(Application $application): Response
@@ -132,7 +135,7 @@ class ApplicationStatusController extends Controller
                 'wordpress_admin_email' => $application->wordpress_admin_email,
                 'wordpress_admin_username' => $application->wordpress_admin_username,
                 'has_wordpress_credentials' => $application->hasWordPressCredentials(),
-                'can_merchant_sign' => $this->canMerchantSignContract($application),
+                'can_merchant_sign' => $this->docuSignService->canMerchantSignContract($application),
                 'is_imported' => $merchantImport !== null,
 
                 'extra_document_categories' => $extraCategories,
@@ -274,6 +277,9 @@ class ApplicationStatusController extends Controller
             'accountName' => $application->account_name ?? $application->account->name ?? 'Unknown',
             'accountEmail' => $application->account->email,
             'accountMobile' => $application->account->mobile ?? 'Unknown',
+            'accountPhotoUrl' => $application->account->photo_path
+                ? \Illuminate\Support\Facades\URL::route('accounts.photo', ['account' => $application->account_id])
+                : null,
             'accountHasLoggedIn' => $application->account->first_login_at !== null,
             'credentialsReminder' => $application->account->emailReminders()
                 ->where('email_type', 'account_credentials')
@@ -660,15 +666,18 @@ class ApplicationStatusController extends Controller
             abort(403);
         }
 
-        // Get the signing URL from DocuSign status
-        $signingUrl = $application->status->docusign_signing_url ?? url("/applications/{$application->id}/status");
+        // DocuSign's stored embedded-signing URL is short-lived and likely dead by the
+        // time a reminder goes out, so always mint a fresh, self-authenticating link
+        // straight to the sign button instead of trusting a URL captured at send time.
+        $redirect = route('applications.status', $application, absolute: false).'#section-actions';
+        $signingUrl = MagicLinkService::for($application->account, $application, $redirect);
 
         try {
             $emailData = [
                 'account_name' => $application->account->name,
                 'application_name' => $application->name,
                 'signing_url' => $signingUrl,
-                'application_url' => url("/applications/{$application->id}/status"),
+                'application_url' => $signingUrl,
             ];
 
             Mail::to($application->account->email)->send(
@@ -847,6 +856,7 @@ class ApplicationStatusController extends Controller
         // Validate payout option
         $validated = Request::validate([
             'payout_option' => ['required', 'in:daily,every_3_days'],
+            'additional_info' => ['nullable', 'string', 'max:2000'],
         ]);
 
         // Update application with payout option
@@ -976,10 +986,42 @@ class ApplicationStatusController extends Controller
             $application,
             $documentUrl,
             $documents,
-            $validated['payout_option']
+            $validated['payout_option'],
+            $validated['additional_info'] ?? null
         ));
 
         return Redirect::back()->with('success', 'Application submitted to CardStream successfully with '.str_replace('_', ' ', $validated['payout_option']).' payout option.');
+    }
+
+    /**
+     * Generate the optional Cashflows -> Cardstream switch notice letter. A plain PDF,
+     * not a DocuSign envelope - it attaches to the application the same way any other
+     * uploaded document does, so it rides along automatically when the application is
+     * later submitted to CardStream.
+     */
+    public function generateCashflowsSwitchNotice(Application $application): RedirectResponse
+    {
+        if (auth()->guard('account')->check()) {
+            abort(403, 'Accounts cannot generate the switch notice.');
+        }
+
+        $validated = Request::validate([
+            'account_name' => ['required', 'string', 'max:100'],
+            'logo' => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        if (! Request::file('logo') && empty($application->account->photo_path)) {
+            return Redirect::back()->with('error', 'This account has no logo on file - upload one to generate the notice.');
+        }
+
+        $this->cashflowsSwitchNoticeService->generate(
+            $application,
+            $validated['account_name'],
+            Request::file('logo'),
+            auth()->guard('web')->user()
+        );
+
+        return Redirect::back()->with('success', 'Cashflows switch notice generated and attached to the application.');
     }
 
     private function formatDocumentCategory(string $category): string
@@ -991,94 +1033,6 @@ class ApplicationStatusController extends Controller
         return ucwords(str_replace('_', ' ', $category));
     }
 
-    private function canMerchantSignContract(Application $application): bool
-    {
-        $status = $application->status;
-
-        // First check: contract must be sent but not signed
-        if (! $status || ! $status->contract_sent_at || $status->contract_signed_at) {
-            \Log::info('Merchant cannot sign yet');
-
-            return false;
-        }
-
-        // Second check: verify routing order using DocuSign
-        $envelopeId = $status->docusign_envelope_id;
-
-        if (! $envelopeId) {
-            \Log::info('No envelope ID found');
-
-            return false;
-        }
-
-        try {
-            $accessToken = $this->docuSignService->getAccessToken();
-
-            $envelopeResponse = Http::withToken($accessToken)
-                ->get(config('services.docusign.base_url').'/v2.1/accounts/'.config('services.docusign.account_id')."/envelopes/{$envelopeId}/recipients");
-
-            if ($envelopeResponse->failed()) {
-                \Log::error('DocuSign API call failed', [
-                    'status' => $envelopeResponse->status(),
-                ]);
-
-                return false;
-            }
-
-            $envelopeData = $envelopeResponse->json();
-            $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
-
-            // Find merchant's routing order
-            $merchantEmail = strtolower($application->account->email);
-            $merchantRoutingOrder = null;
-
-            foreach ($envelopeData['signers'] ?? [] as $signer) {
-                if (strtolower($signer['email']) === $merchantEmail) {
-                    $merchantRoutingOrder = (int) $signer['routingOrder'];
-
-                    break;
-                }
-            }
-
-            // If merchant not found by exact email (imported envelope), try elimination
-            if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
-
-                foreach ($envelopeData['signers'] ?? [] as $signer) {
-                    $signerEmail = strtolower($signer['email']);
-
-                    // Skip G2Pay/internal signers
-                    if (stripos($signerEmail, 'g2pay.co.uk') === false &&
-                        stripos($signerEmail, 'management@') === false &&
-                        stripos($signer['roleName'] ?? '', 'Director') === false &&
-                        stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
-
-                        $merchantRoutingOrder = (int) $signer['routingOrder'];
-
-                        break;
-                    }
-                }
-            }
-
-            if ($merchantRoutingOrder === null) {
-                \Log::error('❌ Merchant not found in envelope');
-
-                return false;
-            }
-
-            $canSign = $merchantRoutingOrder <= $currentRoutingOrder;
-
-            return $canSign;
-
-        } catch (\Exception $e) {
-            \Log::error('💥 Exception in canMerchantSignContract', [
-                'application_id' => $application->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
     public function manualTransition(Application $application): RedirectResponse
     {
         // Only users (not accounts) can use manual transitions
@@ -1087,7 +1041,7 @@ class ApplicationStatusController extends Controller
         }
 
         $validated = Request::validate([
-            'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
+            'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,cashflows_switch_notice_sent,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
             'current_order' => ['nullable', 'array'], // Step IDs in actual display order from frontend
         ]);
 

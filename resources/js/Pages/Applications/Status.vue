@@ -267,9 +267,9 @@
       <div class="flex flex-wrap gap-3">
 
         <button
-          v-if="canSendContract"
+          v-if="canSendContract && !justSignedContract"
           @click="sendContractLink"
-          :disabled="isLoading || !hasRefreshed"
+          :disabled="isLoading || isSigningInProgress || !hasRefreshed"
           class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           :title="!hasRefreshed ? 'Please refresh the page first' : ''"
         >
@@ -389,6 +389,18 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           Submit to CardStream
+        </button>
+
+        <!-- Generate Cashflows Switch Notice Button (optional, admin only) -->
+        <button
+          v-if="canGenerateCashflowsSwitchNotice"
+          @click="showCashflowsSwitchNoticeModal = true"
+          class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Generate Cashflows Switch Notice
         </button>
 
         <!-- Invoice Reminder Button -->
@@ -638,16 +650,16 @@
 
         <!-- G2Pay-created contracts: generate signing URL -->
         <button
-          v-else-if="canAccountSignContract && !application.is_imported"
+          v-else-if="canAccountSignContract && !application.is_imported && !justSignedContract"
           @click="openContractForAccount"
-          :disabled="isLoadingContract || !hasRefreshed"
+          :disabled="isLoadingContract || isSigningInProgress || !hasRefreshed"
           class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2"
           :title="!hasRefreshed ? 'Please refresh the page first' : ''"
         >
-          <svg 
-            v-if="isLoadingContract" 
-            class="animate-spin w-4 h-4" 
-            fill="none" 
+          <svg
+            v-if="isLoadingContract"
+            class="animate-spin w-4 h-4"
+            fill="none"
             viewBox="0 0 24 24"
           >
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -656,7 +668,8 @@
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
-          <span v-if="isLoadingContract">Opening Contract...</span>
+          <span v-if="isSigningInProgress">Signing In Progress...</span>
+          <span v-else-if="isLoadingContract">Opening Contract...</span>
           <span v-else-if="!hasRefreshed">Sign Contract (Refresh Required)</span>
           <span v-else>Sign Contract</span>
         </button>
@@ -1217,6 +1230,16 @@
       @close="showSubmitCardStreamModal = false"
     />
 
+    <!-- Generate Cashflows Switch Notice Modal -->
+    <cashflows-switch-notice-modal
+      v-if="showCashflowsSwitchNoticeModal"
+      :show="showCashflowsSwitchNoticeModal"
+      :application-id="application.id"
+      :account-name="accountName"
+      :account-photo-url="accountPhotoUrl"
+      @close="showCashflowsSwitchNoticeModal = false"
+    />
+
     <card-stream-credentials-modal
       v-if="showCardStreamCredentialsModal"
       :show="showCardStreamCredentialsModal"
@@ -1278,6 +1301,7 @@ import { Check } from 'lucide-vue-next'
 
 import ContractReminderModal from '@/Shared/ContractReminderModal.vue'
 import SubmitToCardStreamModal from '@/Shared/SubmitToCardStreamModal.vue'
+import CashflowsSwitchNoticeModal from '@/Shared/CashflowsSwitchNoticeModal.vue'
 import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
 import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
 import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
@@ -1294,6 +1318,7 @@ export default {
     CredentialsModal,
     ContractReminderModal,
     SubmitToCardStreamModal,
+    CashflowsSwitchNoticeModal,
     CardStreamCredentialsModal,
     WordPressCredentialsModal,
     DocumentUploadModal,
@@ -1335,6 +1360,7 @@ export default {
     accountEmail: String,
     accountMobile: Number,
     accountHasLoggedIn: Boolean,
+    accountPhotoUrl: String,
     documentCategories: Object,
     categoryDescriptions: Object,
     docusignRecipientStatus: {
@@ -1365,9 +1391,18 @@ export default {
       isLoading: false,
       showInvoiceModal: false,
       isLoadingContract: false,
+      // True for as long as a DocuSign signing popup is open, regardless of outcome.
+      isSigningInProgress: false,
+      // Set the instant we hear back that signing finished, and kept true across a
+      // manual refresh via sessionStorage - the webhook that updates contract_signed_at
+      // can land after the popup closes, so this covers the gap until a reload picks up
+      // the real server state and the button's v-if removes it for good.
+      justSignedContract: typeof window !== 'undefined' && typeof this.application !== 'undefined'
+        && sessionStorage.getItem(`docusignJustSigned_${this.application.id}`) === 'true',
       showAdditionalInfoModal: false,
       showContractReminderModal: false,
       showSubmitCardStreamModal: false,
+      showCashflowsSwitchNoticeModal: false,
       showCardStreamCredentialsModal: false,
       showWordPressRequestModal: false,
       showWordPressEnterModal: false,
@@ -1423,6 +1458,7 @@ export default {
         { id: 'documents_uploaded', label: 'Documents Uploaded', description: 'All required documents uploaded' },
         { id: 'documents_approved', label: 'Documents Approved', description: 'Documents reviewed and approved' },
         { id: 'contract_signed', label: 'Contract Signed', description: 'All parties have signed the contract' },
+        { id: 'cashflows_switch_notice_sent', label: 'Cashflows Switch Notice Sent', description: 'Formal notice to move from Cashflows to Cardstream generated' },
         { id: 'contract_submitted', label: 'Contract Submitted', description: 'Contract submitted to gateway' },
         { id: 'application_approved', label: 'Application Approved', description: 'Application approved by admin' },
         { id: 'invoice_sent', label: 'Invoice Sent', description: 'Scaling fee invoice sent' },
@@ -1506,16 +1542,28 @@ export default {
     
     canSubmitToCardStream() {
       if (this.is_account) return false;
-      
+
       const timestamps = this.application.status?.timestamps;
-      
+
       return (
         !!timestamps?.contract_sent &&
         !!timestamps?.contract_signed &&
         !timestamps?.application_approved
       );
     },
-    
+
+    canGenerateCashflowsSwitchNotice() {
+      if (this.is_account) return false;
+
+      const timestamps = this.application.status?.timestamps;
+
+      return (
+        !!timestamps?.contract_signed &&
+        !timestamps?.cashflows_switch_notice_sent &&
+        !timestamps?.contract_submitted
+      );
+    },
+
     hasDocuSignRecipientStatus() {
       return this.docusignRecipientStatus && this.docusignRecipientStatus.length > 0
     },
@@ -1755,11 +1803,11 @@ export default {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
           },
         });
-        
+
         const data = await response.json();
 
         if (data.success && data.signing_url) {
-          window.open(data.signing_url, '_blank', 'width=800,height=600');
+          this.trackSigningPopup(window.open(data.signing_url, '_blank', 'width=800,height=600'));
         } else {
           alert(data.message || 'Failed to open contract, please refresh and try again.');
         }
@@ -1768,6 +1816,49 @@ export default {
         alert('Failed to open contract, please refresh and try again.');
       } finally {
         this.isLoadingContract = false;
+      }
+    },
+
+    /**
+     * Keeps the Sign Contract / Open Contract Link button disabled for as long as the
+     * DocuSign popup is open. DocuSign's callback page posts a message when it finishes,
+     * but a user closing the popup without finishing is silent, so this poll is the only
+     * way to notice that case and re-enable the button.
+     */
+    trackSigningPopup(popupWindow) {
+      if (!popupWindow) return;
+
+      this.isSigningInProgress = true;
+
+      const pollClosed = setInterval(() => {
+        if (popupWindow.closed) {
+          clearInterval(pollClosed);
+          this.isSigningInProgress = false;
+        }
+      }, 500);
+    },
+
+    /**
+     * Fired by resources/js/Pages/DocuSign/Callback.vue via window.opener.postMessage
+     * once the popup finishes. contract_signed_at is set by DocuSign's async webhook,
+     * which can land after this message, so the button is locked immediately and the
+     * lock survives a refresh (sessionStorage) until the server confirms it's really done.
+     */
+    handleDocuSignMessage(event) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== 'docusign_complete') return;
+
+      this.isSigningInProgress = false;
+
+      if (event.data.success) {
+        this.justSignedContract = true;
+        sessionStorage.setItem(`docusignJustSigned_${this.application.id}`, 'true');
+
+        // Give the DocuSign webhook a moment to land before asking the server for
+        // fresh state; the button stays disabled either way in the meantime.
+        setTimeout(() => {
+          this.$inertia.reload({ only: ['application'] });
+        }, 1500);
       }
     },
     
@@ -1933,8 +2024,9 @@ export default {
         if (data.success && data.signing_url) {
           if (popupWindow && !popupWindow.closed) {
             popupWindow.location.href = data.signing_url
+            this.trackSigningPopup(popupWindow)
           } else {
-            window.open(data.signing_url, '_blank', 'width=800,height=600')
+            this.trackSigningPopup(window.open(data.signing_url, '_blank', 'width=800,height=600'))
           }
         } else {
           if (popupWindow && !popupWindow.closed) {
@@ -2197,6 +2289,15 @@ export default {
     },
   },
   mounted() {
+    window.addEventListener('message', this.handleDocuSignMessage)
+
+    // The lock only needs to outlive the webhook race right after signing; once the
+    // server agrees signing is done (or the flag is stale from an unrelated session),
+    // there's nothing left for it to guard against.
+    if (this.justSignedContract && this.application.can_merchant_sign !== true) {
+      sessionStorage.removeItem(`docusignJustSigned_${this.application.id}`)
+    }
+
     // Clear refresh flag on fresh login
     if (this.justLoggedIn) {
         sessionStorage.removeItem('statusPageRefreshed')
@@ -2239,6 +2340,7 @@ export default {
     } else {
       window.removeEventListener('scroll', this.handleScroll)
     }
+    window.removeEventListener('message', this.handleDocuSignMessage)
   }
 }
 </script>

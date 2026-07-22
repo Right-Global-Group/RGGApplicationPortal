@@ -49,7 +49,7 @@
                             <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
                                 <tr>
                                     <td align="center">
-                                        <a href="{{ $signing_url ?? '#' }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #f0abfc 0%, #e879f9 100%); color: #1e293b; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(240, 171, 252, 0.3); transition: all 0.3s;">
+                                        <a href="{{ $signing_url ?? '#' }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #f0abfc 0%, #e879f9 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(240, 171, 252, 0.3); transition: all 0.3s;">
                                             Review & Sign Contract
                                         </a>
                                     </td>

@@ -1667,4 +1667,94 @@ class DocuSignService
             ],
         ];
     }
+
+    /**
+     * Whether the merchant is currently eligible to sign, checked live against DocuSign's
+     * routing order rather than trusted from a locally-cached flag. Previously this logic
+     * was copy-pasted into three separate controllers; kept in one place so a fix here
+     * reaches every page that gates a Sign Contract button on it.
+     */
+    public function canMerchantSignContract(Application $application): bool
+    {
+        $status = $application->status;
+
+        // First check: contract must be sent but not signed
+        if (! $status || ! $status->contract_sent_at || $status->contract_signed_at) {
+            return false;
+        }
+
+        // Second check: verify routing order using DocuSign
+        $envelopeId = $status->docusign_envelope_id;
+
+        if (! $envelopeId) {
+            return false;
+        }
+
+        try {
+            $accessToken = $this->getAccessToken();
+
+            $envelopeResponse = Http::withToken($accessToken)
+                ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$envelopeId}/recipients");
+
+            if ($envelopeResponse->failed()) {
+                Log::error('DocuSign API call failed', [
+                    'status' => $envelopeResponse->status(),
+                ]);
+
+                return false;
+            }
+
+            $envelopeData = $envelopeResponse->json();
+            $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
+
+            // Find merchant's routing order
+            $merchantEmail = strtolower($application->account->email);
+            $merchantRoutingOrder = null;
+
+            foreach ($envelopeData['signers'] ?? [] as $signer) {
+                if (strtolower($signer['email']) === $merchantEmail) {
+                    $merchantRoutingOrder = (int) $signer['routingOrder'];
+
+                    break;
+                }
+            }
+
+            // If merchant not found by exact email (imported envelope), try elimination
+            if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
+                foreach ($envelopeData['signers'] ?? [] as $signer) {
+                    $signerEmail = strtolower($signer['email']);
+
+                    // Skip G2Pay/internal signers
+                    if (stripos($signerEmail, 'g2pay.co.uk') === false &&
+                        stripos($signerEmail, 'management@') === false &&
+                        stripos($signer['roleName'] ?? '', 'Director') === false &&
+                        stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
+
+                        $merchantRoutingOrder = (int) $signer['routingOrder'];
+
+                        break;
+                    }
+                }
+            }
+
+            if ($merchantRoutingOrder === null) {
+                Log::error('Merchant not found in envelope', [
+                    'application_id' => $application->id,
+                    'envelope_id' => $envelopeId,
+                ]);
+
+                return false;
+            }
+
+            return $merchantRoutingOrder <= $currentRoutingOrder;
+
+        } catch (\Exception $e) {
+            Log::error('Exception in canMerchantSignContract', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
 }

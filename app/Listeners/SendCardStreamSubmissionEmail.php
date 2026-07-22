@@ -57,10 +57,13 @@ class SendCardStreamSubmissionEmail
             // Payout option - use the formatted version from event
             'payout_option' => $payoutOption,
             'payout_timing' => $payoutTiming, // This is what the email template uses
-        
+
             // Attachments
             'document_count' => count($documents),
-        ];        
+
+            // Free-text note from the submitting admin
+            'additional_info' => $event->additionalInfo,
+        ];
 
         // Send email with attachments
         Mail::to($cardstreamEmail)->send(

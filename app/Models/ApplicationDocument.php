@@ -13,6 +13,7 @@ class ApplicationDocument extends Model
     const CATEGORY_COMPANIES_HOUSE = 'companies_house_certificate';
     const CATEGORY_BANK_STATEMENT = 'business_bank_statement';
     const CATEGORY_ADDITIONAL_REQUESTED = 'additional_requested';
+    const CATEGORY_CASHFLOWS_SWITCH_NOTICE = 'cashflows_switch_notice';
 
     protected $fillable = [
         'application_id',
@@ -30,6 +31,11 @@ class ApplicationDocument extends Model
         'dumped_at',
         'dumped_reason',
         'is_library_uploaded', // flag for docs uploaded from library
+        'metadata',
+        'parent_document_id',
+        'is_superseded',
+        'superseded_by_id',
+        'superseded_at',
     ];
 
     protected $casts = [
@@ -37,6 +43,9 @@ class ApplicationDocument extends Model
         'completed_at' => 'datetime',
         'dumped_at' => 'datetime',
         'is_library_uploaded' => 'boolean',
+        'metadata' => 'array',
+        'is_superseded' => 'boolean',
+        'superseded_at' => 'datetime',
     ];
 
     public function application(): BelongsTo

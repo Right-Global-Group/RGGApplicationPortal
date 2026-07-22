@@ -76,9 +76,30 @@
                 </svg>
                 Sign Contract
               </Link>
+
+              <!-- Generate Cashflows Switch Notice Button (admin only, optional) -->
+              <button
+                v-if="canGenerateCashflowsSwitchNotice"
+                @click="showCashflowsSwitchNoticeModal = true"
+                class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Generate Cashflows Switch Notice
+              </button>
             </div>
           </div>
         </div>
+
+        <cashflows-switch-notice-modal
+          v-if="showCashflowsSwitchNoticeModal && activeApplication"
+          :show="showCashflowsSwitchNoticeModal"
+          :application-id="activeApplication.id"
+          :account-name="account.name"
+          :account-photo-url="account.photo"
+          @close="showCashflowsSwitchNoticeModal = false"
+        />
 
         <!-- Account Details Section -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden mb-8">
@@ -253,9 +274,10 @@
   import LoadingButton from '@/Shared/LoadingButton.vue'
   import Icon from '@/Shared/Icon.vue'
   import CredentialsModal from '@/Shared/CredentialsModal.vue'
+  import CashflowsSwitchNoticeModal from '@/Shared/CashflowsSwitchNoticeModal.vue'
 
   export default {
-    components: { Head, Link, LoadingButton, TextInput, FileInput, Icon, CredentialsModal },
+    components: { Head, Link, LoadingButton, TextInput, FileInput, Icon, CredentialsModal, CashflowsSwitchNoticeModal },
     layout: Layout,
     remember: 'form',
     props: {
@@ -273,22 +295,35 @@
           photo: null,
         }),
         showCredentialsModal: false,
+        showCashflowsSwitchNoticeModal: false,
       }
     },
     computed: {
       // Get the most recent active application
       activeApplication() {
         if (!this.applications || this.applications.length === 0) return null
-        
+
         // Find first application that's not account_live
         return this.applications.find(app => app.status?.current_step !== 'account_live') || null
       },
-      
+
       showAccountActions() {
         if (!this.activeApplication) return false
-        return this.canUploadDocs || this.canSignContract
+        return this.canUploadDocs || this.canSignContract || this.canGenerateCashflowsSwitchNotice
       },
-      
+
+      // Staff-only, mirrors the guard check already used elsewhere on this page
+      // ($page.props.auth.user.account is only populated for the merchant guard).
+      canGenerateCashflowsSwitchNotice() {
+        if (!this.activeApplication || this.$page.props.auth.user.account) return false
+        const timestamps = this.activeApplication.status?.timestamps
+        return (
+          !!timestamps?.contract_signed &&
+          !timestamps?.cashflows_switch_notice_sent &&
+          !timestamps?.contract_submitted
+        )
+      },
+
       canUploadDocs() {
         if (!this.activeApplication) return false
         const timestamps = this.activeApplication.status?.timestamps

@@ -75,6 +75,20 @@
                   </p>
                 </div>
 
+                <!-- Additional Info -->
+                <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+                  <label class="block text-sm text-gray-400 mb-2">
+                    Additional Info <span class="text-gray-500">(optional)</span>
+                  </label>
+                  <textarea
+                    v-model="form.additional_info"
+                    rows="3"
+                    maxlength="2000"
+                    placeholder="Anything CardStream should know - included as its own paragraph in the submission email."
+                    class="w-full bg-dark-700 border border-primary-700/50 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-magenta-500 focus:ring-2 focus:ring-magenta-500/20"
+                  ></textarea>
+                </div>
+
                 <!-- Signing Status -->
                 <div v-if="recipientStatus && recipientStatus.length > 0" class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
                   <h4 class="text-magenta-400 font-semibold mb-3">Contract Signing Status</h4>
@@ -174,6 +188,7 @@ export default {
     return {
       form: this.$inertia.form({
         payout_option: 'daily',
+        additional_info: '',
       }),
     }
   },
@@ -182,6 +197,7 @@ export default {
       if (newVal) {
         // Reset form when modal opens
         this.form.payout_option = 'daily'
+        this.form.additional_info = ''
         this.form.clearErrors()
       }
     },

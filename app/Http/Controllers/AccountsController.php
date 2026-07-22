@@ -4,11 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Events\AccountCredentialsEvent;
 use App\Models\Account;
-use App\Models\Application;
 use App\Models\EmailReminder;
 use App\Services\DocuSignService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +16,10 @@ use Inertia\Response;
 
 class AccountsController extends Controller
 {
+    public function __construct(
+        private DocuSignService $docuSignService
+    ) {}
+
     public function index(): Response
     {
         $query = Account::query()->with(['applications', 'user']);
@@ -181,7 +183,7 @@ class AccountsController extends Controller
                 'name' => $app->name,
                 'created_at' => $app->created_at,
                 'can_merchant_sign' => auth()->guard('account')->check()
-                ? $this->canMerchantSignContract($app)
+                ? $this->docuSignService->canMerchantSignContract($app)
                 : false,  // Don't check if not authenticated
                 'status' => $app->status ? [
                     'current_step' => $app->status->current_step,
@@ -191,6 +193,7 @@ class AccountsController extends Controller
                         'documents_approved' => $app->status->documents_approved_at?->format('Y-m-d H:i'),
                         'contract_sent' => $app->status->contract_sent_at?->format('Y-m-d H:i'),
                         'contract_signed' => $app->status->contract_signed_at?->format('Y-m-d H:i'),
+                        'cashflows_switch_notice_sent' => $app->status->cashflows_switch_notice_sent_at?->format('Y-m-d H:i'),
                         'contract_completed' => $app->status->contract_completed_at?->format('Y-m-d H:i'),
                         'contract_submitted' => $app->status->contract_submitted_at?->format('Y-m-d H:i'),
                         'application_approved' => $app->status->application_approved_at?->format('Y-m-d H:i'),
@@ -381,79 +384,4 @@ class AccountsController extends Controller
             ->header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
     }
 
-    private function canMerchantSignContract(Application $application): bool
-    {
-        $status = $application->status;
-
-        // First check: contract must be sent but not signed
-        if (! $status || ! $status->contract_sent_at || $status->contract_signed_at) {
-            return false;
-        }
-
-        // Second check: verify routing order using DocuSign
-        $envelopeId = $status->docusign_envelope_id;
-        if (! $envelopeId) {
-            return false;
-        }
-
-        try {
-            $accessToken = $this->getDocuSignAccessToken();
-
-            $envelopeResponse = Http::withToken($accessToken)
-                ->get(config('services.docusign.base_url').'/v2.1/accounts/'.config('services.docusign.account_id')."/envelopes/{$envelopeId}/recipients");
-
-            if ($envelopeResponse->failed()) {
-                return false;
-            }
-
-            $envelopeData = $envelopeResponse->json();
-            $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
-
-            // Find merchant's routing order
-            $merchantEmail = strtolower($application->account->email);
-            $merchantRoutingOrder = null;
-
-            foreach ($envelopeData['signers'] ?? [] as $signer) {
-                if (strtolower($signer['email']) === $merchantEmail) {
-                    $merchantRoutingOrder = (int) $signer['routingOrder'];
-                    break;
-                }
-            }
-
-            // If merchant not found by exact email (imported envelope), try elimination
-            if ($merchantRoutingOrder === null && $status->current_step === 'contract_sent') {
-                foreach ($envelopeData['signers'] ?? [] as $signer) {
-                    $signerEmail = strtolower($signer['email']);
-
-                    // Skip G2Pay/internal signers
-                    if (stripos($signerEmail, 'g2pay.co.uk') === false &&
-                        stripos($signerEmail, 'management@') === false &&
-                        stripos($signer['roleName'] ?? '', 'Director') === false &&
-                        stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
-
-                        $merchantRoutingOrder = (int) $signer['routingOrder'];
-                        break;
-                    }
-                }
-            }
-
-            // Merchant can only sign if it's their turn
-            return $merchantRoutingOrder !== null && $merchantRoutingOrder <= $currentRoutingOrder;
-
-        } catch (\Exception $e) {
-            \Log::error('Failed to check merchant signing eligibility', [
-                'application_id' => $application->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    private function getDocuSignAccessToken(): string
-    {
-        $docuSignService = app(DocuSignService::class);
-
-        return $docuSignService->getAccessToken();
-    }
 }

@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\MerchantContractReadyEvent;
 use App\Mail\DynamicEmail;
 use App\Models\EmailLog;
+use App\Services\MagicLinkService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -23,11 +24,16 @@ class SendMerchantContractReadyEmail
         }
 
         try {
+            // Signs the merchant in on the way, so the button they need is exactly
+            // where the click lands - no login wall between the email and the task.
+            $redirect = route('applications.status', $application, absolute: false).'#section-actions';
+            $signingUrl = MagicLinkService::for($account, $application, $redirect);
+
             $emailData = [
                 'account_name' => $account->name,
                 'application_name' => $application->name,
-                'signing_url' => url("/applications/{$application->id}/status#section-actions"),
-                'application_url' => url("/applications/{$application->id}/status"),
+                'signing_url' => $signingUrl,
+                'application_url' => $signingUrl,
             ];
 
             Mail::to($account->email)->send(

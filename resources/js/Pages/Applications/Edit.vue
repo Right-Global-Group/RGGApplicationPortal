@@ -36,8 +36,26 @@
             >
               Sign Contract
             </Link>
+
+            <!-- Generate Cashflows Switch Notice (admin only, optional) -->
+            <button
+              v-if="canGenerateCashflowsSwitchNotice"
+              @click="showCashflowsSwitchNoticeModal = true"
+              class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg"
+            >
+              Generate Cashflows Switch Notice
+            </button>
           </div>
         </div>
+
+        <cashflows-switch-notice-modal
+          v-if="showCashflowsSwitchNoticeModal"
+          :show="showCashflowsSwitchNoticeModal"
+          :application-id="application.id"
+          :account-name="application.account_name"
+          :account-photo-url="application.account_photo_url"
+          @close="showCashflowsSwitchNoticeModal = false"
+        />
 
         <!-- Application Details -->
         <div class="bg-dark-800/50 backdrop-blur-sm border border-primary-800/30 rounded-xl shadow-2xl overflow-hidden">
@@ -857,18 +875,20 @@
   import DocumentUploadModal from '@/Shared/DocumentUploadModal.vue'
   import WordPressCredentialsModal from '@/Shared/WordPressCredentialsModal.vue'
   import CardStreamCredentialsModal from '@/Shared/CardStreamCredentialsModal.vue'
-  
+  import CashflowsSwitchNoticeModal from '@/Shared/CashflowsSwitchNoticeModal.vue'
+
   export default {
-    components: { 
-      Head, 
-      Link, 
-      LoadingButton, 
-      SelectInput, 
-      TextInput, 
-      ChangeFeesModal, 
-      DocumentUploadModal, 
-      WordPressCredentialsModal, 
-      CardStreamCredentialsModal 
+    components: {
+      Head,
+      Link,
+      LoadingButton,
+      SelectInput,
+      TextInput,
+      ChangeFeesModal,
+      DocumentUploadModal,
+      WordPressCredentialsModal,
+      CardStreamCredentialsModal,
+      CashflowsSwitchNoticeModal,
     },
     layout: Layout,
     remember: 'form',
@@ -898,6 +918,7 @@
         showWordPressPassword: false,
         showCardStreamPassword: false,
         showCardStreamModal: false,
+        showCashflowsSwitchNoticeModal: false,
         form: this.$inertia.form({
           account_id: this.application.account_id,
           name: this.application.name,
@@ -910,14 +931,28 @@
       },
       
       showAccountActions() {
-        return this.canUploadDocs || this.canSignContract
+        return this.canUploadDocs || this.canSignContract || this.canGenerateCashflowsSwitchNotice
       },
-      
+
       canSignContract() {
         // Use the backend-provided flag (already checks routing order AND contract_signed)
         return this.application.can_merchant_sign === true
       },
-      
+
+      // Staff-only: this page is also reachable by a merchant viewing their own
+      // application, and can_merchant_sign only resolves truthfully for that guard,
+      // so it can't be reused here - fall back to the same guard check Status.vue uses.
+      canGenerateCashflowsSwitchNotice() {
+        if (this.$page.props.auth.user.account) return false
+        const timestamps = this.application.status?.timestamps
+        return (
+          !!timestamps?.contract_signed &&
+          !timestamps?.cashflows_switch_notice_sent &&
+          !timestamps?.contract_submitted
+        )
+      },
+
+
       canEnterWordPress() {
         return true
       },

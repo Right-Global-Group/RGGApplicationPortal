@@ -8,15 +8,21 @@ use App\Models\ApplicationDocument;
 use App\Models\Application;
 use App\Models\Account;
 use App\Models\EmailReminder;
+use App\Services\DocuSignService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ApplicationsController extends Controller
 {
+    public function __construct(
+        private DocuSignService $docuSignService
+    ) {}
+
     public function index(): Response
     {
         $query = Application::query()
@@ -248,6 +254,9 @@ class ApplicationsController extends Controller
                 'account_id' => $application->account_id,
                 'name' => $application->name,
                 'account_name' => $application->account?->name,
+                'account_photo_url' => $application->account?->photo_path
+                    ? URL::route('accounts.photo', ['account' => $application->account_id])
+                    : null,
                 'user_id' => $application->user_id,
                 'user_name' => $application->user
                     ? ($application->user->first_name . ' ' . $application->user->last_name)
@@ -272,8 +281,8 @@ class ApplicationsController extends Controller
                 'cardstream_merchant_id' => $application->cardstream_merchant_id,
                 'cardstream_credentials_entered_at' => $application->cardstream_credentials_entered_at,
                 'extra_document_categories' => $extraCategories,
-                'can_merchant_sign' => auth()->guard('account')->check() 
-                    ? $this->canMerchantSignContract($application) 
+                'can_merchant_sign' => auth()->guard('account')->check()
+                    ? $this->docuSignService->canMerchantSignContract($application)
                     : false,
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
@@ -284,6 +293,7 @@ class ApplicationsController extends Controller
                         'documents_approved' => $application->status->documents_approved_at?->format('Y-m-d H:i'),
                         'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
                         'contract_signed' => $application->status->contract_signed_at?->format('Y-m-d H:i'),
+                        'cashflows_switch_notice_sent' => $application->status->cashflows_switch_notice_sent_at?->format('Y-m-d H:i'),
                         'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
                         'contract_submitted' => $application->status->contract_submitted_at?->format('Y-m-d H:i'),
                         'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
@@ -779,75 +789,4 @@ public function sendCardStreamCredentials(Application $application): RedirectRes
         return Redirect::back()->with('success', 'Account is now live! Congratulations email sent.');
     }
 
-    private function canMerchantSignContract(Application $application): bool
-    {
-        $status = $application->status;
-        if (!$status || !$status->contract_sent_at || $status->contract_signed_at) {
-            return false;
-        }
-        
-        // Second check: verify routing order using DocuSign
-        $envelopeId = $application->status->docusign_envelope_id;
-        if (!$envelopeId) {
-            return false;
-        }
-        
-        try {
-            $accessToken = $this->getDocuSignAccessToken();
-            
-            $envelopeResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)
-                ->get(config('services.docusign.base_url') . "/v2.1/accounts/" . config('services.docusign.account_id') . "/envelopes/{$envelopeId}/recipients");
-            
-            if ($envelopeResponse->failed()) {
-                return false;
-            }
-            
-            $envelopeData = $envelopeResponse->json();
-            $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
-            
-            // Find merchant's routing order
-            $merchantEmail = strtolower($application->account->email);
-            $merchantRoutingOrder = null;
-            
-            foreach ($envelopeData['signers'] ?? [] as $signer) {
-                if (strtolower($signer['email']) === $merchantEmail) {
-                    $merchantRoutingOrder = (int)$signer['routingOrder'];
-                    break;
-                }
-            }
-            
-            // If merchant not found by exact email (imported envelope), try elimination
-            if ($merchantRoutingOrder === null && $application->status->current_step === 'contract_sent') {
-                foreach ($envelopeData['signers'] ?? [] as $signer) {
-                    $signerEmail = strtolower($signer['email']);
-                    
-                    // Skip G2Pay/internal signers
-                    if (stripos($signerEmail, 'g2pay.co.uk') === false && 
-                        stripos($signerEmail, 'management@') === false &&
-                        stripos($signer['roleName'] ?? '', 'Director') === false &&
-                        stripos($signer['roleName'] ?? '', 'Product Manager') === false) {
-                        
-                        $merchantRoutingOrder = (int)$signer['routingOrder'];
-                        break;
-                    }
-                }
-            }
-            
-            // Merchant can only sign if it's their turn
-            return $merchantRoutingOrder !== null && $merchantRoutingOrder <= $currentRoutingOrder;
-            
-        } catch (\Exception $e) {
-            \Log::error('Failed to check merchant signing eligibility', [
-                'application_id' => $application->id,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
-    }
-
-    private function getDocuSignAccessToken(): string
-    {
-        $docuSignService = app(\App\Services\DocuSignService::class);
-        return $docuSignService->getAccessToken();
-    }
 }
