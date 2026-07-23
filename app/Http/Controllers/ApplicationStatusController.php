@@ -1041,7 +1041,9 @@ class ApplicationStatusController extends Controller
         }
 
         $validated = Request::validate([
-            'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,cashflows_switch_notice_sent,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
+            // cashflows_switch_notice_sent is deliberately excluded: it may only be set by
+            // actually generating the notice document, never by manually forcing the step.
+            'target_step' => ['required', 'string', 'in:created,contract_sent,documents_uploaded,documents_approved,contract_signed,contract_submitted,application_approved,invoice_sent,invoice_paid,gateway_integrated,account_live'],
             'current_order' => ['nullable', 'array'], // Step IDs in actual display order from frontend
         ]);
 

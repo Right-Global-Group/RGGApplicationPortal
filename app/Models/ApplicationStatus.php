@@ -79,11 +79,18 @@ class ApplicationStatus extends Model
             'account_live' => ['label' => 'Account Live', 'timestamp' => $this->account_live_at, 'progress' => 100],
         ];
 
+        // Optional steps only ever earn a place in the timeline once they've actually
+        // happened - unlike the rest, they're not part of every application's journey,
+        // so showing them as a pending placeholder ahead of time would be misleading.
+        $optionalSteps = ['cashflows_switch_notice_sent'];
+
         // Separate completed and pending steps
         $completed = collect($allSteps)->filter(fn($step) => $step['timestamp'] !== null)
             ->sortBy(fn($step) => $step['timestamp']);
-        
-        $pending = collect($allSteps)->filter(fn($step) => $step['timestamp'] === null);
+
+        $pending = collect($allSteps)->filter(
+            fn($step, $key) => $step['timestamp'] === null && ! in_array($key, $optionalSteps)
+        );
 
         // Reassign progress values based on actual order
         $orderedSteps = [];

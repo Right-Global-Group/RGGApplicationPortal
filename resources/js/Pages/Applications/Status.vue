@@ -1468,13 +1468,18 @@ export default {
       ]
 
       const timestamps = this.application.status?.timestamps || {}
-      
+
+      // Optional steps only earn a place in the timeline once they've actually happened -
+      // they're not part of every application's journey, so showing them as a pending
+      // placeholder ahead of time would be misleading.
+      const optionalSteps = ['cashflows_switch_notice_sent']
+
       const completed = []
       const pending = []
-      
+
       allSteps.forEach((step, defaultOrder) => {
         let timestamp = null
-        
+
         if (step.id === 'created') {
           timestamp = timestamps.created || this.application.created_at
         } else if (step.id === 'contract_signed') {
@@ -1482,7 +1487,7 @@ export default {
         } else {
           timestamp = timestamps[step.id]
         }
-        
+
         if (timestamp) {
           completed.push({
             ...step,
@@ -1490,7 +1495,7 @@ export default {
             sortTime: new Date(timestamp).getTime(),
             defaultOrder: defaultOrder
           })
-        } else {
+        } else if (!optionalSteps.includes(step.id)) {
           pending.push(step)
         }
       })
