@@ -58,6 +58,10 @@
                                         <td style="color: #cbd5e1; padding: 8px 0; border-top: 1px solid #475569;">Setup Fee:</td>
                                         <td style="color: #e2e8f0; text-align: right; font-weight: 600; padding: 8px 0; border-top: 1px solid #475569;">£{{ number_format($setup_fee, 2) }}</td>
                                     </tr>
+                                    <tr>
+                                        <td style="color: #cbd5e1; padding: 8px 0;">One Off Onboarding Fee:</td>
+                                        <td style="color: #e2e8f0; text-align: right; font-weight: 600; padding: 8px 0;">£{{ number_format($one_off_onboarding_fee, 2) }}</td>
+                                    </tr>
                                 </table>
                             </div>
 

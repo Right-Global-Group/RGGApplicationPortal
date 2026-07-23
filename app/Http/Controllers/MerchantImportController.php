@@ -665,6 +665,7 @@ class MerchantImportController extends Controller
                 'monthly_fee' => $merchantInfo['fees']['monthly_fee'] ?? 0,
                 'monthly_minimum' => $merchantInfo['fees']['monthly_minimum'] ?? 0,
                 'setup_fee' => 0,
+                'one_off_onboarding_fee' => 0,
             ]);
 
             // Store PDFs

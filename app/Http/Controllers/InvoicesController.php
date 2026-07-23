@@ -219,6 +219,7 @@ class InvoicesController extends Controller
                 'monthly_fee' => $application?->monthly_fee,
                 'monthly_minimum' => $application?->monthly_minimum,
                 'setup_fee' => $application?->setup_fee,
+                'one_off_onboarding_fee' => $application?->one_off_onboarding_fee,
             ],
             'importFilename' => $import->filename,
             'importId' => $import->id,

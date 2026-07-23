@@ -133,6 +133,7 @@ class DocuSignGoLiveTest extends Command
             'monthly_minimum' => 50.00,
             'scaling_fee' => 495,
             'setup_fee' => 0.00,
+            'one_off_onboarding_fee' => 15.00,
         ]);
     }
 

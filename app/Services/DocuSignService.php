@@ -343,6 +343,24 @@ class DocuSignService
                         'tabLabel' => 'all_request_types_fee',
                     ],
                     
+                    // One Off Onboarding Fee (Schedule 3 - Pricing Terms)
+                    [
+                        'tabLabel' => 'one_off_onboarding_fee',
+                        'documentId' => '1',
+                        'anchorString' => 'One Off Onboarding Fee',
+                        'anchorXOffset' => '250',
+                        'anchorYOffset' => '-5',
+                        'anchorUnits' => 'pixels',
+                        'anchorIgnoreIfNotPresent' => 'false',
+                        'anchorMatchWholeWord' => 'true',
+                        'width' => '200',
+                        'height' => '15',
+                        'value' => '£' . number_format($application->one_off_onboarding_fee, 2),
+                        'locked' => true,
+                        'font' => 'Arial',
+                        'fontSize' => 'Size9',
+                    ],
+
                     // Service fee/monthly minimum
                     [
                         'tabLabel' => 'service_fee_monthly_minimum',

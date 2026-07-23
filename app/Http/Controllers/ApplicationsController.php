@@ -172,6 +172,7 @@ class ApplicationsController extends Controller
             'monthly_fee' => ['required', 'numeric', 'min:0'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
             'setup_fee' => ['required', 'numeric', 'min:0'],
+            'one_off_onboarding_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         // Verify user has permission to create application for this account
@@ -269,6 +270,7 @@ class ApplicationsController extends Controller
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
                 'setup_fee' => $application->setup_fee,
+                'one_off_onboarding_fee' => $application->one_off_onboarding_fee,
                 'deleted_at' => $application->deleted_at,
                 'created_at' => $application->created_at,
                 'updated_at' => $application->updated_at,
@@ -388,6 +390,7 @@ class ApplicationsController extends Controller
             'scaling_fee' => ['nullable', 'integer', 'min:1'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
             'setup_fee' => ['required', 'numeric', 'min:0'],
+            'one_off_onboarding_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         // Create new application with updated fees
@@ -402,6 +405,7 @@ class ApplicationsController extends Controller
             'monthly_fee' => $validated['monthly_fee'],
             'monthly_minimum' => $validated['monthly_minimum'],
             'setup_fee' => $validated['setup_fee'],
+            'one_off_onboarding_fee' => $validated['one_off_onboarding_fee'],
         ]);
 
         // Fire event to send email notification
@@ -428,6 +432,7 @@ class ApplicationsController extends Controller
             'monthly_fee' => ['required', 'numeric', 'min:0'],
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
             'setup_fee' => ['required', 'numeric', 'min:0'],
+            'one_off_onboarding_fee' => ['required', 'numeric', 'min:0'],
         ]);
 
         $application->update($validated);

@@ -48,6 +48,7 @@ class SendFeesChangedEmail
             'monthly_fee' => $application->monthly_fee,
             'monthly_minimum' => $application->monthly_minimum,
             'setup_fee' => $application->setup_fee,
+            'one_off_onboarding_fee' => $application->one_off_onboarding_fee,
             'parent_application_name' => $parentApplication->name,
             'status_url' => $statusUrl,
         ]));

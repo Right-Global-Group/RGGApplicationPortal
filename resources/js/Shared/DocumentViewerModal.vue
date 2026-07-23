@@ -379,6 +379,7 @@ export default {
           'monthly_minimum': { x: 400, y: 380, width: 100, height: 15, fontSize: 8 },
           'monthly_fee': { x: 400, y: 360, width: 80, height: 15, fontSize: 9 },
           'transaction_percentage': { x: 400, y: 340, width: 80, height: 15, fontSize: 9 },
+          'one_off_onboarding_fee': { x: 400, y: 420, width: 100, height: 15, fontSize: 9 },
         };
       } else {
         return {

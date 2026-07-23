@@ -121,6 +121,11 @@
                 <span class="fee-label">Setup Fee:</span>
                 <span class="fee-value">£{{ number_format($setup_fee ?? 0, 2) }}</span>
             </div>
+
+            <div class="fee-item">
+                <span class="fee-label">One Off Onboarding Fee:</span>
+                <span class="fee-value">£{{ number_format($one_off_onboarding_fee ?? 0, 2) }}</span>
+            </div>
         </div>
         
         <p style="font-size: 14px; color: #6b7280;">

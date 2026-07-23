@@ -24,6 +24,7 @@ class Application extends Model
         'monthly_fee',
         'monthly_minimum',
         'setup_fee',
+        'one_off_onboarding_fee',
         'trading_name',
         'company_number',
         'business_type',
@@ -64,6 +65,7 @@ class Application extends Model
         'monthly_minimum' => 'decimal:2',
         'scaling_fee' => 'integer',
         'setup_fee' => 'decimal:2',
+        'one_off_onboarding_fee' => 'decimal:2',
         'gateway_integration_details' => 'array',
         'requires_additional_document' => 'boolean',
     ];

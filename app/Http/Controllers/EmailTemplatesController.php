@@ -329,6 +329,7 @@ class EmailTemplatesController extends Controller
                 'monthly_fee' => 50.00,
                 'monthly_minimum' => 100.00,
                 'setup_fee' => 25.00,
+                'one_off_onboarding_fee' => 15.00,
             ],
             'fees-changed' => [
                 'parent_application_name' => 'Previous Application Name',
@@ -344,12 +345,15 @@ class EmailTemplatesController extends Controller
                 'new_monthly_minimum' => 100.00,
                 'old_setup_fee' => 20.00,
                 'new_setup_fee' => 25.00,
+                'old_one_off_onboarding_fee' => 10.00,
+                'new_one_off_onboarding_fee' => 15.00,
                 'scaling_fee' => 500.00,
                 'transaction_percentage' => 2.5,
                 'transaction_fixed_fee' => 0.20,
                 'monthly_fee' => 50.00,
                 'monthly_minimum' => 100.00,
                 'setup_fee' => 25.00,
+                'one_off_onboarding_fee' => 15.00,
             ],
             'fees-confirmation-reminder' => [
                 'scaling_fee' => 500.00,
@@ -358,6 +362,7 @@ class EmailTemplatesController extends Controller
                 'monthly_fee' => 50.00,
                 'monthly_minimum' => 100.00,
                 'setup_fee' => 25.00,
+                'one_off_onboarding_fee' => 15.00,
             ],
             'additional-info-requested' => [
                 'requested_info' => 'Please provide your business registration documents and proof of address for the registered business location.',

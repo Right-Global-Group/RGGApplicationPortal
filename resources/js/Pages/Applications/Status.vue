@@ -87,6 +87,10 @@
             <div class="text-gray-400 text-sm mb-1">Setup Fee</div>
             <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.setup_fee).toFixed(2) }}</div>
           </div>
+          <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+            <div class="text-gray-400 text-sm mb-1">One Off Onboarding Fee</div>
+            <div class="text-xl font-bold text-gray-300">£{{ parseFloat(application.one_off_onboarding_fee).toFixed(2) }}</div>
+          </div>
         </div>
       </div>
     </div>

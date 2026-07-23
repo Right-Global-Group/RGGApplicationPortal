@@ -118,6 +118,13 @@ class PdfEditorService
                     'height' => 6,
                     'font_size' => 9,
                 ],
+                'one_off_onboarding_fee' => [
+                    'x' => 150,
+                    'y' => 90,
+                    'width' => 40,
+                    'height' => 6,
+                    'font_size' => 9,
+                ],
             ];
         } else {
             // Application form coordinates

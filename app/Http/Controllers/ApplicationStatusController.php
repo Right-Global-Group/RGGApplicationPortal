@@ -121,6 +121,7 @@ class ApplicationStatusController extends Controller
                 'monthly_fee' => $application->monthly_fee,
                 'monthly_minimum' => $application->monthly_minimum,
                 'setup_fee' => $application->setup_fee,
+                'one_off_onboarding_fee' => $application->one_off_onboarding_fee,
                 // Gateway partner fields
                 'gateway_partner' => $application->gateway_partner,
                 'gateway_partner_name' => $application->gateway_partner_name,

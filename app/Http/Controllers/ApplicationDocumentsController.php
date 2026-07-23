@@ -226,6 +226,13 @@ class ApplicationDocumentsController extends Controller
                 'readonly' => false,
                 'position' => 'uk_debit', // Page 1, "UK Consumer Debit" row
             ],
+            [
+                'name' => 'one_off_onboarding_fee',
+                'value' => '£' . number_format($application->one_off_onboarding_fee, 2),
+                'type' => 'Text',
+                'readonly' => false,
+                'position' => 'one_off_onboarding_fee', // Page 1, "One Off Onboarding Fee" row
+            ],
         ];
     }
 

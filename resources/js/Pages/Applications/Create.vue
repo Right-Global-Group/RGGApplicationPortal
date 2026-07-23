@@ -24,16 +24,24 @@
             <p class="text-sm text-gray-400">Configure the payment processing fees for this application.</p>
           </div>
           
-          <text-input 
-            v-model="form.setup_fee" 
-            :error="form.errors.setup_fee" 
-            type="number" 
-            step="0.01" 
-            class="pb-8 pr-6 w-full lg:w-1/2" 
-            label="Setup Fee (£)" 
+          <text-input
+            v-model="form.setup_fee"
+            :error="form.errors.setup_fee"
+            type="number"
+            step="0.01"
+            class="pb-8 pr-6 w-full lg:w-1/2"
+            label="Setup Fee (£)"
           />
-          <text-input 
-            v-model="form.monthly_fee" 
+          <text-input
+            v-model="form.one_off_onboarding_fee"
+            :error="form.errors.one_off_onboarding_fee"
+            type="number"
+            step="0.01"
+            class="pb-8 pr-6 w-full lg:w-1/2"
+            label="One Off Onboarding Fee (£)"
+          />
+          <text-input
+            v-model="form.monthly_fee"
             :error="form.errors.monthly_fee" 
             type="number" 
             step="0.01" 
@@ -79,6 +87,7 @@
               <p class="font-semibold mb-2 text-magenta-400">Fee Structure Summary:</p>
               <ul class="list-disc list-inside space-y-1">
                 <li>A setup fee of £{{ parseFloat(form.setup_fee || 0).toFixed(2) }} is added</li>
+                <li>A one off onboarding fee of £{{ parseFloat(form.one_off_onboarding_fee || 0).toFixed(2) }} is added</li>
                 <li>£{{ parseFloat(form.monthly_fee || 0).toFixed(2) }} monthly fee</li>
                 <li>£{{ parseFloat(form.monthly_minimum || 0).toFixed(2) }} monthly minimum made up of transactional fees</li>
                 <li>{{ form.transaction_percentage || 0 }}% + £{{ parseFloat(form.transaction_fixed_fee || 0).toFixed(2) }} per transaction</li>
@@ -133,6 +142,7 @@ export default {
         monthly_fee: 18.00,
         monthly_minimum: 100.00,
         setup_fee: 10.00,
+        one_off_onboarding_fee: 0.00,
       }),
     }
   },
