@@ -25,9 +25,9 @@
               <div class="px-6 py-6 space-y-4">
                 <div class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
                   <p class="text-blue-300 text-sm">
-                    Generates a formal notice letter requesting to move from Cashflows to Cardstream,
-                    attaches it to this application's documents, and adds it to the CardStream submission email.
-                    This step is optional.
+                    Creates a DocuSign agreement for a formal notice confirming the move from Cashflows to
+                    Cardstream. Submitting opens DocuSign for you to review and finish; the account then gets
+                    an email to sign their part. This step is optional.
                   </p>
                 </div>
 
@@ -42,39 +42,29 @@
                     class="w-full bg-dark-700 border border-primary-700/50 rounded-lg px-4 py-2 text-white focus:border-magenta-500 focus:ring-2 focus:ring-magenta-500/20"
                   />
                   <p class="text-xs text-gray-500 mt-2">
-                    Used both inline in the letter and in the "Kind regards," sign-off.
+                    Used inline in the letter's opening paragraph.
                   </p>
-                  <p v-if="form.errors.account_name" class="text-xs text-red-400 mt-1">{{ form.errors.account_name }}</p>
+                  <p v-if="errors.account_name" class="text-xs text-red-400 mt-1">{{ errors.account_name }}</p>
                 </div>
 
-                <!-- Logo -->
+                <!-- Recipient Name (Kind regards signature) -->
                 <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
-                  <label class="block text-sm text-gray-400 mb-2">Logo</label>
-                  <div class="flex items-center gap-4">
-                    <img
-                      v-if="logoPreviewUrl"
-                      :src="logoPreviewUrl"
-                      alt="Logo preview"
-                      class="w-16 h-16 rounded-lg object-cover border border-primary-800/30 bg-dark-700"
-                    />
-                    <div v-else class="w-16 h-16 rounded-lg border border-dashed border-primary-800/30 flex items-center justify-center text-xs text-gray-500">
-                      No logo
-                    </div>
-                    <div class="flex-1">
-                      <input
-                        ref="logoInput"
-                        type="file"
-                        accept="image/*"
-                        @change="onLogoChange"
-                        class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary-700 file:text-white hover:file:bg-primary-600"
-                      />
-                      <p class="text-xs text-gray-500 mt-2">
-                        {{ accountPhotoUrl ? 'Defaults to the account\'s logo on file - upload a file to override it for this letter.' : 'This account has no logo on file - upload one to use here.' }}
-                      </p>
-                    </div>
-                  </div>
-                  <p v-if="form.errors.logo" class="text-xs text-red-400 mt-1">{{ form.errors.logo }}</p>
+                  <label class="block text-sm text-gray-400 mb-2">Sign-off Name</label>
+                  <input
+                    v-model="form.recipient_name"
+                    type="text"
+                    required
+                    maxlength="100"
+                    class="w-full bg-dark-700 border border-primary-700/50 rounded-lg px-4 py-2 text-white focus:border-magenta-500 focus:ring-2 focus:ring-magenta-500/20"
+                  />
+                  <p class="text-xs text-gray-500 mt-2">
+                    {{ accountRecipientName ? 'Defaults to the account\'s recipient name - edit if you need a different name here.' : 'This account has no recipient name on file - enter who should sign off the letter.' }}
+                    Used under "Kind regards," in the letter.
+                  </p>
+                  <p v-if="errors.recipient_name" class="text-xs text-red-400 mt-1">{{ errors.recipient_name }}</p>
                 </div>
+
+                <p v-if="submitError" class="text-sm text-red-400">{{ submitError }}</p>
               </div>
 
               <!-- Footer -->
@@ -87,11 +77,11 @@
                   Cancel
                 </button>
                 <loading-button
-                  :loading="form.processing"
+                  :loading="submitting"
                   class="btn-primary"
                   type="submit"
                 >
-                  Generate & Attach
+                  Generate & Sign
                 </loading-button>
               </div>
             </form>
@@ -122,29 +112,30 @@ export default {
       type: String,
       default: '',
     },
-    accountPhotoUrl: {
+    accountRecipientName: {
       type: String,
-      default: null,
+      default: '',
     },
   },
   emits: ['close'],
   data() {
     return {
-      form: this.$inertia.form({
+      form: {
         account_name: this.accountName || '',
-        logo: null,
-      }),
-      logoPreviewUrl: this.accountPhotoUrl || null,
+        recipient_name: this.accountRecipientName || '',
+      },
+      errors: {},
+      submitError: null,
+      submitting: false,
     }
   },
   watch: {
     show(newVal) {
       if (newVal) {
         this.form.account_name = this.accountName || ''
-        this.form.logo = null
-        this.logoPreviewUrl = this.accountPhotoUrl || null
-        this.form.clearErrors()
-        if (this.$refs.logoInput) this.$refs.logoInput.value = ''
+        this.form.recipient_name = this.accountRecipientName || ''
+        this.errors = {}
+        this.submitError = null
       }
     },
   },
@@ -152,16 +143,35 @@ export default {
     closeModal() {
       this.$emit('close')
     },
-    onLogoChange(event) {
-      const file = event.target.files?.[0] || null
-      this.form.logo = file
-      this.logoPreviewUrl = file ? URL.createObjectURL(file) : (this.accountPhotoUrl || null)
-    },
-    submit() {
-      this.form.post(`/applications/${this.applicationId}/cashflows-switch-notice`, {
-        forceFormData: true,
-        onSuccess: () => this.$emit('close'),
-      })
+    async submit() {
+      this.submitting = true
+      this.errors = {}
+      this.submitError = null
+
+      try {
+        const response = await fetch(`/applications/${this.applicationId}/cashflows-switch-notice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          },
+          body: JSON.stringify(this.form),
+        })
+
+        const data = await response.json()
+
+        if (data.success && data.signing_url) {
+          window.open(data.signing_url, '_blank', 'width=800,height=600')
+          this.$emit('close')
+        } else {
+          this.submitError = data.message || 'Failed to generate the Cashflows switch notice.'
+        }
+      } catch (error) {
+        console.error('Error generating Cashflows switch notice:', error)
+        this.submitError = 'Failed to generate the Cashflows switch notice, please try again.'
+      } finally {
+        this.submitting = false
+      }
     },
   },
 }

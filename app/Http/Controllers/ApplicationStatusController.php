@@ -137,6 +137,9 @@ class ApplicationStatusController extends Controller
                 'wordpress_admin_username' => $application->wordpress_admin_username,
                 'has_wordpress_credentials' => $application->hasWordPressCredentials(),
                 'can_merchant_sign' => $this->docuSignService->canMerchantSignContract($application),
+                'can_merchant_sign_cashflows_notice' => $this->docuSignService->canMerchantSignCashflowsNotice($application),
+                'cashflows_docusign_envelope_id' => $application->status->cashflows_docusign_envelope_id,
+                'cashflows_docusign_recipient_status' => $application->status->cashflows_docusign_recipient_status,
                 'is_imported' => $merchantImport !== null,
 
                 'extra_document_categories' => $extraCategories,
@@ -155,6 +158,7 @@ class ApplicationStatusController extends Controller
                         'documents_approved' => $application->status->documents_approved_at?->format('Y-m-d H:i'),
                         'contract_sent' => $application->status->contract_sent_at?->format('Y-m-d H:i'),
                         'contract_signed' => $application->status->contract_signed_at?->format('Y-m-d H:i'),
+                        'cashflows_switch_notice_sent' => $application->status->cashflows_switch_notice_sent_at?->format('Y-m-d H:i'),
                         'contract_completed' => $application->status->contract_completed_at?->format('Y-m-d H:i'),
                         'contract_submitted' => $application->status->contract_submitted_at?->format('Y-m-d H:i'),
                         'application_approved' => $application->status->application_approved_at?->format('Y-m-d H:i'),
@@ -604,6 +608,43 @@ class ApplicationStatusController extends Controller
     }
 
     /**
+     * Callback after Cashflows switch notice DocuSign signing is complete. Same
+     * optimistic-UI pattern as docusignCallback()/gatewayDocusignCallback() above: this
+     * just closes the popup with a friendly message. The webhook is the source of truth
+     * for whether the envelope is actually fully executed by both recipients.
+     */
+    public function cashflowsDocusignCallback(Application $application): Response
+    {
+        $event = Request::query('event');
+
+        if ($event === 'signing_complete') {
+            $document = $application->documents()
+                ->where('external_system', 'docusign')
+                ->where('document_type', 'cashflows_notice_contract')
+                ->where('status', 'sent')
+                ->latest()
+                ->first();
+
+            if ($document) {
+                $document->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+            }
+
+            return Inertia::render('DocuSign/Callback', [
+                'success' => true,
+                'message' => 'Cashflows switch notice signed successfully!',
+            ]);
+        }
+
+        return Inertia::render('DocuSign/Callback', [
+            'success' => false,
+            'message' => 'Cashflows switch notice signing session ended.',
+        ]);
+    }
+
+    /**
      * Send contract link via DocuSign - returns JSON with signing URL
      */
     public function sendContractLink(Application $application): JsonResponse
@@ -1000,29 +1041,69 @@ class ApplicationStatusController extends Controller
      * uploaded document does, so it rides along automatically when the application is
      * later submitted to CardStream.
      */
-    public function generateCashflowsSwitchNotice(Application $application): RedirectResponse
+    /**
+     * Dual-purpose, matching how sendDocuSignContract() already works for the main
+     * contract: the first call (always by an admin, with the modal's fields) creates the
+     * envelope and returns the admin's own embedded-signing URL; every call after that
+     * (by either guard, once it's their turn) just fetches a fresh signing URL against
+     * the envelope that already exists.
+     */
+    public function generateCashflowsSwitchNotice(Application $application): JsonResponse
     {
-        if (auth()->guard('account')->check()) {
-            abort(403, 'Accounts cannot generate the switch notice.');
+        $isAccount = auth()->guard('account')->check();
+
+        if ($isAccount && $application->account_id !== auth()->guard('account')->id()) {
+            abort(403);
         }
 
-        $validated = Request::validate([
-            'account_name' => ['required', 'string', 'max:100'],
-            'logo' => ['nullable', 'image', 'max:5120'],
-        ]);
+        try {
+            $existingEnvelopeId = $application->status->cashflows_docusign_envelope_id;
 
-        if (! Request::file('logo') && empty($application->account->photo_path)) {
-            return Redirect::back()->with('error', 'This account has no logo on file - upload one to generate the notice.');
+            if (! $existingEnvelopeId) {
+                if ($isAccount) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The Cashflows switch notice has not been started yet.',
+                    ], 403);
+                }
+
+                $validated = Request::validate([
+                    'account_name' => ['required', 'string', 'max:100'],
+                    'recipient_name' => ['required', 'string', 'max:100'],
+                ]);
+
+                $result = $this->cashflowsSwitchNoticeService->createEnvelope(
+                    $application,
+                    $validated['account_name'],
+                    $validated['recipient_name'],
+                    auth()->guard('web')->user()
+                );
+            } else {
+                if ($isAccount && ! $this->docuSignService->canMerchantSignCashflowsNotice($application)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This is not ready for your signature yet.',
+                    ], 403);
+                }
+
+                $result = $this->cashflowsSwitchNoticeService->getSigningUrlForExistingEnvelope($application);
+            }
+
+            return response()->json([
+                'success' => true,
+                'signing_url' => $result['signing_url'],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to process Cashflows switch notice signing request', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process request: '.$e->getMessage(),
+            ], 500);
         }
-
-        $this->cashflowsSwitchNoticeService->generate(
-            $application,
-            $validated['account_name'],
-            Request::file('logo'),
-            auth()->guard('web')->user()
-        );
-
-        return Redirect::back()->with('success', 'Cashflows switch notice generated and attached to the application.');
     }
 
     private function formatDocumentCategory(string $category): string

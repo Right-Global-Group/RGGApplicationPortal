@@ -32,6 +32,9 @@ class ApplicationStatus extends Model
         'docusign_envelope_id',
         'docusign_status',
         'gateway_docusign_envelope_id',
+        'cashflows_docusign_envelope_id',
+        'cashflows_docusign_status',
+        'cashflows_docusign_recipient_status',
         'requires_additional_info',
         'additional_info_notes',
     ];
@@ -55,6 +58,7 @@ class ApplicationStatus extends Model
         'invoice_paid_at' => 'datetime',
         'gateway_integrated_at' => 'datetime',
         'account_live_at' => 'datetime',
+        'cashflows_docusign_recipient_status' => 'array',
         'requires_additional_info' => 'boolean',
     ];
 

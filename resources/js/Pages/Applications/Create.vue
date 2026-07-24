@@ -17,7 +17,33 @@
             </option>
           </select-input>
           <text-input v-model="form.name" :error="form.errors.name" class="pb-8 pr-6 w-full lg:w-1/2" label="Application Name" />
-          
+
+          <!-- Notifications Section -->
+          <div class="pb-4 pr-6 w-full">
+            <h3 class="text-lg font-semibold text-magenta-400 mb-2">Notifications</h3>
+            <p class="text-sm text-gray-400">
+              Neither email sends unless you tick it - both can be sent later from the account or application page if you leave these unchecked.
+            </p>
+          </div>
+          <div class="pb-8 pr-6 w-full space-y-3">
+            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+              <input
+                v-model="form.send_application_created_email"
+                type="checkbox"
+                class="rounded bg-dark-900/50 border-primary-800/30 text-magenta-500 focus:ring-magenta-500/50"
+              >
+              Send "Application Created" email to the account
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+              <input
+                v-model="form.send_login_link_email"
+                type="checkbox"
+                class="rounded bg-dark-900/50 border-primary-800/30 text-magenta-500 focus:ring-magenta-500/50"
+              >
+              Send login link email to the account (same as the "Send Login Link" button)
+            </label>
+          </div>
+
           <!-- Fee Structure Section -->
           <div class="pb-4 pr-6 w-full">
             <h3 class="text-lg font-semibold text-magenta-400 mb-2">Fee Structure</h3>
@@ -98,15 +124,6 @@
               </ul>
             </div>
           </div>
-          <div class="pb-8 pr-6 w-full">
-            <div class="bg-dark-800/40 border border-primary-800/20 rounded-lg p-4 text-gray-300 text-sm">
-              <p class="font-semibold mb-2 text-blue-400">Notifications:</p>
-              <p>
-                Once the application has been created, the account holder will receive an email
-                with their login details and instructions to access their account.
-              </p>
-            </div>
-          </div>
         </div>
         <div class="flex items-center justify-end px-8 py-4 bg-dark-900/60 border-t border-primary-800/40">
           <loading-button :loading="form.processing" class="btn-primary" type="submit">Create Application</loading-button>
@@ -143,6 +160,8 @@ export default {
         monthly_minimum: 100.00,
         setup_fee: 10.00,
         one_off_onboarding_fee: 0.00,
+        send_application_created_email: false,
+        send_login_link_email: false,
       }),
     }
   },

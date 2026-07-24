@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\AccountCredentialsEvent;
 use App\Events\ApplicationCreatedEvent;
 use App\Events\FeesChangedEvent;
 use App\Models\ApplicationDocument;
@@ -173,6 +174,8 @@ class ApplicationsController extends Controller
             'monthly_minimum' => ['required', 'numeric', 'min:0'],
             'setup_fee' => ['required', 'numeric', 'min:0'],
             'one_off_onboarding_fee' => ['required', 'numeric', 'min:0'],
+            'send_application_created_email' => ['boolean'],
+            'send_login_link_email' => ['boolean'],
         ]);
 
         // Verify user has permission to create application for this account
@@ -185,7 +188,7 @@ class ApplicationsController extends Controller
             }
         } elseif (auth()->guard('web')->check()) {
             $user = auth()->guard('web')->user();
-            
+
             if (!$user->isAdmin() && $account->user_id !== $user->id) {
                 abort(403, 'You can only create applications for accounts you created.');
             }
@@ -196,13 +199,18 @@ class ApplicationsController extends Controller
             ['user_id' => auth()->id()]
         ));
 
-        // Creating an application is not a credential-issuing act. This block used to
-        // silently mint a new password over the merchant's working one with the email
-        // that would have told them commented out, which is what locked them all out.
-        // The application-created email carries a link, so this is where they get in.
+        // Neither email is automatic: both used to be, and both are ways a merchant
+        // gets into the portal, so sending them by default risks the same silent
+        // lockout this app has already been bitten by twice - see the removed
+        // first_login_at gates in git history. Whoever creates the application now
+        // chooses explicitly, per application, whether either goes out.
+        if (! empty($validated['send_application_created_email'])) {
+            event(new ApplicationCreatedEvent($application));
+        }
 
-        // Fire event to send email notification to account
-        event(new ApplicationCreatedEvent($application));
+        if (! empty($validated['send_login_link_email'])) {
+            event(AccountCredentialsEvent::for($account));
+        }
 
         return Redirect::route('applications.status', $application)->with('success', 'Application created.');
     }
@@ -255,6 +263,7 @@ class ApplicationsController extends Controller
                 'account_id' => $application->account_id,
                 'name' => $application->name,
                 'account_name' => $application->account?->name,
+                'account_recipient_name' => $application->account?->recipient_name,
                 'account_photo_url' => $application->account?->photo_path
                     ? URL::route('accounts.photo', ['account' => $application->account_id])
                     : null,
@@ -285,6 +294,9 @@ class ApplicationsController extends Controller
                 'extra_document_categories' => $extraCategories,
                 'can_merchant_sign' => auth()->guard('account')->check()
                     ? $this->docuSignService->canMerchantSignContract($application)
+                    : false,
+                'can_merchant_sign_cashflows_notice' => auth()->guard('account')->check()
+                    ? $this->docuSignService->canMerchantSignCashflowsNotice($application)
                     : false,
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,

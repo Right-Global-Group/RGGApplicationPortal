@@ -349,7 +349,7 @@ class DocuSignService
                         'documentId' => '1',
                         'anchorString' => 'One Off Onboarding Fee',
                         'anchorXOffset' => '250',
-                        'anchorYOffset' => '-5',
+                        'anchorYOffset' => '2',
                         'anchorUnits' => 'pixels',
                         'anchorIgnoreIfNotPresent' => 'false',
                         'anchorMatchWholeWord' => 'true',
@@ -1768,6 +1768,61 @@ class DocuSignService
 
         } catch (\Exception $e) {
             Log::error('Exception in canMerchantSignContract', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Whether the account can currently sign the Cashflows switch notice - live routing
+     * order check, same pattern as canMerchantSignContract() above but simpler: this
+     * envelope's roles are always fixed and deterministic (never imported), so there's
+     * no need to search/eliminate signers to find the merchant.
+     */
+    public function canMerchantSignCashflowsNotice(Application $application): bool
+    {
+        $status = $application->status;
+
+        if (! $status || ! $status->cashflows_docusign_envelope_id || $status->cashflows_switch_notice_sent_at) {
+            return false;
+        }
+
+        try {
+            $accessToken = $this->getAccessToken();
+
+            $envelopeResponse = Http::withToken($accessToken)
+                ->get("{$this->baseUrl}/v2.1/accounts/{$this->accountId}/envelopes/{$status->cashflows_docusign_envelope_id}/recipients");
+
+            if ($envelopeResponse->failed()) {
+                Log::error('DocuSign API call failed (cashflows notice)', [
+                    'status' => $envelopeResponse->status(),
+                ]);
+
+                return false;
+            }
+
+            $envelopeData = $envelopeResponse->json();
+            $currentRoutingOrder = $envelopeData['currentRoutingOrder'] ?? 1;
+
+            $merchantEmail = strtolower($application->account->email);
+
+            foreach ($envelopeData['signers'] ?? [] as $signer) {
+                if (strtolower($signer['email']) === $merchantEmail) {
+                    if (in_array($signer['status'], ['completed', 'signed'])) {
+                        return false;
+                    }
+
+                    return (int) $signer['routingOrder'] <= $currentRoutingOrder;
+                }
+            }
+
+            return false;
+
+        } catch (\Exception $e) {
+            Log::error('Exception in canMerchantSignCashflowsNotice', [
                 'application_id' => $application->id,
                 'error' => $e->getMessage(),
             ]);

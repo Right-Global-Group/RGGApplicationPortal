@@ -678,6 +678,32 @@
           <span v-else>Sign Contract</span>
         </button>
 
+        <!-- Cashflows Switch Notice: separate optional agreement, own signing flow -->
+        <button
+          v-if="canAccountSignCashflowsNotice && !justSignedCashflowsNotice"
+          @click="openCashflowsNoticeForAccount"
+          :disabled="isLoadingCashflowsNotice || isSigningCashflowsNoticeInProgress || !hasRefreshed"
+          class="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2"
+          :title="!hasRefreshed ? 'Please refresh the page first' : ''"
+        >
+          <svg
+            v-if="isLoadingCashflowsNotice"
+            class="animate-spin w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span v-if="isSigningCashflowsNoticeInProgress">Signing In Progress...</span>
+          <span v-else-if="isLoadingCashflowsNotice">Opening Notice...</span>
+          <span v-else-if="!hasRefreshed">Sign Cashflows Notice (Refresh Required)</span>
+          <span v-else>Sign Cashflows Notice</span>
+        </button>
+
         <!-- Message thread link (replaces the legacy one-shot message modal) -->
         <a
           href="#section-messages"
@@ -739,6 +765,68 @@
           </div>
 
           <!-- Status Badge -->
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold"
+            :class="{
+              'bg-green-900/50 text-green-300': ['completed', 'signed'].includes(recipient.status),
+              'bg-blue-900/50 text-blue-300': recipient.status === 'delivered',
+              'bg-yellow-900/50 text-yellow-300': recipient.status === 'sent',
+              'bg-gray-700 text-gray-300': !['completed', 'signed', 'delivered', 'sent'].includes(recipient.status),
+            }"
+          >
+            {{ formatStatus(recipient.status) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="hasCashflowsNoticeRecipientStatus" id="section-cashflows-notice-status" class="bg-dark-800/50 backdrop-blur-sm rounded-xl p-6 border border-primary-800/30 shadow-2xl mb-6 scroll-mt-6">
+      <h2 class="text-xl font-bold text-white mb-4">Cashflows Notice Signing Status</h2>
+      <div class="space-y-3">
+        <div
+          v-for="(recipient, index) in cashflowsNoticeRecipientStatus"
+          :key="index"
+          class="flex items-center justify-between p-4 bg-dark-900/50 border border-primary-800/30 rounded-lg"
+        >
+          <div class="flex items-center gap-3">
+            <svg
+              v-if="['completed', 'signed'].includes(recipient.status)"
+              class="w-6 h-6 text-green-400"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <svg
+              v-else-if="recipient.status === 'delivered'"
+              class="w-6 h-6 text-blue-400"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+            </svg>
+            <svg
+              v-else
+              class="w-6 h-6 text-yellow-400"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+            </svg>
+
+            <div>
+              <div class="text-white font-medium">{{ recipient.name }}</div>
+              <div class="text-sm text-gray-400">{{ recipient.email }}</div>
+              <div v-if="recipient.signed_at" class="text-xs text-green-400 mt-1">
+                Signed: {{ recipient.signed_at }}
+              </div>
+              <div v-else-if="recipient.delivered_at" class="text-xs text-blue-400 mt-1">
+                Viewed: {{ recipient.delivered_at }}
+              </div>
+            </div>
+          </div>
+
           <span
             class="px-3 py-1 rounded-full text-sm font-semibold"
             :class="{
@@ -1240,7 +1328,7 @@
       :show="showCashflowsSwitchNoticeModal"
       :application-id="application.id"
       :account-name="accountName"
-      :account-photo-url="accountPhotoUrl"
+      :account-recipient-name="application.account_recipient_name"
       @close="showCashflowsSwitchNoticeModal = false"
     />
 
@@ -1403,6 +1491,16 @@ export default {
       // the real server state and the button's v-if removes it for good.
       justSignedContract: typeof window !== 'undefined' && typeof this.application !== 'undefined'
         && sessionStorage.getItem(`docusignJustSigned_${this.application.id}`) === 'true',
+      // Parallel state for the Cashflows switch notice's own signing popup - a separate
+      // envelope from the main contract, so it needs its own lock rather than sharing
+      // isSigningInProgress/justSignedContract above.
+      isLoadingCashflowsNotice: false,
+      isSigningCashflowsNoticeInProgress: false,
+      justSignedCashflowsNotice: typeof window !== 'undefined' && typeof this.application !== 'undefined'
+        && sessionStorage.getItem(`cashflowsNoticeJustSigned_${this.application.id}`) === 'true',
+      // Which popup is currently open, so the shared postMessage handler below knows
+      // which of the two state pairs above to update when DocuSign calls back.
+      activeSigningFlow: null,
       showAdditionalInfoModal: false,
       showContractReminderModal: false,
       showSubmitCardStreamModal: false,
@@ -1575,6 +1673,20 @@ export default {
 
     hasDocuSignRecipientStatus() {
       return this.docusignRecipientStatus && this.docusignRecipientStatus.length > 0
+    },
+
+    canAccountSignCashflowsNotice() {
+      if (!this.is_account) return false;
+
+      return this.application.can_merchant_sign_cashflows_notice === true
+    },
+
+    cashflowsNoticeRecipientStatus() {
+      return this.application.cashflows_docusign_recipient_status || []
+    },
+
+    hasCashflowsNoticeRecipientStatus() {
+      return !this.is_account && this.cashflowsNoticeRecipientStatus.length > 0
     },
 
     allAdditionalInfoRequests() {
@@ -1816,7 +1928,7 @@ export default {
         const data = await response.json();
 
         if (data.success && data.signing_url) {
-          this.trackSigningPopup(window.open(data.signing_url, '_blank', 'width=800,height=600'));
+          this.trackSigningPopup(window.open(data.signing_url, '_blank', 'width=800,height=600'), 'contract');
         } else {
           alert(data.message || 'Failed to open contract, please refresh and try again.');
         }
@@ -1828,34 +1940,88 @@ export default {
       }
     },
 
+    async openCashflowsNoticeForAccount() {
+      this.isLoadingCashflowsNotice = true;
+      try {
+        const response = await fetch(`/applications/${this.application.id}/cashflows-switch-notice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          },
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.signing_url) {
+          this.trackSigningPopup(window.open(data.signing_url, '_blank', 'width=800,height=600'), 'cashflows_notice');
+        } else {
+          alert(data.message || 'Failed to open the Cashflows switch notice, please refresh and try again.');
+        }
+      } catch (error) {
+        console.error('Error opening Cashflows switch notice:', error);
+        alert('Failed to open the Cashflows switch notice, please refresh and try again.');
+      } finally {
+        this.isLoadingCashflowsNotice = false;
+      }
+    },
+
     /**
-     * Keeps the Sign Contract / Open Contract Link button disabled for as long as the
-     * DocuSign popup is open. DocuSign's callback page posts a message when it finishes,
-     * but a user closing the popup without finishing is silent, so this poll is the only
-     * way to notice that case and re-enable the button.
+     * Keeps the relevant Sign/Open button disabled for as long as its DocuSign popup is
+     * open. DocuSign's callback page posts a message when it finishes, but a user closing
+     * the popup without finishing is silent, so this poll is the only way to notice that
+     * case and re-enable the button. flow marks which of the two signing flows this popup
+     * belongs to, so handleDocuSignMessage() below knows which state to update.
      */
-    trackSigningPopup(popupWindow) {
+    trackSigningPopup(popupWindow, flow = 'contract') {
       if (!popupWindow) return;
 
-      this.isSigningInProgress = true;
+      this.activeSigningFlow = flow;
+
+      if (flow === 'cashflows_notice') {
+        this.isSigningCashflowsNoticeInProgress = true;
+      } else {
+        this.isSigningInProgress = true;
+      }
 
       const pollClosed = setInterval(() => {
         if (popupWindow.closed) {
           clearInterval(pollClosed);
-          this.isSigningInProgress = false;
+          if (flow === 'cashflows_notice') {
+            this.isSigningCashflowsNoticeInProgress = false;
+          } else {
+            this.isSigningInProgress = false;
+          }
         }
       }, 500);
     },
 
     /**
      * Fired by resources/js/Pages/DocuSign/Callback.vue via window.opener.postMessage
-     * once the popup finishes. contract_signed_at is set by DocuSign's async webhook,
-     * which can land after this message, so the button is locked immediately and the
-     * lock survives a refresh (sessionStorage) until the server confirms it's really done.
+     * once a popup finishes. The relevant *_signed_at column is set by DocuSign's async
+     * webhook, which can land after this message, so the button is locked immediately and
+     * the lock survives a refresh (sessionStorage) until the server confirms it's really
+     * done. activeSigningFlow (set when the popup was opened) says which of the two
+     * signing flows this completion belongs to.
      */
     handleDocuSignMessage(event) {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type !== 'docusign_complete') return;
+
+      if (this.activeSigningFlow === 'cashflows_notice') {
+        this.isSigningCashflowsNoticeInProgress = false;
+
+        if (event.data.success) {
+          this.justSignedCashflowsNotice = true;
+          sessionStorage.setItem(`cashflowsNoticeJustSigned_${this.application.id}`, 'true');
+
+          setTimeout(() => {
+            this.$inertia.reload({ only: ['application'] });
+          }, 1500);
+        }
+
+        return;
+      }
 
       this.isSigningInProgress = false;
 
@@ -2305,6 +2471,10 @@ export default {
     // there's nothing left for it to guard against.
     if (this.justSignedContract && this.application.can_merchant_sign !== true) {
       sessionStorage.removeItem(`docusignJustSigned_${this.application.id}`)
+    }
+
+    if (this.justSignedCashflowsNotice && this.application.can_merchant_sign_cashflows_notice !== true) {
+      sessionStorage.removeItem(`cashflowsNoticeJustSigned_${this.application.id}`)
     }
 
     // Clear refresh flag on fresh login

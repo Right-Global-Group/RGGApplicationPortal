@@ -136,9 +136,11 @@ Route::middleware(['auth:web,account'])->group(function () {
         Route::post('/{application}/submit-to-cardstream', [ApplicationStatusController::class, 'submitToCardStream'])
             ->name('applications.submit-to-cardstream');
 
-        // Cashflows -> Cardstream switch notice (plain PDF, no DocuSign envelope)
+        // Cashflows -> Cardstream switch notice (own DocuSign envelope)
         Route::post('/{application}/cashflows-switch-notice', [ApplicationStatusController::class, 'generateCashflowsSwitchNotice'])
             ->name('applications.cashflows-switch-notice');
+        Route::get('/{application}/cashflows-docusign-callback', [ApplicationStatusController::class, 'cashflowsDocusignCallback'])
+            ->name('applications.cashflows-docusign-callback');
 
         // Gateway Partner Contract (DocuSign)
         Route::post('/{application}/send-gateway-contract', [ApplicationStatusController::class, 'sendGatewayContract'])->name('applications.send-gateway-contract');

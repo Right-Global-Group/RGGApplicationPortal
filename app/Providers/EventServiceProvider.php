@@ -12,6 +12,7 @@ use App\Events\ApplicationMessagePosted;
 use App\Events\CardStreamCredentialsEvent;
 use App\Events\CardStreamCredentialsReminderEvent;
 use App\Events\CardStreamSubmissionEvent;
+use App\Events\CashflowsNoticeReadyForAccountEvent;
 use App\Events\DirectorSignedContractEvent;
 use App\Events\DocumentsDumpedEvent;
 use App\Events\DocumentUploadReadyEvent;
@@ -33,6 +34,7 @@ use App\Listeners\SendApplicationMessagePostedEmail;
 use App\Listeners\SendCardStreamCredentialsEmail;
 use App\Listeners\SendCardStreamCredentialsReminderEmail;
 use App\Listeners\SendCardStreamSubmissionEmail;
+use App\Listeners\SendCashflowsNoticeReadyEmail;
 use App\Listeners\SendDirectorSignedEmail;
 use App\Listeners\SendDocumentsDumpedEmail;
 use App\Listeners\SendDocumentUploadReadyEmail;
@@ -78,6 +80,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         MerchantContractReadyEvent::class => [
             SendMerchantContractReadyEmail::class,
+        ],
+        CashflowsNoticeReadyForAccountEvent::class => [
+            SendCashflowsNoticeReadyEmail::class,
         ],
         DirectorSignedContractEvent::class => [
             SendDirectorSignedEmail::class,

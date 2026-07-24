@@ -185,6 +185,9 @@ class AccountsController extends Controller
                 'can_merchant_sign' => auth()->guard('account')->check()
                 ? $this->docuSignService->canMerchantSignContract($app)
                 : false,  // Don't check if not authenticated
+                'can_merchant_sign_cashflows_notice' => auth()->guard('account')->check()
+                ? $this->docuSignService->canMerchantSignCashflowsNotice($app)
+                : false,
                 'status' => $app->status ? [
                     'current_step' => $app->status->current_step,
                     'timestamps' => [

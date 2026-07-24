@@ -37,6 +37,15 @@
               Sign Contract
             </Link>
 
+            <!-- Sign Cashflows Notice (shows when it's the account's turn) -->
+            <Link
+              v-if="canSignCashflowsNotice"
+              :href="`/applications/${application.id}/status#section-actions`"
+              class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg"
+            >
+              Sign Cashflows Notice
+            </Link>
+
             <!-- Generate Cashflows Switch Notice (admin only, optional) -->
             <button
               v-if="canGenerateCashflowsSwitchNotice"
@@ -53,7 +62,7 @@
           :show="showCashflowsSwitchNoticeModal"
           :application-id="application.id"
           :account-name="application.account_name"
-          :account-photo-url="application.account_photo_url"
+          :account-recipient-name="application.account_recipient_name"
           @close="showCashflowsSwitchNoticeModal = false"
         />
 
@@ -937,12 +946,16 @@
       },
       
       showAccountActions() {
-        return this.canUploadDocs || this.canSignContract || this.canGenerateCashflowsSwitchNotice
+        return this.canUploadDocs || this.canSignContract || this.canSignCashflowsNotice || this.canGenerateCashflowsSwitchNotice
       },
 
       canSignContract() {
         // Use the backend-provided flag (already checks routing order AND contract_signed)
         return this.application.can_merchant_sign === true
+      },
+
+      canSignCashflowsNotice() {
+        return this.application.can_merchant_sign_cashflows_notice === true
       },
 
       // Staff-only: this page is also reachable by a merchant viewing their own

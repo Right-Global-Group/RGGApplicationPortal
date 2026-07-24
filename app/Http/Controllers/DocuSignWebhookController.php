@@ -44,13 +44,13 @@ class DocuSignWebhookController extends Controller
     
             $document = ApplicationDocument::where('external_id', $envelopeId)
                 ->where('external_system', 'docusign')
-                ->where('document_type', 'contract')
+                ->whereIn('document_type', ['contract', 'cashflows_notice_contract'])
                 ->first();
-        
+
             // For imported applications, there might not be a document record yet
             // So we need to find the application by envelope ID in the status table
             $application = null;
-            
+
             if ($document) {
                 $application = $document->application;
             } else {
@@ -58,20 +58,29 @@ class DocuSignWebhookController extends Controller
                 $application = Application::whereHas('status', function($query) use ($envelopeId) {
                     $query->where('docusign_envelope_id', $envelopeId);
                 })->first();
-                
+
                 if (!$application) {
                     Log::warning('DocuSign webhook: application not found for envelope', [
                         'envelope_id' => $envelopeId
                     ]);
                     return response()->noContent();
                 }
-                
+
                 Log::info('Found imported application without document record', [
                     'application_id' => $application->id,
                     'envelope_id' => $envelopeId,
                 ]);
             }
-    
+
+            // Cashflows switch notice is a completely separate envelope/flow from the
+            // main contract below - handle it entirely on its own and return, so nothing
+            // past this point (which is main-contract-specific) is touched by it.
+            if ($document && $document->document_type === 'cashflows_notice_contract') {
+                $this->handleCashflowsNoticeWebhookEvent($application, $document, $envelopeId, $event);
+
+                return response()->noContent();
+            }
+
             // Handle different event types
             switch ($event) {
                 case 'envelope-sent':
@@ -374,6 +383,112 @@ class DocuSignWebhookController extends Controller
             ]);
             
             return response()->json(['error' => 'Webhook processing failed'], 500);
+        }
+    }
+
+    /**
+     * Cashflows switch notice webhook handling - a simplified version of the
+     * recipient-completed/envelope-completed logic above: only 2 fixed recipients (no
+     * director, no imported-envelope complexity), a single document (not the
+     * application_form+contract pair), and its own recipient-status/timestamp columns so
+     * nothing here touches the main contract's tracking on the same application.
+     */
+    private function handleCashflowsNoticeWebhookEvent(Application $application, ApplicationDocument $document, string $envelopeId, ?string $event): void
+    {
+        if (!in_array($event, ['recipient-completed', 'envelope-completed'])) {
+            Log::info('Unhandled Cashflows notice webhook event', ['event' => $event]);
+
+            return;
+        }
+
+        try {
+            $recipients = $this->docuSignService->getEnvelopeRecipients($envelopeId);
+            $currentRecipients = $application->status->cashflows_docusign_recipient_status ?? [];
+
+            // Same status-hierarchy merge as the main contract's recipient-completed
+            // handler, so a webhook received out of order can't downgrade a recipient.
+            $statusHierarchy = ['sent' => 1, 'delivered' => 2, 'signed' => 3, 'completed' => 4];
+
+            foreach ($recipients as $newRecipient) {
+                $found = false;
+
+                foreach ($currentRecipients as $index => $existingRecipient) {
+                    if ($existingRecipient['email'] === $newRecipient['email']) {
+                        $existingLevel = $statusHierarchy[$existingRecipient['status'] ?? 'sent'] ?? 0;
+                        $newLevel = $statusHierarchy[$newRecipient['status']] ?? 0;
+
+                        if ($newLevel > $existingLevel ||
+                            ($newLevel === $existingLevel && !empty($newRecipient['signed_at']) && empty($existingRecipient['signed_at']))) {
+                            $currentRecipients[$index] = $newRecipient;
+                        }
+
+                        $found = true;
+                        break;
+                    }
+                }
+
+                if (!$found) {
+                    $currentRecipients[] = $newRecipient;
+                }
+            }
+
+            $application->status->update(['cashflows_docusign_recipient_status' => $currentRecipients]);
+
+            $allSigned = collect($currentRecipients)->every(fn($r) => in_array($r['status'], ['completed', 'signed']));
+
+            // Only 2 recipients ever exist on this envelope - whichever one isn't the
+            // account must be the reviewer, no role-name matching needed.
+            $accountEmail = strtolower($application->account->email);
+            $reviewerSigned = false;
+            $accountHasSigned = false;
+
+            foreach ($currentRecipients as $recipient) {
+                $isAccount = strtolower($recipient['email'] ?? '') === $accountEmail;
+                $hasSigned = in_array($recipient['status'], ['completed', 'signed']);
+
+                if ($isAccount) {
+                    $accountHasSigned = $hasSigned;
+                } elseif ($hasSigned) {
+                    $reviewerSigned = true;
+                }
+            }
+
+            if ($reviewerSigned && !$accountHasSigned) {
+                event(new \App\Events\CashflowsNoticeReadyForAccountEvent($application));
+
+                Log::info('Cashflows notice reviewer signed - account email sent', [
+                    'application_id' => $application->id,
+                ]);
+            }
+
+            if ($allSigned && count($currentRecipients) > 0) {
+                $this->downloadAndStoreSingleDocument(
+                    $application,
+                    $envelopeId,
+                    '1',
+                    ApplicationDocument::CATEGORY_CASHFLOWS_SWITCH_NOTICE,
+                    "Cashflows_Switch_Notice_{$application->name}.pdf"
+                );
+
+                $document->update(['status' => 'completed', 'completed_at' => now()]);
+                $application->status->update(['cashflows_docusign_status' => 'completed']);
+
+                if (! $application->status->cashflows_switch_notice_sent_at) {
+                    $application->status->transitionTo(
+                        'cashflows_switch_notice_sent',
+                        'Cashflows switch notice fully executed via DocuSign'
+                    );
+                }
+
+                Log::info('Cashflows notice fully executed', ['application_id' => $application->id]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in Cashflows notice webhook handler', [
+                'application_id' => $application->id,
+                'envelope_id' => $envelopeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
