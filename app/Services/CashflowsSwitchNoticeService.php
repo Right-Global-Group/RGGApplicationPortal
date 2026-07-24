@@ -101,6 +101,22 @@ class CashflowsSwitchNoticeService
                         'recipientId' => '1',
                         'routingOrder' => '1',
                         'clientUserId' => 'cashflows-user-' . $application->id,
+                        // A recipient with zero tabs makes DocuSign assume they need to
+                        // place fields themselves ("Select document to add a field"),
+                        // rather than just reviewing and finishing. An approve tab gives
+                        // them exactly one action - a plain Approve button, no data entry
+                        // - and nothing else to do.
+                        'tabs' => [
+                            'approveTabs' => [
+                                [
+                                    'documentId' => '1',
+                                    'pageNumber' => '1',
+                                    'xPosition' => '450',
+                                    'yPosition' => '30',
+                                    'tabLabel' => 'cashflows_reviewer_approve',
+                                ],
+                            ],
+                        ],
                     ],
                     [
                         'email' => $account->email,
