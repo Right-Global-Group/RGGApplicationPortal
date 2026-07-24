@@ -5,30 +5,34 @@ namespace App\Services;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class CashflowsSwitchNoticeService
 {
     /**
-     * DocuSign template for the Cashflows -> Cardstream switch notice. Blank source PDF,
-     * no template-defined recipients - both roles below are supplied entirely via the
-     * API, same as this app already does for the main contract's Product Manager /
-     * Account Merchant roles.
+     * Document-based envelope, not template-based: DocuSign's tabs can populate text
+     * dynamically but have no equivalent for images, so a per-account logo can only get
+     * into the signed document by being drawn into the PDF before DocuSign ever sees it.
+     * Same pattern DocuSignService::sendGatewayPartnerContract() already uses - a locally
+     * rendered PDF handed over as documentBase64, with a plain recipients.signers array
+     * instead of templateId + templateRoles. No template ID needed for this flow at all.
      */
-    private const TEMPLATE_ID = 'd216bcec-fd9e-4ec9-a24e-94763b525acc';
-
     public function __construct(
         private DocuSignService $docuSignService
     ) {}
 
     /**
-     * Create the envelope and return an embedded-signing URL for the admin who just
+     * Render the notice (with the account's name and logo baked directly into the page),
+     * create the envelope, and return an embedded-signing URL for the admin who just
      * submitted the modal (routing order 1, review-only, no tabs). The account (routing
      * order 2) gets their own signing URL later via getSigningUrlForExistingEnvelope(),
      * once the webhook confirms the admin's step is done.
      */
-    public function createEnvelope(Application $application, string $accountName, string $recipientName, User $initiatedBy): array
+    public function createEnvelope(Application $application, string $accountName, string $recipientName, ?UploadedFile $logo, User $initiatedBy): array
     {
         $account = $application->account;
 
@@ -41,57 +45,28 @@ class CashflowsSwitchNoticeService
         }
 
         $accessToken = $this->docuSignService->getAccessToken();
+        $logoDataUri = $this->resolveLogoDataUri($application, $logo);
 
-        // Locked, pre-filled text - identical for both roles, same pattern the main
-        // contract uses for its fee fields (locked tabs need to be duplicated onto every
-        // recipient's tabs array, not just one).
-        $sharedTextTabs = [
-            [
-                'documentId' => '1',
-                'anchorString' => 'Please accept this as formal notice that we',
-                'anchorXOffset' => '10',
-                'anchorYOffset' => '-5',
-                'anchorUnits' => 'pixels',
-                'anchorIgnoreIfNotPresent' => 'false',
-                'anchorMatchWholeWord' => 'true',
-                'width' => '250',
-                'height' => '15',
-                'value' => $accountName,
-                'locked' => true,
-                'font' => 'Arial',
-                'fontSize' => 'Size9',
-                'tabLabel' => 'cashflows_account_name',
-            ],
-            [
-                'documentId' => '1',
-                'anchorString' => 'Kind regards,',
-                'anchorXOffset' => '0',
-                'anchorYOffset' => '20',
-                'anchorUnits' => 'pixels',
-                'anchorIgnoreIfNotPresent' => 'false',
-                'anchorMatchWholeWord' => 'true',
-                'width' => '250',
-                'height' => '15',
-                'value' => $recipientName,
-                'locked' => true,
-                'font' => 'Arial',
-                'fontSize' => 'Size9',
-                'tabLabel' => 'cashflows_recipient_name',
-            ],
-        ];
+        $html = view('pdfs.cashflows-switch-notice', [
+            'account_name' => $accountName,
+            'recipient_name' => $recipientName,
+            'logo_data_uri' => $logoDataUri,
+        ])->render();
 
-        // Sign/date position measured directly off the calibrated 595x842px render of
-        // the uploaded template PDF (top-left origin, matching this app's existing
-        // DocuSign xPosition/yPosition convention) - not an anchor, since there's no
-        // reliable surrounding text to anchor a signature block to.
+        $pdfBase64 = base64_encode(DomPdf::loadHTML($html)->output());
+
+        // Position measured directly off the calibrated 595x842px render of this exact
+        // template with a logo present (top-left origin, matching this app's existing
+        // DocuSign xPosition/yPosition convention). The logo pushes the "Kind regards,"
+        // line down significantly compared to a logo-less layout, so this sits well below
+        // both it and the sign-off name rather than overlapping them.
         $merchantTabs = [
-            'textTabs' => $sharedTextTabs,
             'signHereTabs' => [
                 [
                     'documentId' => '1',
                     'pageNumber' => '1',
                     'xPosition' => '90',
-                    'yPosition' => '235',
+                    'yPosition' => '350',
                     'required' => true,
                     'tabLabel' => 'cashflows_notice_signature',
                 ],
@@ -101,7 +76,7 @@ class CashflowsSwitchNoticeService
                     'documentId' => '1',
                     'pageNumber' => '1',
                     'xPosition' => '360',
-                    'yPosition' => '235',
+                    'yPosition' => '350',
                     'required' => true,
                     'tabLabel' => 'cashflows_notice_signature_date',
                 ],
@@ -110,23 +85,31 @@ class CashflowsSwitchNoticeService
 
         $envelopeDefinition = [
             'emailSubject' => "Cashflows Switch Notice - {$application->name}",
-            'templateId' => self::TEMPLATE_ID,
-            'templateRoles' => [
+            'documents' => [
                 [
-                    'email' => $initiatedBy->email,
-                    'name' => $initiatedBy->name ?? $initiatedBy->email,
-                    'roleName' => 'Cashflows Reviewer',
-                    'routingOrder' => '1',
-                    'clientUserId' => 'cashflows-user-' . $application->id,
-                    'tabs' => ['textTabs' => $sharedTextTabs],
+                    'documentBase64' => $pdfBase64,
+                    'name' => 'Cashflows Switch Notice',
+                    'fileExtension' => 'pdf',
+                    'documentId' => '1',
                 ],
-                [
-                    'email' => $account->email,
-                    'name' => $account->name ?? $application->trading_name ?? $account->email,
-                    'roleName' => 'Account Merchant',
-                    'routingOrder' => '2',
-                    'clientUserId' => 'cashflows-merchant-' . $application->id,
-                    'tabs' => $merchantTabs,
+            ],
+            'recipients' => [
+                'signers' => [
+                    [
+                        'email' => $initiatedBy->email,
+                        'name' => $initiatedBy->name ?? $initiatedBy->email,
+                        'recipientId' => '1',
+                        'routingOrder' => '1',
+                        'clientUserId' => 'cashflows-user-' . $application->id,
+                    ],
+                    [
+                        'email' => $account->email,
+                        'name' => $account->name ?? $application->trading_name ?? $account->email,
+                        'recipientId' => '2',
+                        'routingOrder' => '2',
+                        'clientUserId' => 'cashflows-merchant-' . $application->id,
+                        'tabs' => $merchantTabs,
+                    ],
                 ],
             ],
             'status' => 'sent',
@@ -146,7 +129,6 @@ class CashflowsSwitchNoticeService
             Log::error('DocuSign Create Cashflows Notice Envelope Error', [
                 'status' => $response->status(),
                 'body' => $response->body(),
-                'request' => $envelopeDefinition,
                 'application_id' => $application->id,
             ]);
             throw new \Exception('Failed to create Cashflows switch notice envelope: '.$response->body());
@@ -228,5 +210,28 @@ class CashflowsSwitchNoticeService
             'envelope_id' => $envelopeId,
             'signing_url' => $viewUrl,
         ];
+    }
+
+    /**
+     * DomPDF needs the image inline (a data URI) rather than a URL it would have to fetch
+     * itself, so the account's own uploaded logo - or a one-off override from the modal -
+     * gets embedded directly rather than linked.
+     */
+    private function resolveLogoDataUri(Application $application, ?UploadedFile $logo): ?string
+    {
+        if ($logo) {
+            return 'data:'.$logo->getMimeType().';base64,'.base64_encode($logo->get());
+        }
+
+        $photoPath = $application->account->photo_path ?? null;
+
+        if ($photoPath && Storage::disk('public')->exists($photoPath)) {
+            $mimeType = Storage::disk('public')->mimeType($photoPath);
+            $contents = Storage::disk('public')->get($photoPath);
+
+            return "data:{$mimeType};base64,".base64_encode($contents);
+        }
+
+        return null;
     }
 }

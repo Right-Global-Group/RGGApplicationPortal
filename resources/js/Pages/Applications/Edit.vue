@@ -63,6 +63,7 @@
           :application-id="application.id"
           :account-name="application.account_name"
           :account-recipient-name="application.account_recipient_name"
+          :account-photo-url="application.account_photo_url"
           @close="showCashflowsSwitchNoticeModal = false"
         />
 

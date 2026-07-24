@@ -1070,12 +1070,21 @@ class ApplicationStatusController extends Controller
                 $validated = Request::validate([
                     'account_name' => ['required', 'string', 'max:100'],
                     'recipient_name' => ['required', 'string', 'max:100'],
+                    'logo' => ['nullable', 'image', 'max:5120'],
                 ]);
+
+                if (! Request::file('logo') && empty($application->account->photo_path)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This account has no logo on file - upload one to generate the notice.',
+                    ], 422);
+                }
 
                 $result = $this->cashflowsSwitchNoticeService->createEnvelope(
                     $application,
                     $validated['account_name'],
                     $validated['recipient_name'],
+                    Request::file('logo'),
                     auth()->guard('web')->user()
                 );
             } else {

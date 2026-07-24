@@ -64,6 +64,35 @@
                   <p v-if="errors.recipient_name" class="text-xs text-red-400 mt-1">{{ errors.recipient_name }}</p>
                 </div>
 
+                <!-- Logo -->
+                <div class="bg-dark-900/50 border border-primary-800/30 rounded-lg p-4">
+                  <label class="block text-sm text-gray-400 mb-2">Logo</label>
+                  <div class="flex items-center gap-4">
+                    <img
+                      v-if="logoPreviewUrl"
+                      :src="logoPreviewUrl"
+                      alt="Logo preview"
+                      class="w-16 h-16 rounded-lg object-cover border border-primary-800/30 bg-dark-700"
+                    />
+                    <div v-else class="w-16 h-16 rounded-lg border border-dashed border-primary-800/30 flex items-center justify-center text-xs text-gray-500">
+                      No logo
+                    </div>
+                    <div class="flex-1">
+                      <input
+                        ref="logoInput"
+                        type="file"
+                        accept="image/*"
+                        @change="onLogoChange"
+                        class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary-700 file:text-white hover:file:bg-primary-600"
+                      />
+                      <p class="text-xs text-gray-500 mt-2">
+                        {{ accountPhotoUrl ? 'Defaults to the account\'s logo on file - upload a file to override it for this letter.' : 'This account has no logo on file - upload one to use here.' }}
+                      </p>
+                    </div>
+                  </div>
+                  <p v-if="errors.logo" class="text-xs text-red-400 mt-1">{{ errors.logo }}</p>
+                </div>
+
                 <p v-if="submitError" class="text-sm text-red-400">{{ submitError }}</p>
               </div>
 
@@ -81,7 +110,7 @@
                   class="btn-primary"
                   type="submit"
                 >
-                  Generate & Sign
+                  Generate
                 </loading-button>
               </div>
             </form>
@@ -116,6 +145,10 @@ export default {
       type: String,
       default: '',
     },
+    accountPhotoUrl: {
+      type: String,
+      default: null,
+    },
   },
   emits: ['close'],
   data() {
@@ -123,7 +156,9 @@ export default {
       form: {
         account_name: this.accountName || '',
         recipient_name: this.accountRecipientName || '',
+        logo: null,
       },
+      logoPreviewUrl: this.accountPhotoUrl || null,
       errors: {},
       submitError: null,
       submitting: false,
@@ -134,8 +169,11 @@ export default {
       if (newVal) {
         this.form.account_name = this.accountName || ''
         this.form.recipient_name = this.accountRecipientName || ''
+        this.form.logo = null
+        this.logoPreviewUrl = this.accountPhotoUrl || null
         this.errors = {}
         this.submitError = null
+        if (this.$refs.logoInput) this.$refs.logoInput.value = ''
       }
     },
   },
@@ -143,19 +181,30 @@ export default {
     closeModal() {
       this.$emit('close')
     },
+    onLogoChange(event) {
+      const file = event.target.files?.[0] || null
+      this.form.logo = file
+      this.logoPreviewUrl = file ? URL.createObjectURL(file) : (this.accountPhotoUrl || null)
+    },
     async submit() {
       this.submitting = true
       this.errors = {}
       this.submitError = null
 
       try {
+        const formData = new FormData()
+        formData.append('account_name', this.form.account_name)
+        formData.append('recipient_name', this.form.recipient_name)
+        if (this.form.logo) {
+          formData.append('logo', this.form.logo)
+        }
+
         const response = await fetch(`/applications/${this.applicationId}/cashflows-switch-notice`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
           },
-          body: JSON.stringify(this.form),
+          body: formData,
         })
 
         const data = await response.json()
