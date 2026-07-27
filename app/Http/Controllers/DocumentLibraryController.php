@@ -300,7 +300,7 @@ class DocumentLibraryController extends Controller
     {
         // Check permissions
         $isAccount = auth()->guard('account')->check();
-        
+
         if ($isAccount) {
             if ($application->account_id !== auth()->guard('account')->id()) {
                 abort(403);
@@ -319,6 +319,16 @@ class DocumentLibraryController extends Controller
             abort(404);
         }
 
+        // A document row can exist before its file does - e.g. a DocuSign envelope that's
+        // been created but not yet fully executed by all recipients. Storage::get() with a
+        // null path throws a TypeError (not an \Exception), which the catch below never caught.
+        if (empty($document->file_path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This document is still awaiting completion and has no file yet.',
+            ], 409);
+        }
+
         try {
             $content = Storage::disk('public')->get($document->file_path);
             $base64 = base64_encode($content);
@@ -329,7 +339,7 @@ class DocumentLibraryController extends Controller
                 'mime_type' => $document->document_type,
                 'content' => $base64,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to load document for viewing', [
                 'document_id' => $document->id,
                 'error' => $e->getMessage(),

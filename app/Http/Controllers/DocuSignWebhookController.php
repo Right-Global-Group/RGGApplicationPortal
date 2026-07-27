@@ -454,11 +454,31 @@ class DocuSignWebhookController extends Controller
             }
 
             if ($reviewerSigned && !$accountHasSigned) {
-                event(new \App\Events\CashflowsNoticeReadyForAccountEvent($application));
+                try {
+                    $account = $application->account;
 
-                Log::info('Cashflows notice reviewer signed - account email sent', [
-                    'application_id' => $application->id,
-                ]);
+                    // Mirrors the main contract's director-signed branch: the email
+                    // links straight into the DocuSign signing session, not the portal.
+                    $accountSigningUrl = $this->docuSignService->getRecipientView(
+                        $this->docuSignService->getAccessToken(),
+                        $envelopeId,
+                        $account->email,
+                        $account->name ?? $application->trading_name ?? $account->email,
+                        'cashflows-merchant-' . $application->id,
+                        route('applications.cashflows-docusign-callback', ['application' => $application->id])
+                    );
+
+                    event(new \App\Events\CashflowsNoticeReadyForAccountEvent($application, $accountSigningUrl));
+
+                    Log::info('Cashflows notice reviewer signed - account email sent', [
+                        'application_id' => $application->id,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to get account signing URL for Cashflows notice', [
+                        'application_id' => $application->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             if ($allSigned && count($currentRecipients) > 0) {

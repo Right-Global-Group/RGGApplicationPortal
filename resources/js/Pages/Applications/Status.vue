@@ -602,14 +602,14 @@
       <h2 class="text-xl font-bold text-white mb-4">Your Actions</h2>
       
       <!-- Refresh Notice (Merchant Only) -->
-      <div v-if="canAccountSignContract && !hasRefreshed" class="mb-4">
+      <div v-if="(canAccountSignContract || canAccountSignCashflowsNotice) && !hasRefreshed" class="mb-4">
         <div class="inline-flex p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
           <div class="flex items-center gap-4">
             <p class="text-sm text-blue-300">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
-              Refresh the page to activate the Sign Contract button
+              Refresh the page to activate the sign button below
             </p>
             <button
               @click="refreshPage"
@@ -1331,6 +1331,7 @@
       :account-recipient-name="application.account_recipient_name"
       :account-photo-url="accountPhotoUrl"
       @close="showCashflowsSwitchNoticeModal = false"
+      @generated="onCashflowsNoticeGenerated"
     />
 
     <card-stream-credentials-modal
@@ -1572,10 +1573,14 @@ export default {
 
       const timestamps = this.application.status?.timestamps || {}
 
-      // Optional steps only earn a place in the timeline once they've actually happened -
-      // they're not part of every application's journey, so showing them as a pending
-      // placeholder ahead of time would be misleading.
-      const optionalSteps = ['cashflows_switch_notice_sent']
+      // Optional steps only earn a place in the timeline once they're actually relevant
+      // to this application - not part of every application's journey, so a pending
+      // placeholder before they've even been triggered would be misleading. Once
+      // triggered (envelope exists), it's included like any other pending step, so it
+      // shows as the next thing to do rather than staying invisible until fully done.
+      const optionalStepsNotYetTriggered = {
+        cashflows_switch_notice_sent: !this.application.cashflows_docusign_envelope_id,
+      }
 
       const completed = []
       const pending = []
@@ -1598,7 +1603,7 @@ export default {
             sortTime: new Date(timestamp).getTime(),
             defaultOrder: defaultOrder
           })
-        } else if (!optionalSteps.includes(step.id)) {
+        } else if (!optionalStepsNotYetTriggered[step.id]) {
           pending.push(step)
         }
       })
@@ -1665,10 +1670,14 @@ export default {
 
       const timestamps = this.application.status?.timestamps;
 
+      // Hides as soon as the admin's own part is done (envelope exists), same as
+      // every other "your step is done" button on this page - it doesn't wait for
+      // the account's side too.
       return (
         !!timestamps?.contract_signed &&
         !timestamps?.cashflows_switch_notice_sent &&
-        !timestamps?.contract_submitted
+        !timestamps?.contract_submitted &&
+        !this.application.cashflows_docusign_envelope_id
       );
     },
 
@@ -1939,6 +1948,14 @@ export default {
       } finally {
         this.isLoadingContract = false;
       }
+    },
+
+    onCashflowsNoticeGenerated(signingUrl) {
+      // The modal only creates the envelope and hands back a URL - opening and
+      // tracking the popup happens here so it's wired into the same
+      // trackSigningPopup()/handleDocuSignMessage() flow as every other signing
+      // button, and the admin's own button/timeline update live once they finish.
+      this.trackSigningPopup(window.open(signingUrl, '_blank', 'width=800,height=600'), 'cashflows_notice');
     },
 
     async openCashflowsNoticeForAccount() {

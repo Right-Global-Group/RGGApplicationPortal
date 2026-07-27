@@ -298,6 +298,7 @@ class ApplicationsController extends Controller
                 'can_merchant_sign_cashflows_notice' => auth()->guard('account')->check()
                     ? $this->docuSignService->canMerchantSignCashflowsNotice($application)
                     : false,
+                'cashflows_docusign_envelope_id' => $application->status->cashflows_docusign_envelope_id ?? null,
                 'status' => $application->status ? [
                     'current_step' => $application->status->current_step,
                     'progress_percentage' => $application->status->progress_percentage,

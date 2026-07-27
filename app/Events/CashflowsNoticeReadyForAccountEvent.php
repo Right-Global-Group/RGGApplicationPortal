@@ -11,6 +11,7 @@ class CashflowsNoticeReadyForAccountEvent
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        public Application $application
+        public Application $application,
+        public string $signingUrl
     ) {}
 }

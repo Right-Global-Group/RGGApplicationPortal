@@ -150,7 +150,7 @@ export default {
       default: null,
     },
   },
-  emits: ['close'],
+  emits: ['close', 'generated'],
   data() {
     return {
       form: {
@@ -210,7 +210,10 @@ export default {
         const data = await response.json()
 
         if (data.success && data.signing_url) {
-          window.open(data.signing_url, '_blank', 'width=800,height=600')
+          // Let the parent open + track the popup, so it's wired into the same
+          // postMessage/reload handling as every other signing flow on the page -
+          // otherwise nothing here would ever tell Status.vue this happened.
+          this.$emit('generated', data.signing_url)
           this.$emit('close')
         } else {
           this.submitError = data.message || 'Failed to generate the Cashflows switch notice.'

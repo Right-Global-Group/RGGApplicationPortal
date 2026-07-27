@@ -112,6 +112,7 @@
           :account-recipient-name="account.recipient_name"
           :account-photo-url="account.photo"
           @close="showCashflowsSwitchNoticeModal = false"
+          @generated="signingUrl => window.open(signingUrl, '_blank', 'width=800,height=600')"
         />
 
         <!-- Account Details Section -->
@@ -333,7 +334,8 @@
         return (
           !!timestamps?.contract_signed &&
           !timestamps?.cashflows_switch_notice_sent &&
-          !timestamps?.contract_submitted
+          !timestamps?.contract_submitted &&
+          !this.activeApplication.cashflows_docusign_envelope_id
         )
       },
 

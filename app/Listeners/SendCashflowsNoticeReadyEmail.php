@@ -5,7 +5,6 @@ namespace App\Listeners;
 use App\Events\CashflowsNoticeReadyForAccountEvent;
 use App\Mail\DynamicEmail;
 use App\Models\EmailLog;
-use App\Services\MagicLinkService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -24,14 +23,13 @@ class SendCashflowsNoticeReadyEmail
         }
 
         try {
-            $redirect = route('applications.status', $application, absolute: false).'#section-actions';
-            $signingUrl = MagicLinkService::for($account, $application, $redirect);
-
+            // Mirrors SendDirectorSignedEmail for the main contract: the button opens
+            // the DocuSign signing session directly, not a portal magic link.
             $emailData = [
                 'account_name' => $account->name,
                 'application_name' => $application->name,
-                'signing_url' => $signingUrl,
-                'application_url' => $signingUrl,
+                'signing_url' => $event->signingUrl,
+                'application_url' => route('applications.status', ['application' => $application->id]),
             ];
 
             Mail::to($account->email)->send(
