@@ -76,7 +76,8 @@
 
                 <div v-else class="relative bg-white rounded overflow-auto" style="max-height: 60vh;">
                   <embed
-                    :src="`data:${document.mime_type};base64,${document.content}`"
+                    v-if="pdfBlobUrl"
+                    :src="pdfBlobUrl"
                     type="application/pdf"
                     class="w-full"
                     style="min-height: 600px;"
@@ -200,6 +201,7 @@ export default {
       processing: false,
       editableFields: [],
       pdfDoc: null,
+      pdfBlobUrl: null,
     };
   },
   computed: {
@@ -232,6 +234,13 @@ export default {
         this.parseIfNeeded();
       } else if (!value) {
         this.reset();
+      }
+    },
+    document(newDoc) {
+      // Modal can be re-targeted at a different document while already open
+      // (View clicked again without closing) - show() won't re-fire then.
+      if (this.show && newDoc) {
+        this.parseIfNeeded();
       }
     },
   },
@@ -400,6 +409,31 @@ export default {
       if (this.isCSV && this.document?.content) {
         this.parseCSV(atob(this.document.content));
       }
+      if (this.isPDF && this.document?.content) {
+        this.buildPdfBlobUrl();
+      }
+    },
+
+    // Chrome's <embed>/<object> PDF viewer can silently render blank for a raw
+    // data: URI - a Blob object URL renders reliably regardless of file size.
+    buildPdfBlobUrl() {
+      this.revokePdfBlobUrl();
+
+      const binary = atob(this.document.content);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      const blob = new Blob([bytes], { type: this.document.mime_type || 'application/pdf' });
+      this.pdfBlobUrl = URL.createObjectURL(blob);
+    },
+
+    revokePdfBlobUrl() {
+      if (this.pdfBlobUrl) {
+        URL.revokeObjectURL(this.pdfBlobUrl);
+        this.pdfBlobUrl = null;
+      }
     },
 
     parseCSV(raw) {
@@ -415,6 +449,7 @@ export default {
       this.editMode = false;
       this.editableFields = [];
       this.pdfDoc = null;
+      this.revokePdfBlobUrl();
     },
 
     close() {

@@ -25,8 +25,8 @@ class SendCardStreamSubmissionEmail
             'payout_option' => $payoutOption,
         ]);
 
-        // CardStream email address
-        $cardstreamEmail = 'erin.seaman@cardstream.com';
+        // CardStream email address - set via CARDSTREAM_CONTACT_EMAIL in .env
+        $cardstreamEmail = config('services.cardstream.contact_email');
 
         // Get the submitting user's details
         $submittedBy = auth()->guard('web')->check() 

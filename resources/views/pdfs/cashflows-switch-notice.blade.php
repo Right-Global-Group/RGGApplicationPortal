@@ -8,8 +8,8 @@
             font-family: Arial, sans-serif;
             font-size: 13px;
             line-height: 1.7;
-            color: #f5f5f5;
-            background-color: #262626;
+            color: #000000;
+            background-color: #ffffff;
             margin: 30px;
         }
         .border-box {
