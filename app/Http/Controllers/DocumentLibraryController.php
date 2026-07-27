@@ -272,12 +272,12 @@ class DocumentLibraryController extends Controller
         try {
             $content = Storage::disk('public')->get($document->file_path);
             $mimeType = Storage::disk('public')->mimeType($document->file_path);
-            
+
             return response()->streamDownload(
                 function() use ($content) {
                     echo $content;
                 },
-                $document->original_filename,
+                $this->sanitizeDownloadFilename($document->original_filename),
                 [
                     'Content-Type' => $mimeType,
                 ]
@@ -288,9 +288,18 @@ class DocumentLibraryController extends Controller
                 'file_path' => $document->file_path,
                 'error' => $e->getMessage(),
             ]);
-            
+
             abort(500, 'Failed to download document');
         }
+    }
+
+    /**
+     * Content-Disposition filenames can't contain "/" or "\" - application/document
+     * names (e.g. "Test App 24/07") can, so strip them before use as a download name.
+     */
+    private function sanitizeDownloadFilename(string $filename): string
+    {
+        return str_replace(['/', '\\'], '-', $filename);
     }
 
     /**
@@ -381,12 +390,12 @@ class DocumentLibraryController extends Controller
 
         try {
             $pdfContent = $this->docuSignService->downloadEnvelopeDocument($envelopeId, '2');
-            
+
             return response()->streamDownload(
                 function() use ($pdfContent) {
                     echo base64_decode($pdfContent);
                 },
-                "Signed_Contract_{$application->name}.pdf",
+                $this->sanitizeDownloadFilename("Signed_Contract_{$application->name}.pdf"),
                 [
                     'Content-Type' => 'application/pdf',
                 ]
