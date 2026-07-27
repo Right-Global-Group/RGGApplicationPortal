@@ -54,6 +54,7 @@ return [
             'client_id' => env('MICROSOFT_GRAPH_CLIENT_ID'),
             'client_secret' => env('MICROSOFT_GRAPH_CLIENT_SECRET'),
             'tenant_id' => env('MICROSOFT_GRAPH_TENANT_ID'),
+            'save_to_sent_items' => env('MICROSOFT_GRAPH_SAVE_TO_SENT_ITEMS', true),
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS'),
                 'name' => env('MAIL_FROM_NAME'),
